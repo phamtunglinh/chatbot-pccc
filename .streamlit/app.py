@@ -8,116 +8,110 @@ from pypdf import PdfReader
 import io
 import json
 
-# --- CẤU HÌNH ---
-st.set_page_config(page_title="PCCC Tra cứu (Drive)", page_icon="🚒", layout="wide")
+# --- CẤU HÌNH GIAO DIỆN ---
+st.set_page_config(page_title="Hệ thống PCCC (Drive)", page_icon="🚒", layout="wide")
 
 # --- KẾT NỐI BẢO MẬT ---
 try:
-    # Lấy thông tin từ Secrets
+    # Lấy thông tin từ "Két sắt" Streamlit
     GEMINI_KEY = st.secrets["GEMINI_API_KEY"]
     DRIVE_FOLDER_ID = st.secrets["DRIVE_FOLDER_ID"]
-    # Chuyển chuỗi JSON thành Dictionary
     GCP_JSON = json.loads(st.secrets["GCP_JSON"])
-except:
-    st.error("⚠️ Chưa cấu hình Secrets (API Key, Drive ID, GCP JSON)!")
+except Exception as e:
+    st.error(f"⚠️ Lỗi cấu hình Secrets: {str(e)}")
     st.stop()
 
 genai.configure(api_key=GEMINI_KEY)
 
-# --- HÀM 1: KẾT NỐI DRIVE & TẢI FILE ---
-@st.cache_resource(ttl=3600) # Lưu bộ nhớ đệm 1 tiếng để đỡ tốn quota
-def load_data_from_drive():
+# --- HÀM ĐỌC GOOGLE DRIVE ---
+@st.cache_resource(ttl=3600) # Lưu bộ nhớ đệm 1 tiếng cho nhanh
+def load_drive_data():
     try:
-        # Xác thực với Google Drive
+        # Xác thực Robot
         creds = service_account.Credentials.from_service_account_info(GCP_JSON)
         service = build('drive', 'v3', credentials=creds)
         
-        # Lấy danh sách file trong thư mục
+        # Quét file trong thư mục
         results = service.files().list(
             q=f"'{DRIVE_FOLDER_ID}' in parents and trashed=false",
             fields="files(id, name, mimeType)").execute()
         files = results.get('files', [])
         
-        all_text = ""
-        file_names = []
+        full_text = ""
+        file_list = []
         
-        # Tải từng file về bộ nhớ (RAM)
+        # Tải từng file
         for file in files:
-            file_id = file['id']
-            file_name = file['name']
-            mime_type = file['mimeType']
+            fname = file['name']
+            fid = file['id']
+            # Chỉ đọc Word và PDF
+            if "google-apps" in file['mimeType']: continue 
             
-            # Chỉ xử lý file Docx và PDF
-            if 'google-apps' in mime_type: continue # Bỏ qua file Google Doc online
-            
-            request = service.files().get_media(fileId=file_id)
+            request = service.files().get_media(fileId=fid)
             fh = io.BytesIO()
             downloader = MediaIoBaseDownload(fh, request)
             done = False
-            while done is False:
-                status, done = downloader.next_chunk()
+            while done is False: status, done = downloader.next_chunk()
+            fh.seek(0)
             
-            fh.seek(0) # Đưa con trỏ về đầu file
-            
-            # Đọc nội dung
             content = ""
-            if file_name.endswith(".docx"):
+            if fname.endswith(".docx"):
                 doc = Document(fh)
-                for para in doc.paragraphs: content += para.text + "\n"
-            elif file_name.endswith(".pdf"):
+                for p in doc.paragraphs: content += p.text + "\n"
+            elif fname.endswith(".pdf"):
                 reader = PdfReader(fh)
                 for page in reader.pages: content += page.extract_text() + "\n"
             
             if content:
-                all_text += f"\n--- NGUỒN: {file_name} ---\n{content}\n"
-                file_names.append(file_name)
+                full_text += f"\n--- TÀI LIỆU: {fname} ---\n{content}\n"
+                file_list.append(fname)
                 
-        return all_text, file_names
+        return full_text, file_list
     except Exception as e:
         return None, str(e)
 
-# --- GIAO DIỆN ---
-st.markdown("<h1 style='text-align: center; color: #CE1126;'>🚒 TRA CỨU PCCC (DATA DRIVE)</h1>", unsafe_allow_html=True)
+# --- GIAO DIỆN CHÍNH ---
+st.markdown("<h1 style='text-align: center; color: #CE1126;'>🔥 TRỢ LÝ PCCC (DATA DRIVE)</h1>", unsafe_allow_html=True)
 
-# Load dữ liệu (Tự động chạy ngầm)
-with st.spinner('Đang đồng bộ dữ liệu từ Google Drive...'):
-    knowledge_base, file_list = load_data_from_drive()
+# Tải dữ liệu ngầm
+with st.spinner('Đang kết nối Google Drive để lấy luật...'):
+    knowledge, list_files = load_drive_data()
 
-if file_list is None:
-    st.error(f"Lỗi kết nối Drive: {knowledge_base}") # knowledge_base lúc này chứa thông báo lỗi
+if list_files is None:
+    st.error(f"Lỗi kết nối Drive: {knowledge}")
     st.stop()
 
-# Hiển thị trạng thái dữ liệu (Ẩn trong Expander cho gọn)
-with st.expander(f"📚 Dữ liệu đang online: {len(file_list)} văn bản"):
-    for f in file_list: st.write(f"- {f}")
+# Hiện trạng thái dữ liệu
+with st.expander(f"📚 Đã nạp thành công {len(list_files)} văn bản từ Drive"):
+    for f in list_files: st.write(f"📄 {f}")
 
 # Chatbot
 if "messages" not in st.session_state:
-    st.session_state.messages = [{"role": "assistant", "content": "Chào Đại úy! Tôi đã học xong các văn bản trên Drive. Xin mời hỏi."}]
+    st.session_state.messages = [{"role": "assistant", "content": "Chào Đại úy! Dữ liệu luật trên Drive đã sẵn sàng."}]
 
 for msg in st.session_state.messages:
     st.chat_message(msg["role"]).write(msg["content"])
 
-if prompt := st.chat_input("Nhập câu hỏi..."):
+if prompt := st.chat_input("Nhập câu hỏi tra cứu..."):
     st.session_state.messages.append({"role": "user", "content": prompt})
     st.chat_message("user").write(prompt)
 
-    # Prompt
+    # Prompt chuyên gia
     final_prompt = f"""
-    Bạn là Trợ lý PCCC.
-    DỮ LIỆU TỪ GOOGLE DRIVE CỦA ADMIN:
-    {knowledge_base}
+    Bạn là Chuyên gia PCCC.
+    DỮ LIỆU TỪ DRIVE:
+    {knowledge}
     
-    YÊU CẦU: Trả lời dựa trên dữ liệu trên. Trích dẫn nguồn file cụ thể.
+    YÊU CẦU: Trả lời câu hỏi dựa trên dữ liệu trên. Trích dẫn nguồn.
     CÂU HỎI: {prompt}
     """
     
     try:
         model = genai.GenerativeModel('gemini-1.5-flash')
         response = model.generate_content(final_prompt)
-        bot_reply = response.text
-  except Exception as e:
+        reply = response.text
+    except Exception as e: # <--- CHỖ NÀY ĐÃ ĐƯỢC CĂN CHỈNH THẲNG HÀNG
         reply = f"⚠️ LỖI CỤ THỂ LÀ: {str(e)}"
 
-    st.session_state.messages.append({"role": "assistant", "content": bot_reply})
-    st.chat_message("assistant").write(bot_reply)
+    st.session_state.messages.append({"role": "assistant", "content": reply})
+    st.chat_message("assistant").write(reply)
