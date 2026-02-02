@@ -9,8 +9,55 @@ import io
 import json
 import time
 
-# --- CẤU HÌNH ---
-st.set_page_config(page_title="Hệ thống PCCC & CNCH", page_icon="🚒", layout="wide")
+# --- CẤU HÌNH TRANG (Tab trình duyệt) ---
+st.set_page_config(
+    page_title="PCCC & CNCH Phú Thọ",
+    page_icon="🛡️",
+    layout="wide",
+    initial_sidebar_state="collapsed" # Ẩn thanh bên cho rộng
+)
+
+# --- CSS TÙY CHỈNH (LÀM ĐẸP GIAO DIỆN) ---
+st.markdown("""
+<style>
+    /* Ẩn menu mặc định của Streamlit cho giống App thật */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
+    
+    /* Tùy chỉnh thanh cuộn */
+    ::-webkit-scrollbar {width: 8px;}
+    ::-webkit-scrollbar-thumb {background: #ccc; border-radius: 4px;}
+    
+    /* Style cho khung chat */
+    .stChatInput {border-radius: 20px;}
+    
+    /* Header Banner chuyên nghiệp */
+    .header-banner {
+        background: linear-gradient(90deg, #B71C1C 0%, #D32F2F 100%);
+        padding: 1.5rem;
+        border-radius: 0 0 15px 15px;
+        color: white;
+        text-align: center;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        margin-top: -60px; /* Kéo lên che header cũ */
+        margin-bottom: 20px;
+    }
+    .header-title {
+        font-size: 24px;
+        font-weight: bold;
+        text-transform: uppercase;
+        margin: 0;
+        letter-spacing: 1px;
+    }
+    .header-subtitle {
+        font-size: 14px;
+        opacity: 0.9;
+        margin-top: 5px;
+        font-weight: 300;
+    }
+</style>
+""", unsafe_allow_html=True)
 
 # --- KẾT NỐI BẢO MẬT ---
 try:
@@ -18,7 +65,7 @@ try:
     DRIVE_FOLDER_ID = st.secrets["DRIVE_FOLDER_ID"]
     GCP_JSON = json.loads(st.secrets["GCP_JSON"])
 except Exception as e:
-    st.error(f"⚠️ Lỗi cấu hình: {str(e)}")
+    st.error(f"⚠️ Lỗi cấu hình hệ thống: {str(e)}")
     st.stop()
 
 genai.configure(api_key=GEMINI_KEY)
@@ -94,66 +141,73 @@ def ask_gemini(prompt):
     return None
 
 # --- GIAO DIỆN CHÍNH ---
-st.markdown("<h2 style='text-align: center; color: #CE1126;'>🔥 TRỢ LÝ AI PCCC & CNCH</h2>", unsafe_allow_html=True)
 
-# Load dữ liệu (Ẩn danh sách)
-with st.spinner('Đang kết nối cơ sở dữ liệu văn bản...'):
+# 1. HEADER BANNER (Phần đầu trang xịn xò)
+st.markdown("""
+<div class="header-banner">
+    <div style="font-size: 40px; margin-bottom: 10px;">🛡️</div>
+    <p class="header-title">HỆ THỐNG TRỢ LÝ ẢO PCCC & CNCH</p>
+    <p class="header-subtitle">PHÒNG CẢNH SÁT PCCC & CNCH - CÔNG AN TỈNH PHÚ THỌ</p>
+</div>
+""", unsafe_allow_html=True)
+
+# Load dữ liệu ngầm
+with st.spinner('Đang đồng bộ dữ liệu...'):
     knowledge, list_files = load_drive_data()
 
-if list_files is None:
-    st.error("⚠️ Lỗi kết nối dữ liệu. Vui lòng liên hệ Admin.")
-    st.stop()
+if list_files:
+    st.toast(f"Đã kết nối cơ sở dữ liệu ({len(list_files)} văn bản).", icon="✅")
 else:
-    st.toast(f"Hệ thống đã cập nhật {len(list_files)} văn bản luật.", icon="✅")
+    st.error("Không thể kết nối dữ liệu. Vui lòng kiểm tra lại.")
+    st.stop()
 
-# --- LỜI CHÀO NỔI BẬT (HTML) ---
-# Thiết kế khung chào đặc biệt với màu đỏ PCCC
-WELCOME_HTML = """
-<div style='background-color: #FFF0F0; padding: 15px; border-radius: 10px; border-left: 6px solid #CE1126; margin-bottom: 10px;'>
-    <h3 style='margin:0; color: #CE1126; font-size: 20px;'>XIN CHÀO! 👋</h3>
-    <p style='font-size: 16px; line-height: 1.5; color: #333;'>
-        Tôi là trợ lý AI về công tác PCCC và CNCH do <br>
-        <b style='color: #CE1126; font-size: 17px;'>Đại úy Phạm Tùng Linh - Phòng PC07 Công an tỉnh Phú Thọ</b> phát triển.
-    </p>
-    <hr style='border-top: 1px dashed #CE1126; opacity: 0.3;'>
-    <p style='margin-bottom: 0; font-style: italic;'>Bạn hãy đặt câu hỏi để tôi có thể giải đáp các thắc mắc nhé.</p>
-</div>
-"""
-
+# 2. KHUNG CHÀO MỪNG (Chỉ hiện khi chưa có tin nhắn nào)
 if "messages" not in st.session_state:
-    st.session_state.messages = [{
-        "role": "assistant", 
-        "content": WELCOME_HTML # Sử dụng nội dung HTML ở trên
-    }]
+    st.session_state.messages = []
+
+if len(st.session_state.messages) == 0:
+    st.markdown("""
+    <div style='background-color: #f8f9fa; padding: 20px; border-radius: 12px; border: 1px solid #e9ecef; text-align: center; margin-bottom: 30px;'>
+        <h3 style='color: #B71C1C; margin: 0 0 10px 0;'>XIN CHÀO!</h3>
+        <p style='font-size: 16px; color: #444; line-height: 1.6;'>
+            Tôi là Trợ lý AI được phát triển bởi <b>Đại úy Phạm Tùng Linh (Phòng PC07)</b>.<br>
+            Tôi sẵn sàng giải đáp mọi thắc mắc về quy chuẩn, tiêu chuẩn PCCC.
+        </p>
+        <p style='color: #666; font-style: italic; font-size: 14px;'>👇 Mời bạn đặt câu hỏi bên dưới 👇</p>
+    </div>
+    """, unsafe_allow_html=True)
 
 # Hiển thị lịch sử chat
 for msg in st.session_state.messages:
-    with st.chat_message(msg["role"]):
-        # Cho phép hiện HTML để cái khung chào nó đẹp
-        st.markdown(msg["content"], unsafe_allow_html=True)
+    # Tùy chỉnh icon: Người dùng là mặt cười, AI là xe cứu hỏa
+    avatar = "👤" if msg["role"] == "user" else "🚒"
+    with st.chat_message(msg["role"], avatar=avatar):
+        st.markdown(msg["content"])
 
 # Xử lý câu hỏi
-if prompt := st.chat_input("Nhập câu hỏi tại đây..."):
+if prompt := st.chat_input("Nhập nội dung cần tra cứu..."):
     st.session_state.messages.append({"role": "user", "content": prompt})
-    st.chat_message("user").write(prompt)
+    st.chat_message("user", avatar="👤").write(prompt)
 
+    # PROMPT ĐÃ CHỈNH SỬA (Cấm xưng danh lại)
     final_prompt = f"""
-    Bạn là Đại úy Phạm Tùng Linh, Trợ lý AI về PCCC & CNCH.
+    Bạn là Trợ lý AI PCCC chuyên nghiệp.
     
-    DỮ LIỆU LUẬT (TUYỆT ĐỐI TUÂN THỦ):
+    DỮ LIỆU LUẬT (CƠ SỞ TRẢ LỜI DUY NHẤT):
     {knowledge}
     
-    YÊU CẦU TRẢ LỜI: 
-    1. Trả lời chính xác, ngắn gọn dựa trên dữ liệu trên.
-    2. Trích dẫn điều luật/tên văn bản cụ thể.
-    3. Giọng văn trang trọng, lịch sự, đúng tác phong công an nhân dân.
+    NGUYÊN TẮC TRẢ LỜI: 
+    1. Trả lời TRỰC TIẾP vào câu hỏi. KHÔNG giới thiệu lại bản thân (Ví dụ: Đừng nói "Tôi là trợ lý...").
+    2. Ngắn gọn, súc tích, dễ hiểu.
+    3. BẮT BUỘC trích dẫn điều luật/tên văn bản làm căn cứ.
+    4. Giọng văn lịch sự, nghiêm túc.
     
     CÂU HỎI: {prompt}
     """
     
-    with st.chat_message("assistant"):
+    with st.chat_message("assistant", avatar="🚒"):
         message_placeholder = st.empty()
-        message_placeholder.markdown("⏳ *Đang tra cứu văn bản...*")
+        message_placeholder.markdown("⏳ *Đang tra cứu...*")
         
         reply = ask_gemini(final_prompt)
         
@@ -162,4 +216,4 @@ if prompt := st.chat_input("Nhập câu hỏi tại đây..."):
             message_placeholder.markdown(full_reply)
             st.session_state.messages.append({"role": "assistant", "content": full_reply})
         else:
-            message_placeholder.error("⚠️ Hệ thống đang bận. Vui lòng thử lại sau 30 giây.")
+            message_placeholder.error("⚠️ Hệ thống bận. Vui lòng thử lại.")
