@@ -116,8 +116,8 @@ if prompt := st.chat_input("Nhập câu hỏi..."):
         model = genai.GenerativeModel('gemini-1.5-flash')
         response = model.generate_content(final_prompt)
         bot_reply = response.text
-    except Exception as e:
-        bot_reply = "Lỗi kết nối AI."
+  except Exception as e:
+        reply = f"⚠️ LỖI CỤ THỂ LÀ: {str(e)}"
 
     st.session_state.messages.append({"role": "assistant", "content": bot_reply})
     st.chat_message("assistant").write(bot_reply)
