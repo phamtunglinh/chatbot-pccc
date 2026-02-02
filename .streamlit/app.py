@@ -13,7 +13,6 @@ st.set_page_config(page_title="Hệ thống PCCC (Drive)", page_icon="🚒", lay
 
 # --- KẾT NỐI BẢO MẬT ---
 try:
-    # Lấy thông tin từ "Két sắt" Streamlit
     GEMINI_KEY = st.secrets["GEMINI_API_KEY"]
     DRIVE_FOLDER_ID = st.secrets["DRIVE_FOLDER_ID"]
     GCP_JSON = json.loads(st.secrets["GCP_JSON"])
@@ -24,14 +23,12 @@ except Exception as e:
 genai.configure(api_key=GEMINI_KEY)
 
 # --- HÀM ĐỌC GOOGLE DRIVE ---
-@st.cache_resource(ttl=3600) # Lưu bộ nhớ đệm 1 tiếng cho nhanh
+@st.cache_resource(ttl=3600)
 def load_drive_data():
     try:
-        # Xác thực Robot
         creds = service_account.Credentials.from_service_account_info(GCP_JSON)
         service = build('drive', 'v3', credentials=creds)
         
-        # Quét file trong thư mục
         results = service.files().list(
             q=f"'{DRIVE_FOLDER_ID}' in parents and trashed=false",
             fields="files(id, name, mimeType)").execute()
@@ -40,11 +37,9 @@ def load_drive_data():
         full_text = ""
         file_list = []
         
-        # Tải từng file
         for file in files:
             fname = file['name']
             fid = file['id']
-            # Chỉ đọc Word và PDF
             if "google-apps" in file['mimeType']: continue 
             
             request = service.files().get_media(fileId=fid)
@@ -73,21 +68,18 @@ def load_drive_data():
 # --- GIAO DIỆN CHÍNH ---
 st.markdown("<h1 style='text-align: center; color: #CE1126;'>🔥 TRỢ LÝ PCCC (DATA DRIVE)</h1>", unsafe_allow_html=True)
 
-# Tải dữ liệu ngầm
-with st.spinner('Đang kết nối Google Drive để lấy luật...'):
+with st.spinner('Đang kết nối Google Drive...'):
     knowledge, list_files = load_drive_data()
 
 if list_files is None:
     st.error(f"Lỗi kết nối Drive: {knowledge}")
     st.stop()
 
-# Hiện trạng thái dữ liệu
 with st.expander(f"📚 Đã nạp thành công {len(list_files)} văn bản từ Drive"):
     for f in list_files: st.write(f"📄 {f}")
 
-# Chatbot
 if "messages" not in st.session_state:
-    st.session_state.messages = [{"role": "assistant", "content": "Chào Đại úy! Dữ liệu luật trên Drive đã sẵn sàng."}]
+    st.session_state.messages = [{"role": "assistant", "content": "Chào Đại úy! Hệ thống đã sẵn sàng."}]
 
 for msg in st.session_state.messages:
     st.chat_message(msg["role"]).write(msg["content"])
@@ -96,7 +88,6 @@ if prompt := st.chat_input("Nhập câu hỏi tra cứu..."):
     st.session_state.messages.append({"role": "user", "content": prompt})
     st.chat_message("user").write(prompt)
 
-    # Prompt chuyên gia
     final_prompt = f"""
     Bạn là Chuyên gia PCCC.
     DỮ LIỆU TỪ DRIVE:
@@ -107,11 +98,18 @@ if prompt := st.chat_input("Nhập câu hỏi tra cứu..."):
     """
     
     try:
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        # THAY ĐỔI QUAN TRỌNG: Dùng tên model mới nhất "gemini-1.5-flash-latest"
+        model = genai.GenerativeModel('gemini-1.5-flash-latest')
         response = model.generate_content(final_prompt)
         reply = response.text
-    except Exception as e: # <--- CHỖ NÀY ĐÃ ĐƯỢC CĂN CHỈNH THẲNG HÀNG
-        reply = f"⚠️ LỖI CỤ THỂ LÀ: {str(e)}"
+    except Exception as e:
+        # Nếu vẫn lỗi thì thử model cũ hơn "gemini-pro" cho chắc ăn
+        try:
+            model = genai.GenerativeModel('gemini-pro')
+            response = model.generate_content(final_prompt)
+            reply = response.text
+        except Exception as e2:
+             reply = f"⚠️ LỖI KẾT NỐI AI: {str(e)}"
 
     st.session_state.messages.append({"role": "assistant", "content": reply})
     st.chat_message("assistant").write(reply)
