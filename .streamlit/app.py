@@ -23,13 +23,13 @@ except Exception as e:
 
 genai.configure(api_key=GEMINI_KEY)
 
-# --- DANH SÁCH MODEL DỰ PHÒNG (QUAN TRỌNG) ---
-# Hệ thống sẽ thử lần lượt các model này
+# --- DANH SÁCH MODEL CHUẨN (CẬP NHẬT TỪ HÌNH ẢNH CỦA ANH) ---
+# Hệ thống sẽ thử lần lượt, cái nào được thì dùng
 MODEL_LIST = [
-    "gemini-2.0-flash-lite-preview-09-2025", # Ưu tiên 1: Bản Lite mới nhất (Thường free)
-    "gemini-2.0-flash-lite",                  # Ưu tiên 2: Bản Lite thường
-    "gemini-pro-latest",                      # Ưu tiên 3: Bản Pro ổn định
-    "gemini-2.0-flash-exp",                   # Ưu tiên 4: Bản thử nghiệm
+    "gemini-2.0-flash-lite",    # Ưu tiên 1: Bản Lite (Thường không bị khóa quota)
+    "gemini-flash-latest",      # Ưu tiên 2: Bản Flash ổn định (1.5)
+    "gemini-pro-latest",        # Ưu tiên 3: Bản Pro ổn định
+    "gemini-1.5-flash"          # Ưu tiên 4: Tên gốc
 ]
 
 # --- HÀM ĐỌC DRIVE ---
@@ -70,27 +70,31 @@ def load_drive_data():
                     full_text += f"\n--- TÀI LIỆU: {fname} ---\n{content}\n"
                     file_list.append(fname)
             except:
-                continue # Bỏ qua file lỗi
+                continue 
                 
         return full_text, file_list
     except Exception as e:
         return None, str(e)
 
-# --- HÀM GỌI AI THÔNG MINH (TỰ ĐỔI MODEL) ---
+# --- HÀM GỌI AI (TỰ NHẢY KÊNH KHI LỖI) ---
 def ask_gemini(prompt):
     last_error = ""
-    # Vòng lặp thử từng model trong danh sách
+    # Thử từng model trong danh sách
     for model_name in MODEL_LIST:
         try:
+            # Tạo model
             model = genai.GenerativeModel(model_name)
+            # Gửi câu hỏi
             response = model.generate_content(prompt)
-            return response.text, model_name # Trả về câu trả lời + tên model đã dùng
+            # Trả về kết quả
+            return response.text, model_name 
         except Exception as e:
+            # Nếu lỗi, lưu lại lỗi và thử cái tiếp theo
             last_error = str(e)
-            time.sleep(1) # Nghỉ 1 giây rồi thử cái tiếp theo
+            time.sleep(1) 
             continue
     
-    # Nếu thử hết mà vẫn lỗi
+    # Nếu thử hết sạch mà vẫn lỗi
     return None, last_error
 
 # --- GIAO DIỆN CHÍNH ---
@@ -135,11 +139,10 @@ if prompt := st.chat_input("Nhập câu hỏi..."):
         reply, used_model = ask_gemini(final_prompt)
         
         if reply:
-            # Thành công
             full_reply = reply + f"\n\n*(Trả lời bởi model: `{used_model}`)*"
             message_placeholder.markdown(full_reply)
             st.session_state.messages.append({"role": "assistant", "content": full_reply})
         else:
-            # Thất bại toàn tập
-            error_msg = f"⚠️ HỆ THỐNG QUÁ TẢI (Lỗi 429). Vui lòng đợi 1 phút rồi thử lại.\nChi tiết: {used_model}" # used_model lúc này chứa lỗi
+            # In ra lỗi chi tiết để bắt bệnh nếu vẫn toang
+            error_msg = f"⚠️ HỆ THỐNG BẬN. Tất cả các kênh đều quá tải.\nLỗi cuối cùng: {used_model}" 
             message_placeholder.error(error_msg)
