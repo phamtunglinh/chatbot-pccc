@@ -10,7 +10,7 @@ import json
 import time
 
 # --- CẤU HÌNH ---
-st.set_page_config(page_title="Hệ thống PCCC (Drive)", page_icon="🚒", layout="wide")
+st.set_page_config(page_title="Hệ thống PCCC & CNCH", page_icon="🚒", layout="wide")
 
 # --- KẾT NỐI BẢO MẬT ---
 try:
@@ -18,19 +18,19 @@ try:
     DRIVE_FOLDER_ID = st.secrets["DRIVE_FOLDER_ID"]
     GCP_JSON = json.loads(st.secrets["GCP_JSON"])
 except Exception as e:
-    st.error(f"⚠️ Lỗi cấu hình Secrets: {str(e)}")
+    st.error(f"⚠️ Lỗi cấu hình: {str(e)}")
     st.stop()
 
 genai.configure(api_key=GEMINI_KEY)
 
-# --- DANH SÁCH "ĐỘI HÌNH RA SÂN" (Đã lọc sạch) ---
+# --- DANH SÁCH MODEL (Đã tối ưu) ---
 MODEL_LIST = [
-    "gemini-flash-latest",      # ƯU TIÊN 1: Đã test thành công lúc nãy!
-    "gemini-2.0-flash-lite-preview-09-2025", # Ưu tiên 2: Bản Lite Preview (Thường free)
-    "gemini-pro",               # Ưu tiên 3: Bản cũ siêu bền bỉ
+    "gemini-flash-latest",      # Ưu tiên 1
+    "gemini-2.0-flash-lite-preview-09-2025", # Ưu tiên 2
+    "gemini-pro",               # Ưu tiên 3
 ]
 
-# --- HÀM ĐỌC DRIVE ---
+# --- HÀM ĐỌC DRIVE (CHẠY NGẦM) ---
 @st.cache_resource(ttl=3600)
 def load_drive_data():
     try:
@@ -74,81 +74,84 @@ def load_drive_data():
     except Exception as e:
         return None, str(e)
 
-# --- HÀM GỌI AI THÔNG MINH (KIÊN TRÌ) ---
+# --- HÀM XỬ LÝ AI ---
 def ask_gemini(prompt):
-    final_error = ""
-    
     for model_name in MODEL_LIST:
-        # Thử mỗi model tối đa 2 lần (nếu bị lỗi quá tải)
         for attempt in range(2): 
             try:
                 model = genai.GenerativeModel(model_name)
                 response = model.generate_content(prompt)
-                return response.text, model_name # Thành công!
-            
+                return response.text 
             except Exception as e:
                 error_str = str(e)
-                # Nếu là lỗi 429 (Quá tải) -> Nghỉ 5 giây rồi thử lại ngay model này
                 if "429" in error_str or "quota" in error_str.lower():
-                    time.sleep(5) 
+                    time.sleep(2) 
                     continue 
-                
-                # Nếu lỗi 404 (Không tìm thấy) -> Bỏ qua model này, nhảy sang cái sau
                 elif "404" in error_str:
-                    final_error = f"Model {model_name} không tồn tại (404)."
                     break 
-                
-                # Lỗi khác -> Lưu lại và thử cái tiếp theo
                 else:
-                    final_error = error_str
                     break
-                    
-    return None, final_error
+    return None
 
 # --- GIAO DIỆN CHÍNH ---
-st.markdown("<h1 style='text-align: center; color: #CE1126;'>🔥 TRỢ LÝ PCCC (AI)</h1>", unsafe_allow_html=True)
+st.markdown("<h2 style='text-align: center; color: #CE1126;'>🔥 TRỢ LÝ AI PCCC & CNCH</h2>", unsafe_allow_html=True)
 
-with st.spinner('Đang kết nối Google Drive...'):
+# Load dữ liệu (ẨN DANH SÁCH - Chỉ hiện thông báo nhỏ khi đang tải)
+with st.spinner('Đang kết nối cơ sở dữ liệu văn bản...'):
     knowledge, list_files = load_drive_data()
 
 if list_files is None:
-    st.error(f"Lỗi kết nối Drive: {knowledge}")
+    st.error("⚠️ Lỗi kết nối dữ liệu. Vui lòng liên hệ Admin.")
     st.stop()
+else:
+    # Thông báo nhỏ góc dưới xác nhận đã load xong (tùy chọn)
+    st.toast(f"Đã cập nhật {len(list_files)} văn bản luật mới nhất.", icon="✅")
 
-with st.expander(f"📚 Đã nạp {len(list_files)} văn bản (Drive)"):
-    for f in list_files: st.write(f"📄 {f}")
-
+# LỜI CHÀO MỚI (CHUYÊN NGHIỆP)
 if "messages" not in st.session_state:
-    st.session_state.messages = [{"role": "assistant", "content": "Chào Đại úy! Tôi sẵn sàng nhận lệnh."}]
+    st.session_state.messages = [{
+        "role": "assistant", 
+        "content": "Tôi là trợ lý AI về công tác PCCC và CNCH do Đại úy Phạm Tùng Linh - Phòng PC07 Công an tỉnh Phú Thọ phát triển.\n\nBạn hãy đặt câu hỏi để tôi có thể giải đáp các thắc mắc nhé."
+    }]
 
+# Hiển thị lịch sử chat
 for msg in st.session_state.messages:
     st.chat_message(msg["role"]).write(msg["content"])
 
-if prompt := st.chat_input("Nhập câu hỏi..."):
+# Xử lý câu hỏi
+if prompt := st.chat_input("Nhập câu hỏi tại đây..."):
     st.session_state.messages.append({"role": "user", "content": prompt})
     st.chat_message("user").write(prompt)
 
     final_prompt = f"""
-    Bạn là Đại úy Phạm Tùng, Chuyên gia PCCC.
-    DỮ LIỆU TỪ DRIVE:
+    Bạn là Đại úy Phạm Tùng Linh, Trợ lý AI về PCCC & CNCH.
+    
+    DỮ LIỆU LUẬT (TUYỆT ĐỐI TUÂN THỦ):
     {knowledge}
     
-    YÊU CẦU: 
-    1. Trả lời ngắn gọn, đúng trọng tâm dựa trên dữ liệu.
-    2. Trích dẫn nguồn file cụ thể.
+    YÊU CẦU TRẢ LỜI: 
+    1. Trả lời chính xác, ngắn gọn dựa trên dữ liệu trên.
+    2. Trích dẫn điều luật/tên văn bản cụ thể.
+    3. Giọng văn trang trọng, lịch sự, đúng tác phong công an nhân dân.
+    
     CÂU HỎI: {prompt}
     """
     
     with st.chat_message("assistant"):
         message_placeholder = st.empty()
-        message_placeholder.markdown("⏳ *Đang phân tích dữ liệu... (Nếu lâu quá 10s là do mạng chậm)*")
+        message_placeholder.markdown("⏳ *Đang tra cứu văn bản...*")
         
-        reply, used_model = ask_gemini(final_prompt)
+        reply = ask_gemini(final_prompt)
         
         if reply:
-            full_reply = reply + f"\n\n*(Trả lời bởi model: `{used_model}`)*"
+            # Thêm câu hỏi thăm vào cuối
+            full_reply = reply + "\n\n---\n*Bạn cần hỏi gì thêm không?*"
             message_placeholder.markdown(full_reply)
             st.session_state.messages.append({"role": "assistant", "content": full_reply})
         else:
-            error_msg = f"⚠️ HỆ THỐNG QUÁ TẢI. Vui lòng đợi 30 giây rồi hỏi lại.\n(Chi tiết lỗi kỹ thuật: {used_model})"
-            message_placeholder.error(error_msg)
+            message_placeholder.error("⚠️ Hệ thống đang bận. Vui lòng thử lại sau 30 giây.")
+
+# Nút xóa lịch sử thủ công (Nếu muốn xóa ngay mà không cần tắt tab)
+if st.sidebar.button("🧹 Xóa cuộc trò chuyện"):
+    st.session_state.messages = []
+    st.rerun()
