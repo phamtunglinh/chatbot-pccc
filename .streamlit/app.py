@@ -7,8 +7,9 @@ from docx import Document
 from pypdf import PdfReader
 import io
 import json
+import time
 
-# --- CẤU HÌNH GIAO DIỆN ---
+# --- CẤU HÌNH ---
 st.set_page_config(page_title="Hệ thống PCCC (Drive)", page_icon="🚒", layout="wide")
 
 # --- KẾT NỐI BẢO MẬT ---
@@ -22,13 +23,21 @@ except Exception as e:
 
 genai.configure(api_key=GEMINI_KEY)
 
-# --- HÀM ĐỌC GOOGLE DRIVE ---
+# --- DANH SÁCH MODEL DỰ PHÒNG (QUAN TRỌNG) ---
+# Hệ thống sẽ thử lần lượt các model này
+MODEL_LIST = [
+    "gemini-2.0-flash-lite-preview-09-2025", # Ưu tiên 1: Bản Lite mới nhất (Thường free)
+    "gemini-2.0-flash-lite",                  # Ưu tiên 2: Bản Lite thường
+    "gemini-pro-latest",                      # Ưu tiên 3: Bản Pro ổn định
+    "gemini-2.0-flash-exp",                   # Ưu tiên 4: Bản thử nghiệm
+]
+
+# --- HÀM ĐỌC DRIVE ---
 @st.cache_resource(ttl=3600)
 def load_drive_data():
     try:
         creds = service_account.Credentials.from_service_account_info(GCP_JSON)
         service = build('drive', 'v3', credentials=creds)
-        
         results = service.files().list(
             q=f"'{DRIVE_FOLDER_ID}' in parents and trashed=false",
             fields="files(id, name, mimeType)").execute()
@@ -39,35 +48,53 @@ def load_drive_data():
         
         for file in files:
             fname = file['name']
-            fid = file['id']
             if "google-apps" in file['mimeType']: continue 
             
-            request = service.files().get_media(fileId=fid)
-            fh = io.BytesIO()
-            downloader = MediaIoBaseDownload(fh, request)
-            done = False
-            while done is False: status, done = downloader.next_chunk()
-            fh.seek(0)
-            
-            content = ""
-            if fname.endswith(".docx"):
-                doc = Document(fh)
-                for p in doc.paragraphs: content += p.text + "\n"
-            elif fname.endswith(".pdf"):
-                reader = PdfReader(fh)
-                for page in reader.pages: content += page.extract_text() + "\n"
-            
-            if content:
-                full_text += f"\n--- TÀI LIỆU: {fname} ---\n{content}\n"
-                file_list.append(fname)
+            try:
+                request = service.files().get_media(fileId=file['id'])
+                fh = io.BytesIO()
+                downloader = MediaIoBaseDownload(fh, request)
+                done = False
+                while done is False: status, done = downloader.next_chunk()
+                fh.seek(0)
+                
+                content = ""
+                if fname.endswith(".docx"):
+                    doc = Document(fh)
+                    for p in doc.paragraphs: content += p.text + "\n"
+                elif fname.endswith(".pdf"):
+                    reader = PdfReader(fh)
+                    for page in reader.pages: content += page.extract_text() + "\n"
+                
+                if content:
+                    full_text += f"\n--- TÀI LIỆU: {fname} ---\n{content}\n"
+                    file_list.append(fname)
+            except:
+                continue # Bỏ qua file lỗi
                 
         return full_text, file_list
     except Exception as e:
         return None, str(e)
 
+# --- HÀM GỌI AI THÔNG MINH (TỰ ĐỔI MODEL) ---
+def ask_gemini(prompt):
+    last_error = ""
+    # Vòng lặp thử từng model trong danh sách
+    for model_name in MODEL_LIST:
+        try:
+            model = genai.GenerativeModel(model_name)
+            response = model.generate_content(prompt)
+            return response.text, model_name # Trả về câu trả lời + tên model đã dùng
+        except Exception as e:
+            last_error = str(e)
+            time.sleep(1) # Nghỉ 1 giây rồi thử cái tiếp theo
+            continue
+    
+    # Nếu thử hết mà vẫn lỗi
+    return None, last_error
+
 # --- GIAO DIỆN CHÍNH ---
-st.markdown("<h1 style='text-align: center; color: #CE1126;'>🔥 TRỢ LÝ PCCC & CNCH</h1>", unsafe_allow_html=True)
-st.caption("Dữ liệu được đồng bộ trực tiếp từ Google Drive của Admin")
+st.markdown("<h1 style='text-align: center; color: #CE1126;'>🔥 TRỢ LÝ PCCC (AI)</h1>", unsafe_allow_html=True)
 
 with st.spinner('Đang kết nối Google Drive...'):
     knowledge, list_files = load_drive_data()
@@ -76,49 +103,43 @@ if list_files is None:
     st.error(f"Lỗi kết nối Drive: {knowledge}")
     st.stop()
 
-with st.expander(f"📚 Đã nạp thành công {len(list_files)} văn bản từ Drive"):
+with st.expander(f"📚 Đã nạp {len(list_files)} văn bản (Drive)"):
     for f in list_files: st.write(f"📄 {f}")
 
 if "messages" not in st.session_state:
-    st.session_state.messages = [{"role": "assistant", "content": "Chào Đại úy! Hệ thống PCCC (Gemini 2.0) đã sẵn sàng phục vụ."}]
+    st.session_state.messages = [{"role": "assistant", "content": "Chào Đại úy! Xin mời nhập câu hỏi."}]
 
 for msg in st.session_state.messages:
     st.chat_message(msg["role"]).write(msg["content"])
 
-if prompt := st.chat_input("Nhập câu hỏi tra cứu..."):
+if prompt := st.chat_input("Nhập câu hỏi..."):
     st.session_state.messages.append({"role": "user", "content": prompt})
     st.chat_message("user").write(prompt)
 
-    # Prompt chuyên gia
     final_prompt = f"""
-    Bạn là Đại úy Phạm Tùng, Chuyên gia PCCC Công an Tỉnh Phú Thọ.
-    
-    DỮ LIỆU TỪ DRIVE (ĐỘC QUYỀN):
-    -----------------------------
+    Bạn là Đại úy Phạm Tùng, Chuyên gia PCCC.
+    DỮ LIỆU TỪ DRIVE:
     {knowledge}
-    -----------------------------
     
     YÊU CẦU: 
-    1. Trả lời câu hỏi dựa trên dữ liệu trên. 
-    2. Trích dẫn nguồn file cụ thể (Ví dụ: Theo tài liệu NĐ 136...).
-    3. Nếu không có trong dữ liệu, hãy trả lời: "Nội dung này chưa được cập nhật trong kho dữ liệu."
-    
+    1. Trả lời dựa trên dữ liệu trên. 
+    2. Trích dẫn nguồn file cụ thể.
     CÂU HỎI: {prompt}
     """
     
-    try:
-        # SỬ DỤNG GEMINI 2.0 FLASH (Model có sẵn trong danh sách của anh)
-        model = genai.GenerativeModel('gemini-2.0-flash')
-        response = model.generate_content(final_prompt)
-        reply = response.text
-    except Exception as e:
-        # Dự phòng nếu lỗi thì dùng bản 3.0 preview
-        try:
-             model = genai.GenerativeModel('gemini-3-flash-preview')
-             response = model.generate_content(final_prompt)
-             reply = response.text
-        except Exception as e2:
-             reply = f"⚠️ LỖI KẾT NỐI: {str(e)}"
-
-    st.session_state.messages.append({"role": "assistant", "content": reply})
-    st.chat_message("assistant").write(reply)
+    with st.chat_message("assistant"):
+        message_placeholder = st.empty()
+        message_placeholder.markdown("Typing...")
+        
+        # Gọi hàm thông minh
+        reply, used_model = ask_gemini(final_prompt)
+        
+        if reply:
+            # Thành công
+            full_reply = reply + f"\n\n*(Trả lời bởi model: `{used_model}`)*"
+            message_placeholder.markdown(full_reply)
+            st.session_state.messages.append({"role": "assistant", "content": full_reply})
+        else:
+            # Thất bại toàn tập
+            error_msg = f"⚠️ HỆ THỐNG QUÁ TẢI (Lỗi 429). Vui lòng đợi 1 phút rồi thử lại.\nChi tiết: {used_model}" # used_model lúc này chứa lỗi
+            message_placeholder.error(error_msg)
