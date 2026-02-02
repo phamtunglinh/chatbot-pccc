@@ -17,7 +17,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# --- CSS TÙY CHỈNH (GIAO DIỆN ĐẸP) ---
+# --- CSS TÙY CHỈNH ---
 st.markdown("""
 <style>
     #MainMenu {visibility: hidden;}
@@ -28,10 +28,9 @@ st.markdown("""
     ::-webkit-scrollbar-thumb {background: #ccc; border-radius: 4px;}
     .stChatInput {border-radius: 20px;}
     
-    /* HEADER BANNER */
     .header-banner {
         background: linear-gradient(90deg, #B71C1C 0%, #D32F2F 100%);
-        padding: 2rem 1rem; /* Tăng khoảng cách đệm cho thoáng */
+        padding: 2rem 1rem;
         border-radius: 0 0 15px 15px;
         color: white;
         text-align: center;
@@ -40,17 +39,15 @@ st.markdown("""
         margin-bottom: 25px;
     }
     
-    /* TIÊU ĐỀ CHÍNH (Đã chỉnh to lên) */
     .header-title {
-        font-size: 32px; /* Tăng từ 24px lên 32px */
-        font-weight: 900; /* In đậm hơn */
+        font-size: 32px;
+        font-weight: 900;
         text-transform: uppercase;
         margin: 0;
         letter-spacing: 1.5px;
-        text-shadow: 2px 2px 4px rgba(0,0,0,0.3); /* Thêm bóng chữ cho nổi */
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
     }
     
-    /* TIÊU ĐỀ PHỤ */
     .header-subtitle {
         font-size: 15px;
         opacity: 0.95;
@@ -144,7 +141,6 @@ def ask_gemini(prompt):
 
 # --- GIAO DIỆN CHÍNH ---
 
-# 1. HEADER BANNER (NỘI DUNG MỚI)
 st.markdown("""
 <div class="header-banner">
     <div style="font-size: 45px; margin-bottom: 10px;">🛡️</div>
@@ -157,13 +153,14 @@ st.markdown("""
 with st.spinner('Đang đồng bộ dữ liệu...'):
     knowledge, list_files = load_drive_data()
 
+# --- SỬA Ở ĐÂY: BỎ HIỂN THỊ SỐ LƯỢNG FILE ---
 if list_files:
-    st.toast(f"Đã kết nối cơ sở dữ liệu ({len(list_files)} văn bản).", icon="✅")
+    st.toast("Đã kết nối cơ sở dữ liệu.", icon="✅")
 else:
     st.error("Không thể kết nối dữ liệu. Vui lòng kiểm tra lại.")
     st.stop()
 
-# 2. KHUNG CHÀO MỪNG (NỘI DUNG MỚI)
+# KHUNG CHÀO MỪNG
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
@@ -191,20 +188,21 @@ if prompt := st.chat_input("Nhập nội dung cần tra cứu..."):
     st.session_state.messages.append({"role": "user", "content": prompt})
     st.chat_message("user", avatar="👤").write(prompt)
 
-    # PROMPT
+    # --- PROMPT CHẶT CHẼ ---
     final_prompt = f"""
-    Bạn là Trợ lý AI PCCC chuyên nghiệp.
+    VAI TRÒ: Bạn là Trợ lý AI PCCC.
     
-    DỮ LIỆU LUẬT (CƠ SỞ TRẢ LỜI DUY NHẤT):
+    DỮ LIỆU LUẬT (Dùng để tra cứu):
     {knowledge}
     
-    NGUYÊN TẮC TRẢ LỜI: 
-    1. Trả lời TRỰC TIẾP vào câu hỏi. KHÔNG giới thiệu lại bản thân.
-    2. Ngắn gọn, súc tích, dễ hiểu.
-    3. BẮT BUỘC trích dẫn điều luật/tên văn bản làm căn cứ.
-    4. Giọng văn lịch sự, nghiêm túc.
+    CHỈ DẪN QUAN TRỌNG (BẮT BUỘC TUÂN THỦ):
+    1. Nếu người dùng chào hỏi (ví dụ: "chào", "hi"): Chỉ chào lại lịch sự và mời họ đặt câu hỏi. KHÔNG ĐƯỢC tự bịa ra câu hỏi mẫu.
+    2. Nếu là câu hỏi chuyên môn: Trả lời ngắn gọn, trích dẫn điều luật.
+    3. Tuyệt đối KHÔNG được thêm dòng "CÂU HỎI:" hay tự viết tiếp nội dung cho người dùng vào cuối câu trả lời.
+    4. Không giới thiệu lại bản thân ("Tôi là trợ lý...").
     
-    CÂU HỎI: {prompt}
+    INPUT NGƯỜI DÙNG: {prompt}
+    OUTPUT CỦA AI:
     """
     
     with st.chat_message("assistant", avatar="🚒"):
