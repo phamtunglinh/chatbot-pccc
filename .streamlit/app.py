@@ -23,13 +23,11 @@ except Exception as e:
 
 genai.configure(api_key=GEMINI_KEY)
 
-# --- DANH SÁCH MODEL CHUẨN (CẬP NHẬT TỪ HÌNH ẢNH CỦA ANH) ---
-# Hệ thống sẽ thử lần lượt, cái nào được thì dùng
+# --- DANH SÁCH "ĐỘI HÌNH RA SÂN" (Đã lọc sạch) ---
 MODEL_LIST = [
-    "gemini-2.0-flash-lite",    # Ưu tiên 1: Bản Lite (Thường không bị khóa quota)
-    "gemini-flash-latest",      # Ưu tiên 2: Bản Flash ổn định (1.5)
-    "gemini-pro-latest",        # Ưu tiên 3: Bản Pro ổn định
-    "gemini-1.5-flash"          # Ưu tiên 4: Tên gốc
+    "gemini-flash-latest",      # ƯU TIÊN 1: Đã test thành công lúc nãy!
+    "gemini-2.0-flash-lite-preview-09-2025", # Ưu tiên 2: Bản Lite Preview (Thường free)
+    "gemini-pro",               # Ưu tiên 3: Bản cũ siêu bền bỉ
 ]
 
 # --- HÀM ĐỌC DRIVE ---
@@ -76,26 +74,36 @@ def load_drive_data():
     except Exception as e:
         return None, str(e)
 
-# --- HÀM GỌI AI (TỰ NHẢY KÊNH KHI LỖI) ---
+# --- HÀM GỌI AI THÔNG MINH (KIÊN TRÌ) ---
 def ask_gemini(prompt):
-    last_error = ""
-    # Thử từng model trong danh sách
-    for model_name in MODEL_LIST:
-        try:
-            # Tạo model
-            model = genai.GenerativeModel(model_name)
-            # Gửi câu hỏi
-            response = model.generate_content(prompt)
-            # Trả về kết quả
-            return response.text, model_name 
-        except Exception as e:
-            # Nếu lỗi, lưu lại lỗi và thử cái tiếp theo
-            last_error = str(e)
-            time.sleep(1) 
-            continue
+    final_error = ""
     
-    # Nếu thử hết sạch mà vẫn lỗi
-    return None, last_error
+    for model_name in MODEL_LIST:
+        # Thử mỗi model tối đa 2 lần (nếu bị lỗi quá tải)
+        for attempt in range(2): 
+            try:
+                model = genai.GenerativeModel(model_name)
+                response = model.generate_content(prompt)
+                return response.text, model_name # Thành công!
+            
+            except Exception as e:
+                error_str = str(e)
+                # Nếu là lỗi 429 (Quá tải) -> Nghỉ 5 giây rồi thử lại ngay model này
+                if "429" in error_str or "quota" in error_str.lower():
+                    time.sleep(5) 
+                    continue 
+                
+                # Nếu lỗi 404 (Không tìm thấy) -> Bỏ qua model này, nhảy sang cái sau
+                elif "404" in error_str:
+                    final_error = f"Model {model_name} không tồn tại (404)."
+                    break 
+                
+                # Lỗi khác -> Lưu lại và thử cái tiếp theo
+                else:
+                    final_error = error_str
+                    break
+                    
+    return None, final_error
 
 # --- GIAO DIỆN CHÍNH ---
 st.markdown("<h1 style='text-align: center; color: #CE1126;'>🔥 TRỢ LÝ PCCC (AI)</h1>", unsafe_allow_html=True)
@@ -111,7 +119,7 @@ with st.expander(f"📚 Đã nạp {len(list_files)} văn bản (Drive)"):
     for f in list_files: st.write(f"📄 {f}")
 
 if "messages" not in st.session_state:
-    st.session_state.messages = [{"role": "assistant", "content": "Chào Đại úy! Xin mời nhập câu hỏi."}]
+    st.session_state.messages = [{"role": "assistant", "content": "Chào Đại úy! Tôi sẵn sàng nhận lệnh."}]
 
 for msg in st.session_state.messages:
     st.chat_message(msg["role"]).write(msg["content"])
@@ -126,16 +134,15 @@ if prompt := st.chat_input("Nhập câu hỏi..."):
     {knowledge}
     
     YÊU CẦU: 
-    1. Trả lời dựa trên dữ liệu trên. 
+    1. Trả lời ngắn gọn, đúng trọng tâm dựa trên dữ liệu.
     2. Trích dẫn nguồn file cụ thể.
     CÂU HỎI: {prompt}
     """
     
     with st.chat_message("assistant"):
         message_placeholder = st.empty()
-        message_placeholder.markdown("Typing...")
+        message_placeholder.markdown("⏳ *Đang phân tích dữ liệu... (Nếu lâu quá 10s là do mạng chậm)*")
         
-        # Gọi hàm thông minh
         reply, used_model = ask_gemini(final_prompt)
         
         if reply:
@@ -143,6 +150,5 @@ if prompt := st.chat_input("Nhập câu hỏi..."):
             message_placeholder.markdown(full_reply)
             st.session_state.messages.append({"role": "assistant", "content": full_reply})
         else:
-            # In ra lỗi chi tiết để bắt bệnh nếu vẫn toang
-            error_msg = f"⚠️ HỆ THỐNG BẬN. Tất cả các kênh đều quá tải.\nLỗi cuối cùng: {used_model}" 
+            error_msg = f"⚠️ HỆ THỐNG QUÁ TẢI. Vui lòng đợi 30 giây rồi hỏi lại.\n(Chi tiết lỗi kỹ thuật: {used_model})"
             message_placeholder.error(error_msg)
