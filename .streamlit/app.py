@@ -23,9 +23,11 @@ st.markdown("""
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     header {visibility: hidden;}
+    
     ::-webkit-scrollbar {width: 8px;}
     ::-webkit-scrollbar-thumb {background: #ccc; border-radius: 4px;}
     .stChatInput {border-radius: 20px;}
+    
     .header-banner {
         background: linear-gradient(90deg, #B71C1C 0%, #D32F2F 100%);
         padding: 2rem 1rem;
@@ -57,15 +59,10 @@ except Exception as e:
 
 genai.configure(api_key=GEMINI_KEY)
 
-# --- DANH SÁCH MODEL (ĐÃ CHỈNH SỬA ĐỂ TRÁNH LỖI 404/429) ---
-# Ưu tiên dùng bản Lite (Nhẹ) và bản 2.0 mới nhất có trong tài khoản của anh
-MODEL_LIST = [
-    "gemini-2.0-flash-lite-preview-02-05", # Bản siêu nhẹ mới nhất
-    "gemini-2.0-flash-lite-preview-09-2025", # Bản nhẹ dự phòng
-    "gemini-2.0-flash", # Bản chuẩn
-]
+# --- DANH SÁCH MODEL ---
+MODEL_LIST = ["gemini-flash-latest", "gemini-2.0-flash-lite-preview-09-2025", "gemini-pro"]
 
-# --- HÀM ĐỌC DRIVE (CÓ PHANH AN TOÀN) ---
+# --- HÀM ĐỌC DRIVE ---
 @st.cache_resource(ttl=3600)
 def load_drive_data():
     try:
@@ -78,14 +75,7 @@ def load_drive_data():
         
         full_text = ""
         file_list = []
-        total_chars = 0
-        CHAR_LIMIT = 600000 # Giới hạn khoảng 150k-200k tokens để không sập quota
-        
         for file in files:
-            # Nếu đã nạp quá nhiều chữ -> Dừng nạp tiếp để bảo vệ App
-            if total_chars > CHAR_LIMIT:
-                break
-                
             fname = file['name']
             if "google-apps" in file['mimeType']: continue 
             try:
@@ -102,37 +92,29 @@ def load_drive_data():
                 elif fname.endswith(".pdf"):
                     reader = PdfReader(fh)
                     for page in reader.pages: content += page.extract_text() + "\n"
-                
                 if content:
                     full_text += f"\n--- TÀI LIỆU: {fname} ---\n{content}\n"
                     file_list.append(fname)
-                    total_chars += len(content)
             except: continue 
-            
-        return full_text, file_list, total_chars
-    except Exception as e: return None, str(e), 0
+        return full_text, file_list
+    except Exception as e: return None, str(e)
 
 # --- HÀM XỬ LÝ AI ---
 def ask_gemini(full_prompt):
-    debug_error = ""
     for model_name in MODEL_LIST:
         for attempt in range(2): 
             try:
                 model = genai.GenerativeModel(model_name)
+                # Tăng max_tokens để AI có thể suy luận dài hơn
                 response = model.generate_content(full_prompt)
-                return response.text, None 
+                return response.text 
             except Exception as e:
                 error_str = str(e)
-                debug_error += f"\n- {model_name}: {error_str}"
-                
                 if "429" in error_str or "quota" in error_str.lower():
-                    time.sleep(4) # Nghỉ lâu hơn chút
-                    continue 
-                elif "404" in error_str:
-                    break 
-                else:
-                    break
-    return None, debug_error
+                    time.sleep(2); continue 
+                elif "404" in error_str: break 
+                else: break
+    return None
 
 # --- GIAO DIỆN CHÍNH ---
 st.markdown("""
@@ -144,14 +126,10 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 with st.spinner('Đang đồng bộ dữ liệu...'):
-    knowledge, list_files, total_chars = load_drive_data()
+    knowledge, list_files = load_drive_data()
 
 if list_files:
-    # Cảnh báo nếu dữ liệu quá lớn (Chỉ admin thấy)
-    if total_chars >= 600000:
-        st.toast(f"⚠️ Cảnh báo: Dữ liệu quá lớn ({total_chars} ký tự). Hệ thống đã tự động cắt bớt để tránh sập.", icon="⚡")
-    else:
-        st.toast("Đã kết nối cơ sở dữ liệu.", icon="✅")
+    st.toast("Đã kết nối cơ sở dữ liệu.", icon="✅")
 else:
     st.error("Không thể kết nối dữ liệu."); st.stop()
 
@@ -176,64 +154,45 @@ for msg in st.session_state.messages:
     with st.chat_message(msg["role"], avatar=avatar): st.markdown(msg["content"])
 
 # XỬ LÝ CÂU HỎI
-if prompt := st.chat_input("Nhập nội dung... (Ví dụ: Cơ sở karaoke 5 tầng do ai quản lý?)"):
+if prompt := st.chat_input("Nhập nội dung... (Ví dụ: Tính bể nước cho nhà Karaoke 5 tầng)"):
     st.session_state.messages.append({"role": "user", "content": prompt})
     st.chat_message("user", avatar="👤").write(prompt)
 
-    # Lịch sử chat (Rút gọn còn 4 câu để tiết kiệm Token)
+    # --- TẠO CHUỖI LỊCH SỬ CHAT (ĐỂ AI NHỚ ĐƯỢC CÂU TRƯỚC) ---
+    # Đây là chìa khóa để AI biết hỏi lại và nhớ thông tin cũ
     chat_history_text = ""
-    for msg in st.session_state.messages[-4:]: 
+    for msg in st.session_state.messages[-6:]: # Chỉ nhớ 6 câu gần nhất để tiết kiệm bộ nhớ
         role_name = "Người dùng" if msg["role"] == "user" else "AI"
         chat_history_text += f"{role_name}: {msg['content']}\n"
 
-    # --- PROMPT NGHIỆP VỤ CAO CẤP ---
+    # --- NÂNG CẤP PROMPT THÀNH CHUYÊN GIA PHÂN TÍCH ---
     final_prompt = f"""
-    VAI TRÒ: Chuyên gia Thẩm duyệt PCCC (Đại úy Phạm Tùng Linh).
+    VAI TRÒ: Bạn là Chuyên gia Thẩm duyệt & Nghiệm thu PCCC (Đại úy Phạm Tùng Linh).
     
     DỮ LIỆU LUẬT (TRA CỨU):
     {knowledge}
     
-    LỊCH SỬ TRÒ CHUYỆN:
+    LỊCH SỬ TRÒ CHUYỆN (ĐỂ SUY LUẬN):
     {chat_history_text}
     
-    NHIỆM VỤ: Phân tích và xác định thẩm quyền quản lý hoặc giải đáp thắc mắc.
+    NHIỆM VỤ VÀ TƯ DUY (QUAN TRỌNG):
+    1. **PHÂN TÍCH:** Khi nhận câu hỏi, hãy đối chiếu với Dữ liệu luật xem đã đủ thông tin để kết luận chưa.
+    2. **HỎI LẠI:** Nếu thiếu thông tin quan trọng (ví dụ: diện tích, chiều cao, công năng, số tầng...), ĐỪNG trả lời chung chung. Hãy hỏi ngược lại người dùng để lấy thông số.
+    3. **TÍNH TOÁN:** Nếu có số liệu, hãy thực hiện tính toán cụ thể (ví dụ: tính m3 nước, tính lối thoát nạn) rồi so sánh với Quy chuẩn.
+    4. **TRẢ LỜI:** Ngắn gọn, trích dẫn điều luật. Không chào hỏi lại.
     
-    THUẬT TOÁN XÁC ĐỊNH THẨM QUYỀN QUẢN LÝ (BẮT BUỘC ÁP DỤNG KHI CÓ CÂU HỎI VỀ PHÂN CẤP QUẢN LÝ):
-    
-    Bước 1: Kiểm tra dữ liệu đầu vào.
-    - Nếu thiếu thông tin (Diện tích, số tầng, khối tích, công năng chi tiết), HÃY HỎI NGƯỢC LẠI người dùng. Đừng đoán mò.
-      
-    Bước 2: Xác định công năng chính (Logic 70%):
-    - Tính % diện tích của từng công năng.
-    - Nếu công năng nào > 70% -> Công năng chính.
-    - Nếu không -> Nhà hỗn hợp.
-    
-    Bước 3: Đối chiếu Phụ lục (Nghị định 136/2020 hoặc NĐ 50/2024 tùy dữ liệu):
-    - So sánh Số tầng, Diện tích, Khối tích với Phụ lục I (Xã quản lý) và Phụ lục II (Công an quản lý).
-    
-    Bước 4: Kết luận (Quy tắc ưu tiên):
-    - Nếu đạt điều kiện Phụ lục II -> PHÒNG CẢNH SÁT PCCC & CNCH QUẢN LÝ.
-    - Nếu chỉ đạt Phụ lục I và KHÔNG đạt Phụ lục II -> UBND CẤP XÃ QUẢN LÝ.
-    
-    YÊU CẦU TRẢ LỜI:
-    - Rõ ràng, mạch lạc, có tính toán.
-    - Không chào hỏi lại.
-    
-    INPUT NGƯỜI DÙNG: {prompt}
-    OUTPUT CỦA AI:
+    OUTPUT CỦA AI (Chỉ đưa ra câu trả lời):
     """
     
     with st.chat_message("assistant", avatar="🚒"):
         message_placeholder = st.empty()
-        message_placeholder.markdown("⏳ *Đang phân tích hồ sơ...*")
+        message_placeholder.markdown("⏳ *Đang phân tích & suy luận...*")
         
-        reply, err_log = ask_gemini(final_prompt)
+        reply = ask_gemini(final_prompt)
         
         if reply:
             full_reply = reply + "\n\n---\n*Bạn cần hỏi gì thêm không?*"
             message_placeholder.markdown(full_reply)
             st.session_state.messages.append({"role": "assistant", "content": full_reply})
         else:
-            st.error("⚠️ Hệ thống đang quá tải. Vui lòng đợi 10 giây rồi thử lại.")
-            with st.expander("Chi tiết lỗi kỹ thuật:"):
-                st.code(err_log)
+            message_placeholder.error("⚠️ Hệ thống bận. Vui lòng thử lại.")
