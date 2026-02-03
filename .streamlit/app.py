@@ -38,22 +38,12 @@ st.markdown("""
         margin-top: -60px;
         margin-bottom: 25px;
     }
-    
     .header-title {
-        font-size: 32px;
-        font-weight: 900;
-        text-transform: uppercase;
-        margin: 0;
-        letter-spacing: 1.5px;
-        text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        font-size: 32px; font-weight: 900; text-transform: uppercase;
+        margin: 0; letter-spacing: 1.5px; text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
     }
-    
     .header-subtitle {
-        font-size: 15px;
-        opacity: 0.95;
-        margin-top: 8px;
-        font-weight: 400;
-        letter-spacing: 0.5px;
+        font-size: 15px; opacity: 0.95; margin-top: 8px; font-weight: 400; letter-spacing: 0.5px;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -70,11 +60,7 @@ except Exception as e:
 genai.configure(api_key=GEMINI_KEY)
 
 # --- DANH SÁCH MODEL ---
-MODEL_LIST = [
-    "gemini-flash-latest",      
-    "gemini-2.0-flash-lite-preview-09-2025", 
-    "gemini-pro",               
-]
+MODEL_LIST = ["gemini-flash-latest", "gemini-2.0-flash-lite-preview-09-2025", "gemini-pro"]
 
 # --- HÀM ĐỌC DRIVE ---
 @st.cache_resource(ttl=3600)
@@ -89,11 +75,9 @@ def load_drive_data():
         
         full_text = ""
         file_list = []
-        
         for file in files:
             fname = file['name']
             if "google-apps" in file['mimeType']: continue 
-            
             try:
                 request = service.files().get_media(fileId=file['id'])
                 fh = io.BytesIO()
@@ -101,7 +85,6 @@ def load_drive_data():
                 done = False
                 while done is False: status, done = downloader.next_chunk()
                 fh.seek(0)
-                
                 content = ""
                 if fname.endswith(".docx"):
                     doc = Document(fh)
@@ -109,38 +92,30 @@ def load_drive_data():
                 elif fname.endswith(".pdf"):
                     reader = PdfReader(fh)
                     for page in reader.pages: content += page.extract_text() + "\n"
-                
                 if content:
                     full_text += f"\n--- TÀI LIỆU: {fname} ---\n{content}\n"
                     file_list.append(fname)
-            except:
-                continue 
-                
+            except: continue 
         return full_text, file_list
-    except Exception as e:
-        return None, str(e)
+    except Exception as e: return None, str(e)
 
 # --- HÀM XỬ LÝ AI ---
-def ask_gemini(prompt):
+def ask_gemini(full_prompt):
     for model_name in MODEL_LIST:
         for attempt in range(2): 
             try:
                 model = genai.GenerativeModel(model_name)
-                response = model.generate_content(prompt)
+                response = model.generate_content(full_prompt)
                 return response.text 
             except Exception as e:
                 error_str = str(e)
                 if "429" in error_str or "quota" in error_str.lower():
-                    time.sleep(2) 
-                    continue 
-                elif "404" in error_str:
-                    break 
-                else:
-                    break
+                    time.sleep(2); continue 
+                elif "404" in error_str: break 
+                else: break
     return None
 
 # --- GIAO DIỆN CHÍNH ---
-
 st.markdown("""
 <div class="header-banner">
     <div style="font-size: 45px; margin-bottom: 10px;">🛡️</div>
@@ -149,28 +124,23 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# Load dữ liệu
 with st.spinner('Đang đồng bộ dữ liệu...'):
     knowledge, list_files = load_drive_data()
 
-# --- SỬA Ở ĐÂY: BỎ HIỂN THỊ SỐ LƯỢNG FILE ---
 if list_files:
     st.toast("Đã kết nối cơ sở dữ liệu.", icon="✅")
 else:
-    st.error("Không thể kết nối dữ liệu. Vui lòng kiểm tra lại.")
-    st.stop()
+    st.error("Không thể kết nối dữ liệu."); st.stop()
 
 # KHUNG CHÀO MỪNG
-if "messages" not in st.session_state:
-    st.session_state.messages = []
-
+if "messages" not in st.session_state: st.session_state.messages = []
 if len(st.session_state.messages) == 0:
     st.markdown("""
     <div style='background-color: #f8f9fa; padding: 25px; border-radius: 15px; border: 1px solid #e9ecef; text-align: center; margin-bottom: 30px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);'>
         <h3 style='color: #B71C1C; margin: 0 0 15px 0; font-size: 22px;'>XIN CHÀO!</h3>
         <p style='font-size: 16px; color: #333; line-height: 1.6;'>
             Tôi là Trợ lý AI được phát triển bởi <b>Đại úy Phạm Tùng Linh (Phòng PC07)</b>.<br>
-            Tôi sẵn sàng giải đáp mọi thắc mắc về các quy định của pháp luật liên quan đến công tác PCCC.
+            Tôi có khả năng <b>phân tích hồ sơ, tính toán thông số kỹ thuật</b> dựa trên quy chuẩn.
         </p>
         <hr style="width: 50px; margin: 15px auto; border-top: 2px solid #B71C1C;">
         <p style='color: #666; font-style: italic; font-size: 14px;'>👇 Mời bạn đặt câu hỏi bên dưới 👇</p>
@@ -180,26 +150,56 @@ if len(st.session_state.messages) == 0:
 # Hiển thị lịch sử chat
 for msg in st.session_state.messages:
     avatar = "👤" if msg["role"] == "user" else "🚒"
-    with st.chat_message(msg["role"], avatar=avatar):
-        st.markdown(msg["content"])
+    with st.chat_message(msg["role"], avatar=avatar): st.markdown(msg["content"])
 
-# Xử lý câu hỏi
-if prompt := st.chat_input("Nhập nội dung cần tra cứu..."):
+# XỬ LÝ CÂU HỎI
+if prompt := st.chat_input("Nhập nội dung... (Ví dụ: Cơ sở karaoke 5 tầng do ai quản lý?)"):
     st.session_state.messages.append({"role": "user", "content": prompt})
     st.chat_message("user", avatar="👤").write(prompt)
 
-    # --- PROMPT CHẶT CHẼ ---
+    # Lịch sử chat
+    chat_history_text = ""
+    for msg in st.session_state.messages[-10:]: 
+        role_name = "Người dùng" if msg["role"] == "user" else "AI"
+        chat_history_text += f"{role_name}: {msg['content']}\n"
+
+    # --- PROMPT NGHIỆP VỤ CAO CẤP ---
     final_prompt = f"""
-    VAI TRÒ: Bạn là Trợ lý AI PCCC.
+    VAI TRÒ: Chuyên gia Thẩm duyệt PCCC (Đại úy Phạm Tùng Linh).
     
-    DỮ LIỆU LUẬT (Dùng để tra cứu):
+    DỮ LIỆU LUẬT (TRA CỨU):
     {knowledge}
     
-    CHỈ DẪN QUAN TRỌNG (BẮT BUỘC TUÂN THỦ):
-    1. Nếu người dùng chào hỏi (ví dụ: "chào", "hi"): Chỉ chào lại lịch sự và mời họ đặt câu hỏi. KHÔNG ĐƯỢC tự bịa ra câu hỏi mẫu.
-    2. Nếu là câu hỏi chuyên môn: Trả lời ngắn gọn, trích dẫn điều luật.
-    3. Tuyệt đối KHÔNG được thêm dòng "CÂU HỎI:" hay tự viết tiếp nội dung cho người dùng vào cuối câu trả lời.
-    4. Không giới thiệu lại bản thân ("Tôi là trợ lý...").
+    LỊCH SỬ TRÒ CHUYỆN:
+    {chat_history_text}
+    
+    NHIỆM VỤ: Phân tích và xác định thẩm quyền quản lý hoặc giải đáp thắc mắc.
+    
+    THUẬT TOÁN XÁC ĐỊNH THẨM QUYỀN QUẢN LÝ (BẮT BUỘC ÁP DỤNG KHI CÓ CÂU HỎI VỀ PHÂN CẤP QUẢN LÝ):
+    
+    Bước 1: Kiểm tra dữ liệu đầu vào.
+    - Nếu thiếu thông tin, HÃY HỎI NGƯỢC LẠI người dùng các thông số:
+      + Tổng diện tích xây dựng?
+      + Tổng số tầng? Chiều cao công trình?
+      + Công năng chi tiết từng tầng (Diện tích từng công năng)?
+      
+    Bước 2: Xác định công năng chính (Logic 70%):
+    - Tính % diện tích của từng công năng so với tổng diện tích.
+    - Nếu công năng nào > 70% diện tích -> Đó là công năng chính.
+    - Nếu Công năng nhà ở > 70% -> Nhà ở kết hợp SXKD.
+    - Nếu không có công năng nào > 70% -> Nhà hỗn hợp.
+    
+    Bước 3: Đối chiếu Phụ lục (Nghị định 105/136/50 tùy dữ liệu nạp):
+    - Tính Khối tích = Diện tích xây dựng x Chiều cao.
+    - So sánh các chỉ số (Tầng, Diện tích, Khối tích) với Phụ lục I và Phụ lục II.
+    
+    Bước 4: Kết luận (Quy tắc ưu tiên):
+    - Nếu cơ sở đạt BẤT KỲ điều kiện nào của Phụ lục II (kể cả khi diện tích chỉ thuộc Phụ lục I nhưng số tầng thuộc Phụ lục II) -> Kết luận: PHÒNG CẢNH SÁT PCCC & CNCH QUẢN LÝ.
+    - Nếu cơ sở đạt ngưỡng Phụ lục I nhưng KHÔNG đạt ngưỡng Phụ lục II -> Kết luận: UBND CẤP XÃ QUẢN LÝ.
+    
+    YÊU CẦU TRẢ LỜI:
+    - Trình bày mạch lạc, có tính toán dẫn chứng (Ví dụ: "Vì diện tích A chiếm 75% > 70% nên đây là nhà...").
+    - Không chào hỏi lại.
     
     INPUT NGƯỜI DÙNG: {prompt}
     OUTPUT CỦA AI:
@@ -207,7 +207,7 @@ if prompt := st.chat_input("Nhập nội dung cần tra cứu..."):
     
     with st.chat_message("assistant", avatar="🚒"):
         message_placeholder = st.empty()
-        message_placeholder.markdown("⏳ *Đang tra cứu...*")
+        message_placeholder.markdown("⏳ *Đang phân tích hồ sơ...*")
         
         reply = ask_gemini(final_prompt)
         
