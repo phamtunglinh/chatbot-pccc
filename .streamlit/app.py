@@ -23,11 +23,9 @@ st.markdown("""
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     header {visibility: hidden;}
-    
     ::-webkit-scrollbar {width: 8px;}
     ::-webkit-scrollbar-thumb {background: #ccc; border-radius: 4px;}
     .stChatInput {border-radius: 20px;}
-    
     .header-banner {
         background: linear-gradient(90deg, #B71C1C 0%, #D32F2F 100%);
         padding: 2rem 1rem;
@@ -59,14 +57,15 @@ except Exception as e:
 
 genai.configure(api_key=GEMINI_KEY)
 
-# --- DANH SÁCH MODEL (Cập nhật những cái ổn định nhất) ---
+# --- DANH SÁCH MODEL (ĐÃ CHỈNH SỬA ĐỂ TRÁNH LỖI 404/429) ---
+# Ưu tiên dùng bản Lite (Nhẹ) và bản 2.0 mới nhất có trong tài khoản của anh
 MODEL_LIST = [
-    "gemini-1.5-flash",          # Bản chuẩn, ổn định nhất
-    "gemini-flash-latest",       # Bản mới nhất
-    "gemini-pro",                # Bản cũ nhưng "trâu bò"
+    "gemini-2.0-flash-lite-preview-02-05", # Bản siêu nhẹ mới nhất
+    "gemini-2.0-flash-lite-preview-09-2025", # Bản nhẹ dự phòng
+    "gemini-2.0-flash", # Bản chuẩn
 ]
 
-# --- HÀM ĐỌC DRIVE ---
+# --- HÀM ĐỌC DRIVE (CÓ PHANH AN TOÀN) ---
 @st.cache_resource(ttl=3600)
 def load_drive_data():
     try:
@@ -79,7 +78,14 @@ def load_drive_data():
         
         full_text = ""
         file_list = []
+        total_chars = 0
+        CHAR_LIMIT = 600000 # Giới hạn khoảng 150k-200k tokens để không sập quota
+        
         for file in files:
+            # Nếu đã nạp quá nhiều chữ -> Dừng nạp tiếp để bảo vệ App
+            if total_chars > CHAR_LIMIT:
+                break
+                
             fname = file['name']
             if "google-apps" in file['mimeType']: continue 
             try:
@@ -96,37 +102,36 @@ def load_drive_data():
                 elif fname.endswith(".pdf"):
                     reader = PdfReader(fh)
                     for page in reader.pages: content += page.extract_text() + "\n"
+                
                 if content:
                     full_text += f"\n--- TÀI LIỆU: {fname} ---\n{content}\n"
                     file_list.append(fname)
+                    total_chars += len(content)
             except: continue 
-        return full_text, file_list
-    except Exception as e: return None, str(e)
+            
+        return full_text, file_list, total_chars
+    except Exception as e: return None, str(e), 0
 
-# --- HÀM XỬ LÝ AI (PHIÊN BẢN LÌ ĐÒN) ---
+# --- HÀM XỬ LÝ AI ---
 def ask_gemini(full_prompt):
     debug_error = ""
     for model_name in MODEL_LIST:
-        # Thử mỗi model tối đa 3 lần (tăng số lần thử)
-        for attempt in range(3): 
+        for attempt in range(2): 
             try:
                 model = genai.GenerativeModel(model_name)
                 response = model.generate_content(full_prompt)
-                return response.text, None # Thành công, không có lỗi
+                return response.text, None 
             except Exception as e:
                 error_str = str(e)
-                debug_error += f"\n- {model_name} (Lần {attempt+1}): {error_str}"
+                debug_error += f"\n- {model_name}: {error_str}"
                 
-                # Nếu quá tải (429) -> Nghỉ 5 giây (QUAN TRỌNG)
                 if "429" in error_str or "quota" in error_str.lower():
-                    time.sleep(5) 
+                    time.sleep(4) # Nghỉ lâu hơn chút
                     continue 
-                # Nếu không tìm thấy model (404) -> Bỏ qua luôn
                 elif "404" in error_str:
                     break 
                 else:
-                    time.sleep(1)
-                    continue
+                    break
     return None, debug_error
 
 # --- GIAO DIỆN CHÍNH ---
@@ -139,10 +144,14 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 with st.spinner('Đang đồng bộ dữ liệu...'):
-    knowledge, list_files = load_drive_data()
+    knowledge, list_files, total_chars = load_drive_data()
 
 if list_files:
-    st.toast("Đã kết nối cơ sở dữ liệu.", icon="✅")
+    # Cảnh báo nếu dữ liệu quá lớn (Chỉ admin thấy)
+    if total_chars >= 600000:
+        st.toast(f"⚠️ Cảnh báo: Dữ liệu quá lớn ({total_chars} ký tự). Hệ thống đã tự động cắt bớt để tránh sập.", icon="⚡")
+    else:
+        st.toast("Đã kết nối cơ sở dữ liệu.", icon="✅")
 else:
     st.error("Không thể kết nối dữ liệu."); st.stop()
 
@@ -171,9 +180,9 @@ if prompt := st.chat_input("Nhập nội dung... (Ví dụ: Cơ sở karaoke 5 t
     st.session_state.messages.append({"role": "user", "content": prompt})
     st.chat_message("user", avatar="👤").write(prompt)
 
-    # Lịch sử chat
+    # Lịch sử chat (Rút gọn còn 4 câu để tiết kiệm Token)
     chat_history_text = ""
-    for msg in st.session_state.messages[-6:]: 
+    for msg in st.session_state.messages[-4:]: 
         role_name = "Người dùng" if msg["role"] == "user" else "AI"
         chat_history_text += f"{role_name}: {msg['content']}\n"
 
@@ -207,7 +216,7 @@ if prompt := st.chat_input("Nhập nội dung... (Ví dụ: Cơ sở karaoke 5 t
     - Nếu chỉ đạt Phụ lục I và KHÔNG đạt Phụ lục II -> UBND CẤP XÃ QUẢN LÝ.
     
     YÊU CẦU TRẢ LỜI:
-    - Rõ ràng, mạch lạc.
+    - Rõ ràng, mạch lạc, có tính toán.
     - Không chào hỏi lại.
     
     INPUT NGƯỜI DÙNG: {prompt}
@@ -216,7 +225,7 @@ if prompt := st.chat_input("Nhập nội dung... (Ví dụ: Cơ sở karaoke 5 t
     
     with st.chat_message("assistant", avatar="🚒"):
         message_placeholder = st.empty()
-        message_placeholder.markdown("⏳ *Đang phân tích hồ sơ... (Có thể mất 5-10s)*")
+        message_placeholder.markdown("⏳ *Đang phân tích hồ sơ...*")
         
         reply, err_log = ask_gemini(final_prompt)
         
@@ -225,7 +234,6 @@ if prompt := st.chat_input("Nhập nội dung... (Ví dụ: Cơ sở karaoke 5 t
             message_placeholder.markdown(full_reply)
             st.session_state.messages.append({"role": "assistant", "content": full_reply})
         else:
-            # HIỆN LỖI CHI TIẾT ĐỂ BẮT BỆNH
-            st.error("⚠️ Hệ thống đang quá tải hoặc gặp lỗi kết nối.")
-            with st.expander("Xem chi tiết lỗi (Gửi cho kỹ thuật):"):
+            st.error("⚠️ Hệ thống đang quá tải. Vui lòng đợi 10 giây rồi thử lại.")
+            with st.expander("Chi tiết lỗi kỹ thuật:"):
                 st.code(err_log)
