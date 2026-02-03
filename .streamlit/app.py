@@ -59,8 +59,12 @@ except Exception as e:
 
 genai.configure(api_key=GEMINI_KEY)
 
-# --- DANH SÁCH MODEL ---
-MODEL_LIST = ["gemini-flash-latest", "gemini-2.0-flash-lite-preview-09-2025", "gemini-pro"]
+# --- DANH SÁCH MODEL (Cập nhật những cái ổn định nhất) ---
+MODEL_LIST = [
+    "gemini-1.5-flash",          # Bản chuẩn, ổn định nhất
+    "gemini-flash-latest",       # Bản mới nhất
+    "gemini-pro",                # Bản cũ nhưng "trâu bò"
+]
 
 # --- HÀM ĐỌC DRIVE ---
 @st.cache_resource(ttl=3600)
@@ -99,21 +103,31 @@ def load_drive_data():
         return full_text, file_list
     except Exception as e: return None, str(e)
 
-# --- HÀM XỬ LÝ AI ---
+# --- HÀM XỬ LÝ AI (PHIÊN BẢN LÌ ĐÒN) ---
 def ask_gemini(full_prompt):
+    debug_error = ""
     for model_name in MODEL_LIST:
-        for attempt in range(2): 
+        # Thử mỗi model tối đa 3 lần (tăng số lần thử)
+        for attempt in range(3): 
             try:
                 model = genai.GenerativeModel(model_name)
                 response = model.generate_content(full_prompt)
-                return response.text 
+                return response.text, None # Thành công, không có lỗi
             except Exception as e:
                 error_str = str(e)
+                debug_error += f"\n- {model_name} (Lần {attempt+1}): {error_str}"
+                
+                # Nếu quá tải (429) -> Nghỉ 5 giây (QUAN TRỌNG)
                 if "429" in error_str or "quota" in error_str.lower():
-                    time.sleep(2); continue 
-                elif "404" in error_str: break 
-                else: break
-    return None
+                    time.sleep(5) 
+                    continue 
+                # Nếu không tìm thấy model (404) -> Bỏ qua luôn
+                elif "404" in error_str:
+                    break 
+                else:
+                    time.sleep(1)
+                    continue
+    return None, debug_error
 
 # --- GIAO DIỆN CHÍNH ---
 st.markdown("""
@@ -159,7 +173,7 @@ if prompt := st.chat_input("Nhập nội dung... (Ví dụ: Cơ sở karaoke 5 t
 
     # Lịch sử chat
     chat_history_text = ""
-    for msg in st.session_state.messages[-10:]: 
+    for msg in st.session_state.messages[-6:]: 
         role_name = "Người dùng" if msg["role"] == "user" else "AI"
         chat_history_text += f"{role_name}: {msg['content']}\n"
 
@@ -178,27 +192,22 @@ if prompt := st.chat_input("Nhập nội dung... (Ví dụ: Cơ sở karaoke 5 t
     THUẬT TOÁN XÁC ĐỊNH THẨM QUYỀN QUẢN LÝ (BẮT BUỘC ÁP DỤNG KHI CÓ CÂU HỎI VỀ PHÂN CẤP QUẢN LÝ):
     
     Bước 1: Kiểm tra dữ liệu đầu vào.
-    - Nếu thiếu thông tin, HÃY HỎI NGƯỢC LẠI người dùng các thông số:
-      + Tổng diện tích xây dựng?
-      + Tổng số tầng? Chiều cao công trình?
-      + Công năng chi tiết từng tầng (Diện tích từng công năng)?
+    - Nếu thiếu thông tin (Diện tích, số tầng, khối tích, công năng chi tiết), HÃY HỎI NGƯỢC LẠI người dùng. Đừng đoán mò.
       
     Bước 2: Xác định công năng chính (Logic 70%):
-    - Tính % diện tích của từng công năng so với tổng diện tích.
-    - Nếu công năng nào > 70% diện tích -> Đó là công năng chính.
-    - Nếu Công năng nhà ở > 70% -> Nhà ở kết hợp SXKD.
-    - Nếu không có công năng nào > 70% -> Nhà hỗn hợp.
+    - Tính % diện tích của từng công năng.
+    - Nếu công năng nào > 70% -> Công năng chính.
+    - Nếu không -> Nhà hỗn hợp.
     
-    Bước 3: Đối chiếu Phụ lục (Nghị định 105/136/50 tùy dữ liệu nạp):
-    - Tính Khối tích = Diện tích xây dựng x Chiều cao.
-    - So sánh các chỉ số (Tầng, Diện tích, Khối tích) với Phụ lục I và Phụ lục II.
+    Bước 3: Đối chiếu Phụ lục (Nghị định 136/2020 hoặc NĐ 50/2024 tùy dữ liệu):
+    - So sánh Số tầng, Diện tích, Khối tích với Phụ lục I (Xã quản lý) và Phụ lục II (Công an quản lý).
     
     Bước 4: Kết luận (Quy tắc ưu tiên):
-    - Nếu cơ sở đạt BẤT KỲ điều kiện nào của Phụ lục II (kể cả khi diện tích chỉ thuộc Phụ lục I nhưng số tầng thuộc Phụ lục II) -> Kết luận: PHÒNG CẢNH SÁT PCCC & CNCH QUẢN LÝ.
-    - Nếu cơ sở đạt ngưỡng Phụ lục I nhưng KHÔNG đạt ngưỡng Phụ lục II -> Kết luận: UBND CẤP XÃ QUẢN LÝ.
+    - Nếu đạt điều kiện Phụ lục II -> PHÒNG CẢNH SÁT PCCC & CNCH QUẢN LÝ.
+    - Nếu chỉ đạt Phụ lục I và KHÔNG đạt Phụ lục II -> UBND CẤP XÃ QUẢN LÝ.
     
     YÊU CẦU TRẢ LỜI:
-    - Trình bày mạch lạc, có tính toán dẫn chứng (Ví dụ: "Vì diện tích A chiếm 75% > 70% nên đây là nhà...").
+    - Rõ ràng, mạch lạc.
     - Không chào hỏi lại.
     
     INPUT NGƯỜI DÙNG: {prompt}
@@ -207,13 +216,16 @@ if prompt := st.chat_input("Nhập nội dung... (Ví dụ: Cơ sở karaoke 5 t
     
     with st.chat_message("assistant", avatar="🚒"):
         message_placeholder = st.empty()
-        message_placeholder.markdown("⏳ *Đang phân tích hồ sơ...*")
+        message_placeholder.markdown("⏳ *Đang phân tích hồ sơ... (Có thể mất 5-10s)*")
         
-        reply = ask_gemini(final_prompt)
+        reply, err_log = ask_gemini(final_prompt)
         
         if reply:
             full_reply = reply + "\n\n---\n*Bạn cần hỏi gì thêm không?*"
             message_placeholder.markdown(full_reply)
             st.session_state.messages.append({"role": "assistant", "content": full_reply})
         else:
-            message_placeholder.error("⚠️ Hệ thống bận. Vui lòng thử lại.")
+            # HIỆN LỖI CHI TIẾT ĐỂ BẮT BỆNH
+            st.error("⚠️ Hệ thống đang quá tải hoặc gặp lỗi kết nối.")
+            with st.expander("Xem chi tiết lỗi (Gửi cho kỹ thuật):"):
+                st.code(err_log)
