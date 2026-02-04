@@ -17,7 +17,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# --- CSS GIAO DIỆN (ĐẸP & CHUYÊN NGHIỆP) ---
+# --- CSS GIAO DIỆN ---
 st.markdown("""
 <style>
     #MainMenu {visibility: hidden;}
@@ -31,7 +31,6 @@ st.markdown("""
     }
     .header-title {font-size: 28px; font-weight: 900; text-transform: uppercase; margin: 0; text-shadow: 2px 2px 4px rgba(0,0,0,0.3);}
     .header-subtitle {font-size: 14px; opacity: 0.9; margin-top: 5px;}
-    /* Ẩn bớt thông báo lỗi dài dòng của Streamlit */
     .stAlert {padding: 0.5rem;}
 </style>
 """, unsafe_allow_html=True)
@@ -47,15 +46,14 @@ except Exception as e:
 
 genai.configure(api_key=GEMINI_KEY)
 
-# --- DANH SÁCH MODEL (CẤU HÌNH ĐỂ KHÔNG MẤT PHÍ) ---
-# Sử dụng Flash Lite và Flash 1.5 - Đây là các model Google cho dùng FREE nhiều nhất
+# --- DANH SÁCH MODEL ---
 MODEL_LIST = [
     "gemini-2.0-flash-lite-preview-02-05", 
     "gemini-1.5-flash", 
     "gemini-flash-latest"
 ]
 
-# --- HÀM ĐỌC DRIVE (CÓ GIỚI HẠN DUNG LƯỢNG ĐỂ TRÁNH QUÁ TẢI) ---
+# --- HÀM ĐỌC DRIVE ---
 @st.cache_resource(ttl=3600)
 def load_drive_data():
     try:
@@ -69,12 +67,10 @@ def load_drive_data():
         full_text = ""
         file_list = []
         total_chars = 0
-        
-        # Giới hạn nạp khoảng 150.000 ký tự để đảm bảo tốc độ và không bị Google chặn
         CHAR_LIMIT = 150000 
         
         for file in files:
-            if total_chars > CHAR_LIMIT: break # Đủ chữ rồi thì dừng, không nạp thêm
+            if total_chars > CHAR_LIMIT: break 
             fname = file['name']
             if "google-apps" in file['mimeType']: continue 
             try:
@@ -109,7 +105,7 @@ def ask_gemini(full_prompt):
                 response = model.generate_content(full_prompt)
                 return response.text 
             except Exception as e:
-                time.sleep(2) # Nghỉ 2s rồi thử lại nếu lỗi
+                time.sleep(2)
                 continue
     return None
 
@@ -122,11 +118,17 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
+# Load dữ liệu (Chạy ngầm)
 with st.spinner('Đang kết nối dữ liệu luật...'):
     knowledge, list_files = load_drive_data()
 
+# --- SỬA LỖI Ở ĐÂY: THÊM KIỂM TRA ĐỂ CHỈ HIỆN 1 LẦN ---
 if list_files:
-    st.toast("Hệ thống đã sẵn sàng.", icon="✅")
+    # Kiểm tra xem đã hiện thông báo chưa
+    if "data_loaded_msg" not in st.session_state:
+        st.toast("Hệ thống đã sẵn sàng.", icon="✅")
+        # Đánh dấu là đã hiện rồi
+        st.session_state.data_loaded_msg = True
 else:
     st.error("Lỗi kết nối dữ liệu."); st.stop()
 
@@ -154,13 +156,12 @@ if prompt := st.chat_input("Nhập câu hỏi... (VD: Ai quản lý quán karaok
     st.session_state.messages.append({"role": "user", "content": prompt})
     st.chat_message("user", avatar="👤").write(prompt)
 
-    # Lịch sử chat (Rút gọn để tiết kiệm bộ nhớ)
+    # Lịch sử chat
     chat_history = ""
     for msg in st.session_state.messages[-4:]:
         chat_history += f"{msg['role']}: {msg['content']}\n"
 
-    # --- BỘ NÃO THÔNG MINH (LOGIC 70%) ---
-    # Đây là phần quan trọng nhất biến AI thành Chuyên gia
+    # --- PROMPT THÔNG MINH ---
     final_prompt = f"""
     VAI TRÒ: Bạn là Đại úy Phạm Tùng Linh - Chuyên gia PCCC.
     
@@ -192,8 +193,8 @@ if prompt := st.chat_input("Nhập câu hỏi... (VD: Ai quản lý quán karaok
     - Chỉ khi nào KHÔNG đạt Phụ lục II mà chỉ đạt Phụ lục I -> Mới do UBND CẤP XÃ quản lý.
     
     YÊU CẦU ĐẦU RA:
-    - Trả lời ngắn gọn, lập luận rõ ràng (Ví dụ: "Vì công năng ở chiếm 60% < 70% nên đây là nhà hỗn hợp...").
-    - Không chào hỏi lại, không xưng hô thừa.
+    - Trả lời ngắn gọn, lập luận rõ ràng.
+    - Không chào hỏi lại.
     
     CÂU HỎI CỦA NGƯỜI DÂN: {prompt}
     """
