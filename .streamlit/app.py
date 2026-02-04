@@ -17,52 +17,45 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# --- CSS TÙY CHỈNH ---
+# --- CSS GIAO DIỆN (ĐẸP & CHUYÊN NGHIỆP) ---
 st.markdown("""
 <style>
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     header {visibility: hidden;}
-    
-    ::-webkit-scrollbar {width: 8px;}
-    ::-webkit-scrollbar-thumb {background: #ccc; border-radius: 4px;}
     .stChatInput {border-radius: 20px;}
-    
     .header-banner {
         background: linear-gradient(90deg, #B71C1C 0%, #D32F2F 100%);
-        padding: 2rem 1rem;
-        border-radius: 0 0 15px 15px;
-        color: white;
-        text-align: center;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.2);
-        margin-top: -60px;
-        margin-bottom: 25px;
+        padding: 1.5rem; border-radius: 0 0 15px 15px;
+        color: white; text-align: center; margin-top: -60px; margin-bottom: 20px;
     }
-    .header-title {
-        font-size: 32px; font-weight: 900; text-transform: uppercase;
-        margin: 0; letter-spacing: 1.5px; text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
-    }
-    .header-subtitle {
-        font-size: 15px; opacity: 0.95; margin-top: 8px; font-weight: 400; letter-spacing: 0.5px;
-    }
+    .header-title {font-size: 28px; font-weight: 900; text-transform: uppercase; margin: 0; text-shadow: 2px 2px 4px rgba(0,0,0,0.3);}
+    .header-subtitle {font-size: 14px; opacity: 0.9; margin-top: 5px;}
+    /* Ẩn bớt thông báo lỗi dài dòng của Streamlit */
+    .stAlert {padding: 0.5rem;}
 </style>
 """, unsafe_allow_html=True)
 
-# --- KẾT NỐI BẢO MẬT ---
+# --- KẾT NỐI HỆ THỐNG ---
 try:
     GEMINI_KEY = st.secrets["GEMINI_API_KEY"]
     DRIVE_FOLDER_ID = st.secrets["DRIVE_FOLDER_ID"]
     GCP_JSON = json.loads(st.secrets["GCP_JSON"])
 except Exception as e:
-    st.error(f"⚠️ Lỗi cấu hình hệ thống: {str(e)}")
+    st.error(f"⚠️ Lỗi cấu hình: {str(e)}")
     st.stop()
 
 genai.configure(api_key=GEMINI_KEY)
 
-# --- DANH SÁCH MODEL ---
-MODEL_LIST = ["gemini-flash-latest", "gemini-2.0-flash-lite-preview-09-2025", "gemini-pro"]
+# --- DANH SÁCH MODEL (CẤU HÌNH ĐỂ KHÔNG MẤT PHÍ) ---
+# Sử dụng Flash Lite và Flash 1.5 - Đây là các model Google cho dùng FREE nhiều nhất
+MODEL_LIST = [
+    "gemini-2.0-flash-lite-preview-02-05", 
+    "gemini-1.5-flash", 
+    "gemini-flash-latest"
+]
 
-# --- HÀM ĐỌC DRIVE ---
+# --- HÀM ĐỌC DRIVE (CÓ GIỚI HẠN DUNG LƯỢNG ĐỂ TRÁNH QUÁ TẢI) ---
 @st.cache_resource(ttl=3600)
 def load_drive_data():
     try:
@@ -75,7 +68,13 @@ def load_drive_data():
         
         full_text = ""
         file_list = []
+        total_chars = 0
+        
+        # Giới hạn nạp khoảng 150.000 ký tự để đảm bảo tốc độ và không bị Google chặn
+        CHAR_LIMIT = 150000 
+        
         for file in files:
+            if total_chars > CHAR_LIMIT: break # Đủ chữ rồi thì dừng, không nạp thêm
             fname = file['name']
             if "google-apps" in file['mimeType']: continue 
             try:
@@ -92,9 +91,11 @@ def load_drive_data():
                 elif fname.endswith(".pdf"):
                     reader = PdfReader(fh)
                     for page in reader.pages: content += page.extract_text() + "\n"
+                
                 if content:
                     full_text += f"\n--- TÀI LIỆU: {fname} ---\n{content}\n"
                     file_list.append(fname)
+                    total_chars += len(content)
             except: continue 
         return full_text, file_list
     except Exception as e: return None, str(e)
@@ -105,46 +106,41 @@ def ask_gemini(full_prompt):
         for attempt in range(2): 
             try:
                 model = genai.GenerativeModel(model_name)
-                # Tăng max_tokens để AI có thể suy luận dài hơn
                 response = model.generate_content(full_prompt)
                 return response.text 
             except Exception as e:
-                error_str = str(e)
-                if "429" in error_str or "quota" in error_str.lower():
-                    time.sleep(2); continue 
-                elif "404" in error_str: break 
-                else: break
+                time.sleep(2) # Nghỉ 2s rồi thử lại nếu lỗi
+                continue
     return None
 
 # --- GIAO DIỆN CHÍNH ---
 st.markdown("""
 <div class="header-banner">
-    <div style="font-size: 45px; margin-bottom: 10px;">🛡️</div>
-    <p class="header-title">TRỢ LÝ AI VỀ PCCC VÀ CNCH</p>
+    <div style="font-size: 40px; margin-bottom: 5px;">🛡️</div>
+    <p class="header-title">TRỢ LÝ AI PCCC & CNCH</p>
     <p class="header-subtitle">PHÒNG CẢNH SÁT PCCC & CNCH - CÔNG AN TỈNH PHÚ THỌ</p>
 </div>
 """, unsafe_allow_html=True)
 
-with st.spinner('Đang đồng bộ dữ liệu...'):
+with st.spinner('Đang kết nối dữ liệu luật...'):
     knowledge, list_files = load_drive_data()
 
 if list_files:
-    st.toast("Đã kết nối cơ sở dữ liệu.", icon="✅")
+    st.toast("Hệ thống đã sẵn sàng.", icon="✅")
 else:
-    st.error("Không thể kết nối dữ liệu."); st.stop()
+    st.error("Lỗi kết nối dữ liệu."); st.stop()
 
 # KHUNG CHÀO MỪNG
 if "messages" not in st.session_state: st.session_state.messages = []
 if len(st.session_state.messages) == 0:
     st.markdown("""
-    <div style='background-color: #f8f9fa; padding: 25px; border-radius: 15px; border: 1px solid #e9ecef; text-align: center; margin-bottom: 30px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);'>
-        <h3 style='color: #B71C1C; margin: 0 0 15px 0; font-size: 22px;'>XIN CHÀO!</h3>
-        <p style='font-size: 16px; color: #333; line-height: 1.6;'>
-            Tôi là Trợ lý AI được phát triển bởi <b>Đại úy Phạm Tùng Linh (Phòng PC07)</b>.<br>
-            Tôi có khả năng <b>phân tích hồ sơ, tính toán thông số kỹ thuật</b> dựa trên quy chuẩn.
+    <div style='background-color: #f8f9fa; padding: 20px; border-radius: 12px; text-align: center; margin-bottom: 20px; border: 1px solid #eee;'>
+        <h3 style='color: #B71C1C; margin: 0;'>XIN CHÀO!</h3>
+        <p style='font-size: 15px; color: #333; margin-top: 10px;'>
+            Tôi là Trợ lý AI của <b>Đại úy Phạm Tùng Linh (Phòng PC07)</b>.<br>
+            Tôi chuyên giải đáp về thẩm quyền quản lý, thẩm duyệt, nghiệm thu PCCC.
         </p>
-        <hr style="width: 50px; margin: 15px auto; border-top: 2px solid #B71C1C;">
-        <p style='color: #666; font-style: italic; font-size: 14px;'>👇 Mời bạn đặt câu hỏi bên dưới 👇</p>
+        <p style='font-size: 13px; color: #666; font-style: italic;'>👇 Hãy nhập câu hỏi bên dưới 👇</p>
     </div>
     """, unsafe_allow_html=True)
 
@@ -154,39 +150,57 @@ for msg in st.session_state.messages:
     with st.chat_message(msg["role"], avatar=avatar): st.markdown(msg["content"])
 
 # XỬ LÝ CÂU HỎI
-if prompt := st.chat_input("Nhập nội dung... (Ví dụ: Tính bể nước cho nhà Karaoke 5 tầng)"):
+if prompt := st.chat_input("Nhập câu hỏi... (VD: Ai quản lý quán karaoke 5 tầng?)"):
     st.session_state.messages.append({"role": "user", "content": prompt})
     st.chat_message("user", avatar="👤").write(prompt)
 
-    # --- TẠO CHUỖI LỊCH SỬ CHAT (ĐỂ AI NHỚ ĐƯỢC CÂU TRƯỚC) ---
-    # Đây là chìa khóa để AI biết hỏi lại và nhớ thông tin cũ
-    chat_history_text = ""
-    for msg in st.session_state.messages[-6:]: # Chỉ nhớ 6 câu gần nhất để tiết kiệm bộ nhớ
-        role_name = "Người dùng" if msg["role"] == "user" else "AI"
-        chat_history_text += f"{role_name}: {msg['content']}\n"
+    # Lịch sử chat (Rút gọn để tiết kiệm bộ nhớ)
+    chat_history = ""
+    for msg in st.session_state.messages[-4:]:
+        chat_history += f"{msg['role']}: {msg['content']}\n"
 
-    # --- NÂNG CẤP PROMPT THÀNH CHUYÊN GIA PHÂN TÍCH ---
+    # --- BỘ NÃO THÔNG MINH (LOGIC 70%) ---
+    # Đây là phần quan trọng nhất biến AI thành Chuyên gia
     final_prompt = f"""
-    VAI TRÒ: Bạn là Chuyên gia Thẩm duyệt & Nghiệm thu PCCC (Đại úy Phạm Tùng Linh).
+    VAI TRÒ: Bạn là Đại úy Phạm Tùng Linh - Chuyên gia PCCC.
     
-    DỮ LIỆU LUẬT (TRA CỨU):
+    DỮ LIỆU LUẬT:
     {knowledge}
     
-    LỊCH SỬ TRÒ CHUYỆN (ĐỂ SUY LUẬN):
-    {chat_history_text}
+    LỊCH SỬ CHAT:
+    {chat_history}
     
-    NHIỆM VỤ VÀ TƯ DUY (QUAN TRỌNG):
-    1. **PHÂN TÍCH:** Khi nhận câu hỏi, hãy đối chiếu với Dữ liệu luật xem đã đủ thông tin để kết luận chưa.
-    2. **HỎI LẠI:** Nếu thiếu thông tin quan trọng (ví dụ: diện tích, chiều cao, công năng, số tầng...), ĐỪNG trả lời chung chung. Hãy hỏi ngược lại người dùng để lấy thông số.
-    3. **TÍNH TOÁN:** Nếu có số liệu, hãy thực hiện tính toán cụ thể (ví dụ: tính m3 nước, tính lối thoát nạn) rồi so sánh với Quy chuẩn.
-    4. **TRẢ LỜI:** Ngắn gọn, trích dẫn điều luật. Không chào hỏi lại.
+    NHIỆM VỤ: Trả lời câu hỏi người dân.
     
-    OUTPUT CỦA AI (Chỉ đưa ra câu trả lời):
+    🔴 QUY TRÌNH SUY LUẬN (BẮT BUỘC TUÂN THỦ KHI XÁC ĐỊNH THẨM QUYỀN QUẢN LÝ):
+    
+    BƯỚC 1: KIỂM TRA DỮ LIỆU
+    - Để xác định ai quản lý, bạn CẦN BIẾT: Tổng diện tích sàn, Số tầng, Chiều cao, Khối tích, Công năng chi tiết.
+    - Nếu người dùng KHÔNG cung cấp đủ -> HÃY HỎI NGƯỢC LẠI NGƯỜI DÙNG để lấy thông tin. Đừng trả lời chung chung.
+    
+    BƯỚC 2: XÁC ĐỊNH CÔNG NĂNG CHÍNH (QUY TẮC 70%)
+    - Nếu một công năng chiếm > 70% tổng diện tích -> Đó là công năng chính.
+    - Nếu Công năng nhà ở > 70% -> Nhà ở kết hợp SXKD.
+    - Nếu KHÔNG CÓ công năng nào vượt 70% -> Kết luận là: NHÀ HỖN HỢP.
+    
+    BƯỚC 3: ĐỐI CHIẾU PHỤ LỤC (Nghị định 50/2024 hoặc 136/2020)
+    - So sánh số tầng, khối tích, diện tích với Phụ lục I và Phụ lục II.
+    
+    BƯỚC 4: KẾT LUẬN (QUY TẮC ƯU TIÊN TUYỆT ĐỐI)
+    - Nếu cơ sở đạt tiêu chí Phụ lục II -> PHÒNG CẢNH SÁT PCCC & CNCH (PC07) quản lý.
+    - Lưu ý: Dù diện tích nhỏ (thuộc Phụ lục I) nhưng Số tầng cao (thuộc Phụ lục II) -> Vẫn là PC07 quản lý.
+    - Chỉ khi nào KHÔNG đạt Phụ lục II mà chỉ đạt Phụ lục I -> Mới do UBND CẤP XÃ quản lý.
+    
+    YÊU CẦU ĐẦU RA:
+    - Trả lời ngắn gọn, lập luận rõ ràng (Ví dụ: "Vì công năng ở chiếm 60% < 70% nên đây là nhà hỗn hợp...").
+    - Không chào hỏi lại, không xưng hô thừa.
+    
+    CÂU HỎI CỦA NGƯỜI DÂN: {prompt}
     """
     
     with st.chat_message("assistant", avatar="🚒"):
         message_placeholder = st.empty()
-        message_placeholder.markdown("⏳ *Đang phân tích & suy luận...*")
+        message_placeholder.markdown("⏳ *Đang phân tích dữ liệu...*")
         
         reply = ask_gemini(final_prompt)
         
@@ -195,4 +209,4 @@ if prompt := st.chat_input("Nhập nội dung... (Ví dụ: Tính bể nước c
             message_placeholder.markdown(full_reply)
             st.session_state.messages.append({"role": "assistant", "content": full_reply})
         else:
-            message_placeholder.error("⚠️ Hệ thống bận. Vui lòng thử lại.")
+            message_placeholder.error("⚠️ Hệ thống đang bận. Vui lòng thử lại sau 10 giây.")
