@@ -136,8 +136,8 @@ if len(st.session_state.messages) == 0:
     <div style='background-color: #f8f9fa; padding: 20px; border-radius: 12px; text-align: center; margin-bottom: 20px; border: 1px solid #eee;'>
         <h3 style='color: #B71C1C; margin: 0;'>XIN CHÀO!</h3>
         <p style='font-size: 15px; color: #333; margin-top: 10px;'>
-            Tôi là Trợ lý AI được phát triển bởi <b>Đại úy Phạm Tùng Linh (Phòng PC07)</b>.<br>
-            Tôi chuyên giải đáp về công tác quản lý nhà nước PCCC và CNCH.
+            Tôi là Trợ lý AI của <b>Đại úy Phạm Tùng Linh (Phòng PC07)</b>.<br>
+            Tôi chuyên giải đáp về thẩm quyền quản lý, xử phạt, thẩm duyệt PCCC.
         </p>
         <p style='font-size: 13px; color: #666; font-style: italic;'>👇 Hãy nhập câu hỏi bên dưới 👇</p>
     </div>
@@ -149,7 +149,7 @@ for msg in st.session_state.messages:
     with st.chat_message(msg["role"], avatar=avatar): st.markdown(msg["content"])
 
 # XỬ LÝ CÂU HỎI
-if prompt := st.chat_input("Nhập câu hỏi... (VD: Mức phạt lỗi không mua bảo hiểm cháy nổ bắt buộc?)"):
+if prompt := st.chat_input("Nhập câu hỏi... (VD: Chiều cao lan can an toàn là bao nhiêu?)"):
     st.session_state.messages.append({"role": "user", "content": prompt})
     st.chat_message("user", avatar="👤").write(prompt)
 
@@ -158,67 +158,64 @@ if prompt := st.chat_input("Nhập câu hỏi... (VD: Mức phạt lỗi không 
     for msg in st.session_state.messages[-4:]:
         chat_history += f"{msg['role']}: {msg['content']}\n"
 
-    # --- PROMPT NGHIỆP VỤ CAO CẤP (LOGIC SÀNG LỌC & ĐẦY ĐỦ TRƯỜNG) ---
+    # --- PROMPT TOÀN DIỆN (LUÔN LUÔN TRÍCH DẪN) ---
     final_prompt = f"""
-    VAI TRÒ: AI - Chuyên gia PCCC.
-    DỮ LIỆU LUẬT (NĐ 106/2025, NĐ 189/2025...): {knowledge}
+    VAI TRÒ: Đại úy Phạm Tùng Linh - Chuyên gia Pháp chế PCCC.
+    DỮ LIỆU LUẬT (QCVN 06, NĐ 136, NĐ 50, NĐ 106...): {knowledge}
     LỊCH SỬ CHAT: {chat_history}
     
-    🛑 NHIỆM VỤ: XÁC ĐỊNH THẨM QUYỀN XỬ PHẠT VI PHẠM HÀNH CHÍNH
-    
-    BƯỚC 1: TÍNH TOÁN KHUNG PHẠT
-    - Xác định mức phạt tiền đối với CÁ NHÂN và TỔ CHỨC (nhân đôi).
-    - Tính MỨC PHẠT TRUNG BÌNH (để xác định thẩm quyền).
-    
-    BƯỚC 2: KIỂM TRA PHẠT BỔ SUNG & KHẮC PHỤC HẬU QUẢ (KPHQ)
-    - Kiểm tra kỹ xem hành vi có Hình thức phạt bổ sung hoặc Biện pháp KPHQ nào không?
-    
-    BƯỚC 3: SÀNG LỌC VÀ XÁC ĐỊNH THẨM QUYỀN (QUAN TRỌNG)
-    - Nguyên tắc SÀNG LỌC: So sánh Mức phạt tiền trung bình của hành vi với Thẩm quyền phạt tiền tối đa của các chức danh:
-      + Chiến sĩ: 500k
-      + Đội trưởng: 1.500.000đ (Check lại luật mới)
-      + Trưởng CA cấp xã: 2.500.000đ
-      + Chủ tịch xã: 5.000.000đ
-      + Trưởng phòng PC07 / Trưởng CA huyện: 25.000.000đ (hoặc theo luật mới)
-      + Giám đốc CA tỉnh / Chủ tịch huyện: 50.000.000đ (hoặc theo luật mới)
-      + Chủ tịch Tỉnh / Cục trưởng: > 50.000.000đ
-    
-    - THỰC HIỆN LỌC:
-      1. LOẠI BỎ NGAY lập tức các chức danh có thẩm quyền tiền < Mức phạt trung bình của hành vi. (Không được đưa vào danh sách trả lời để tránh dài dòng).
-      2. CHỈ GIỮ LẠI các chức danh có thẩm quyền tiền >= Mức phạt.
-      3. Với danh sách đã lọc được, tiếp tục kiểm tra quyền hạn về Phạt bổ sung/KPHQ. Nếu ai không đủ quyền phạt bổ sung -> Ghi chú rõ.
+    🛑 NGUYÊN TẮC VÀNG (BẮT BUỘC ÁP DỤNG CHO MỌI CÂU TRẢ LỜI):
+    1. TUYỆT ĐỐI KHÔNG trả lời chung chung (kiểu "theo quy định pháp luật...").
+    2. MỌI con số, nhận định, yêu cầu kỹ thuật đưa ra ĐỀU PHẢI CÓ TRÍCH DẪN CỤ THỂ.
+    -> Mẫu trích dẫn bắt buộc: "...(Căn cứ: Điểm..., Khoản..., Điều..., Văn bản...)".
+    3. Nếu không tìm thấy điều khoản cụ thể trong dữ liệu -> Hãy nói thẳng "Trong dữ liệu hiện tại không tìm thấy quy định chi tiết về vấn đề này".
 
-    BƯỚC 4: TRÌNH BÀY CÂU TRẢ LỜI (BẮT BUỘC ĐÚNG FORM SAU):
-    --------------------------------------------------
-    1. Mức tiền phạt:
-       - Cá nhân: Từ ... đến ... đồng (Trung bình: ...).
-       - Tổ chức: Từ ... đến ... đồng (Trung bình: ...).
-       - Căn cứ: Điểm ..., Khoản ..., Điều ... Nghị định ...
-       
-    2. Hình thức phạt bổ sung: [Nếu có ghi cụ thể. Nếu không có BẮT BUỘC ghi: "Không"]
+    -----------------------------------------------------
+    🟢 QUY TRÌNH 1: ĐỐI VỚI CÂU HỎI VỀ KỸ THUẬT / QUẢN LÝ
+    - Trả lời nội dung kỹ thuật (chiều cao, khoảng cách, lưu lượng...).
+    - Ngay sau thông số phải mở ngoặc ghi nguồn gốc văn bản (Ví dụ: QCVN 06:2022/BXD, Bảng mấy, Mục mấy).
     
-    3. Biện pháp khắc phục hậu quả: [Nếu có ghi cụ thể. Nếu không có BẮT BUỘC ghi: "Không"]
-
-    4. Phân tích thẩm quyền xử phạt:
-       *Chỉ xét các chức danh có thẩm quyền phạt tiền từ mức [...] trở lên:*
+    -----------------------------------------------------
+    🔴 QUY TRÌNH 2: ĐỐI VỚI CÂU HỎI VỀ XỬ PHẠT VI PHẠM HÀNH CHÍNH
+    Thực hiện nghiêm ngặt 3 bước:
+    
+    BƯỚC 1: XÁC ĐỊNH MỨC PHẠT & HÌNH THỨC BỔ SUNG
+    - Tìm mức phạt Cá nhân & Tổ chức.
+    - Tìm Hình thức phạt bổ sung & Khắc phục hậu quả.
+    -> Ghi rõ căn cứ từng mục.
+    
+    BƯỚC 2: SÀNG LỌC THẨM QUYỀN (Theo NĐ 189/2025/NĐ-CP)
+    - So sánh mức phạt trung bình với quyền hạn tiền tối đa của các chức danh.
+    - LOẠI BỎ NGAY các chức danh không đủ tiền phạt hoặc không đủ quyền phạt bổ sung.
+    
+    BƯỚC 3: TRÌNH BÀY (FORM MẪU):
+    1. Về hành vi và mức tiền phạt:
+       - Hành vi: ...
+       - Mức phạt Cá nhân: ... -> Căn cứ: Điểm..., Khoản..., Điều... NĐ...
+       - Mức phạt Tổ chức: ...
        
+    2. Hình thức phạt bổ sung & KPHQ:
+       - Phạt bổ sung: [Có/Không] -> Căn cứ: ...
+       - KPHQ: [Có/Không] -> Căn cứ: ...
+
+    3. Phân tích thẩm quyền xử phạt:
+       *Chỉ xét các chức danh ĐỦ ĐIỀU KIỆN (Tiền + Bổ sung/KPHQ):*
        - [Chức danh A]: 
-         + Thẩm quyền phạt tiền tối đa: ... (Đủ/Không đủ).
-         + Thẩm quyền phạt bổ sung/KPHQ: ... (Có/Không).
-         => KẾT LUẬN: [Được phép ký / Không được phép ký].
+         + Thẩm quyền tiền: ... (Căn cứ: Khoản..., Điều... NĐ 189/2025).
+         + Thẩm quyền bổ sung: ... (Nếu có).
+         => KẾT LUẬN: Đủ thẩm quyền ký.
 
        - [Chức danh B]: ... (Tương tự)
        
-    5. Đề xuất:
-       - Đề xuất trình [Chức danh thấp nhất nhưng đủ toàn bộ thẩm quyền] ra quyết định.
-    --------------------------------------------------
+    4. Đề xuất: Trình [Chức danh thấp nhất đủ quyền] quyết định.
+    -----------------------------------------------------
     
     CÂU HỎI: {prompt}
     """
     
     with st.chat_message("assistant", avatar="🚒"):
         message_placeholder = st.empty()
-        message_placeholder.markdown("⏳ *Đang tra cứu và sàng lọc thẩm quyền...*")
+        message_placeholder.markdown("⏳ *Đang tra cứu căn cứ pháp lý...*")
         
         reply = ask_gemini(final_prompt)
         
