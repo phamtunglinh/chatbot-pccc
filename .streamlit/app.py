@@ -39,32 +39,32 @@ try:
     DRIVE_FOLDER_ID = st.secrets["DRIVE_FOLDER_ID"]
     GCP_JSON = json.loads(st.secrets["GCP_JSON"])
 except Exception as e:
-    st.error(f"⚠️ Lỗi cấu hình Secrets: {str(e)}")
+    st.error(f"⚠️ Lỗi cấu hình: {str(e)}")
     st.stop()
 
 genai.configure(api_key=GEMINI_KEY)
 
-# --- HÀM KIỂM TRA MODEL KHẢ DỤNG (CHỮA LỖI 404) ---
+# --- HÀM TỰ ĐỘNG TÌM MODEL TỐT NHẤT (CHỮA LỖI 404) ---
 @st.cache_resource
-def get_available_model():
-    # Danh sách ưu tiên
-    preferred_models = ["models/gemini-1.5-flash", "models/gemini-1.5-pro", "models/gemini-pro"]
+def get_best_model():
+    # Ưu tiên Flash (nhanh, rẻ) -> Pro (thông minh) -> Cũ
+    priority_list = ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-1.0-pro"]
+    
     try:
-        available_models = [m.name for m in genai.list_models()]
-        # Tìm model tốt nhất có trong danh sách khả dụng
-        for model in preferred_models:
-            if model in available_models:
-                return model.replace("models/", "") # Trả về tên sạch (vd: gemini-1.5-flash)
-        # Nếu không thấy cái nào quen, lấy cái đầu tiên generateContent được
-        for m in genai.list_models():
-            if 'generateContent' in m.supported_generation_methods:
-                return m.name.replace("models/", "")
-    except Exception as e:
-        return "gemini-pro" # Fallback an toàn nhất
-    return "gemini-pro"
+        # Lấy danh sách model thực tế Google đang cấp cho tài khoản này
+        available = [m.name.replace("models/", "") for m in genai.list_models()]
+        
+        for model in priority_list:
+            if model in available:
+                return model # Tìm thấy cái nào ngon nhất thì dùng ngay
+                
+        # Nếu không thấy cái nào trong list ưu tiên, lấy đại cái đầu tiên hỗ trợ chat
+        return "gemini-pro"
+    except:
+        return "gemini-pro" # Fallback cuối cùng
 
-# Xác định model sẽ dùng ngay khi chạy app
-ACTIVE_MODEL_NAME = get_available_model()
+# Kích hoạt model
+ACTIVE_MODEL = get_best_model()
 
 # --- HÀM ĐỌC DRIVE (GOM KHÔNG BỎ SÓT) ---
 @st.cache_resource(ttl=3600)
@@ -80,7 +80,7 @@ def load_drive_data_categorized():
         groups = {
             "xu_phat": "",  
             "ky_thuat": "", 
-            "thu_tuc": "",  # Nhóm này sẽ chứa cả Thủ tục + Các file chưa phân loại
+            "thu_tuc": "",  # Nhóm này quan trọng nhất
             "debug_info": {"xu_phat": [], "ky_thuat": [], "thu_tuc": []}
         }
         
@@ -109,18 +109,18 @@ def load_drive_data_categorized():
                 if content:
                     formatted_content = f"\n=== FILE: {file['name']} ===\n{content}\n=== HẾT FILE ===\n"
                     
-                    # --- PHÂN LOẠI MỚI (CHẶT CHẼ HƠN) ---
-                    # 1. Nhóm Xử phạt (Ưu tiên cao nhất)
+                    # --- LOGIC PHÂN LOẠI MỚI (AN TOÀN HƠN) ---
+                    # 1. Xử phạt: Chỉ khi tên file có chữ 'phạt' hoặc '106', '189'
                     if any(x in fname for x in ["106", "189", "144", "xử phạt", "vi phạm", "xphc"]):
                         groups["xu_phat"] += formatted_content
                         groups["debug_info"]["xu_phat"].append(file['name'])
                     
-                    # 2. Nhóm Kỹ thuật
+                    # 2. Kỹ thuật: Chỉ khi có chữ '06', 'qc10', 'tcvn'
                     elif any(x in fname for x in ["06", "qc10", "tcvn", "tiêu chuẩn", "quy chuẩn", "kỹ thuật"]):
                         groups["ky_thuat"] += formatted_content
                         groups["debug_info"]["ky_thuat"].append(file['name'])
 
-                    # 3. Nhóm Thủ tục & Còn lại (GOM HẾT VÀO ĐÂY ĐỂ KHÔNG SÓT NĐ 105)
+                    # 3. CÒN LẠI GOM HẾT VÀO THỦ TỤC (Chữa lỗi sót file NĐ 105/136)
                     else:
                         groups["thu_tuc"] += formatted_content
                         groups["debug_info"]["thu_tuc"].append(file['name'])
@@ -135,32 +135,34 @@ def load_drive_data_categorized():
 def select_context(prompt, groups):
     prompt_lower = prompt.lower()
     
+    # Logic ưu tiên để tiết kiệm dung lượng (Tránh lỗi 429)
     if any(x in prompt_lower for x in ["phạt", "tiền", "lỗi", "vi phạm", "xử lý"]):
-        # Hỏi phạt -> Lấy Xử phạt + Thủ tục (để tham chiếu hành vi)
         return groups["xu_phat"] + groups["thu_tuc"], "Xử phạt + Pháp lý"
         
     elif any(x in prompt_lower for x in ["mét", "chiều cao", "rộng", "khoảng cách", "trang bị", "lối thoát", "bậc"]):
         return groups["ky_thuat"], "Kỹ thuật (QC10, QCVN 06)"
         
     else:
-        # Mặc định lấy nhóm Thủ tục (chứa NĐ 105, 136, 50...)
+        # Nếu hỏi hồ sơ, thủ tục hoặc câu hỏi chung -> Lấy nhóm Thủ tục
         return groups["thu_tuc"], "Hồ sơ & Thủ tục"
 
-# --- HÀM GỌI AI (ĐƠN GIẢN HÓA) ---
+# --- HÀM GỌI AI AN TOÀN (CHỮA LỖI 429 QUÁ TẢI) ---
 def ask_gemini_safe(full_prompt):
+    model = genai.GenerativeModel(ACTIVE_MODEL)
     try:
-        model = genai.GenerativeModel(ACTIVE_MODEL_NAME)
         response = model.generate_content(full_prompt)
         return response.text 
     except Exception as e:
-        # Nếu lỗi quá tải, đợi chút rồi thử lại 1 lần
-        if "429" in str(e):
-            time.sleep(5)
+        error_msg = str(e)
+        # Nếu bị lỗi Quá tải (429) -> Tự động đợi 5s rồi thử lại
+        if "429" in error_msg or "quota" in error_msg.lower():
+            time.sleep(5) 
             try:
                 response = model.generate_content(full_prompt)
                 return response.text
-            except: pass
-        return f"⚠️ Lỗi kết nối AI ({str(e)}). Vui lòng thử lại sau."
+            except: 
+                return "⚠️ Hệ thống đang quá tải. Vui lòng đợi 30 giây rồi hỏi lại."
+        return f"⚠️ Lỗi kết nối: {error_msg}"
 
 # --- GIAO DIỆN CHÍNH ---
 st.markdown("""
@@ -178,20 +180,19 @@ with st.spinner('Đang nạp dữ liệu từ Drive...'):
 if not data_groups:
     st.error("Chưa kết nối được Drive."); st.stop()
 
-# --- ADMIN PANEL: KIỂM TRA TRẠNG THÁI ---
+# --- BẢNG ĐIỀU KHIỂN (ĐỂ ANH KIỂM TRA) ---
 with st.expander("🛠️ TRẠNG THÁI HỆ THỐNG (Bấm để xem)"):
-    st.write(f"✅ **Model đang dùng:** `{ACTIVE_MODEL_NAME}` (Đã tự động chọn model tốt nhất)")
+    st.write(f"✅ **Model hoạt động:** `{ACTIVE_MODEL}`")
     st.write(f"📂 **Tổng số file:** {count}")
     
+    # Hiển thị rõ file nào nằm ở đâu
     c1, c2, c3 = st.columns(3)
     with c1:
-        st.info(f"Giỏ THỦ TỤC (Chứa NĐ 105...):\n" + str(len(data_groups["debug_info"]["thu_tuc"])) + " file")
-        # In tên file để kiểm tra
-        for f in data_groups["debug_info"]["thu_tuc"]: st.caption(f"- {f}")
+        st.info(f"Giỏ THỦ TỤC & HỒ SƠ:\n" + "\n".join([f"- {f}" for f in data_groups["debug_info"]["thu_tuc"]]))
     with c2:
-        st.warning(f"Giỏ XỬ PHẠT:\n" + str(len(data_groups["debug_info"]["xu_phat"])) + " file")
+        st.warning(f"Giỏ XỬ PHẠT:\n" + "\n".join([f"- {f}" for f in data_groups["debug_info"]["xu_phat"]]))
     with c3:
-        st.success(f"Giỏ KỸ THUẬT:\n" + str(len(data_groups["debug_info"]["ky_thuat"])) + " file")
+        st.success(f"Giỏ KỸ THUẬT:\n" + "\n".join([f"- {f}" for f in data_groups["debug_info"]["ky_thuat"]]))
 
 # KHUNG CHÀO MỪNG
 if "messages" not in st.session_state: st.session_state.messages = []
@@ -201,7 +202,7 @@ if len(st.session_state.messages) == 0:
         <h3 style='color: #B71C1C; margin: 0;'>XIN CHÀO!</h3>
         <p style='font-size: 15px; color: #333; margin-top: 10px;'>
             Tôi là Trợ lý AI của <b>Đại úy Phạm Tùng Linh</b>.<br>
-            Hệ thống đang hoạt động trên nền tảng: <b>{ACTIVE_MODEL_NAME}</b>
+            Hệ thống đang chạy trên nền tảng: <b>{ACTIVE_MODEL}</b>
         </p>
     </div>
     """, unsafe_allow_html=True)
@@ -238,7 +239,7 @@ if prompt := st.chat_input("Nhập câu hỏi..."):
     3. NGOẠI LỆ: Được dùng kiến thức QCVN 06:2022 cho câu hỏi kỹ thuật.
     
     CÁC QUY TẮC TRẢ LỜI:
-    - **Hỏi Hồ sơ/Thủ tục:** Tìm kỹ trong các file thuộc nhóm Thủ tục (NĐ 105, 136, 50, Luật PCCC...). TUYỆT ĐỐI KHÔNG dùng NĐ 106 (Xử phạt) để trả lời câu hỏi "Hồ sơ gồm những gì".
+    - **Hỏi Hồ sơ/Thủ tục:** Tìm trong các file thuộc giỏ THỦ TỤC (NĐ 105, 136, 50...). TUYỆT ĐỐI KHÔNG dùng NĐ 106 (Xử phạt) để trả lời về thành phần hồ sơ.
     - **Hỏi Xử phạt:** Tìm trong NĐ 106, 189. Áp dụng logic Thẩm quyền (Tiền + Bổ sung).
     
     CÂU HỎI: {prompt}
