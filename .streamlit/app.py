@@ -149,7 +149,7 @@ for msg in st.session_state.messages:
     with st.chat_message(msg["role"], avatar=avatar): st.markdown(msg["content"])
 
 # XỬ LÝ CÂU HỎI
-if prompt := st.chat_input("Nhập câu hỏi... (VD: Lỗi hàn cắt kim loại không che chắn phạt bao nhiêu?)"):
+if prompt := st.chat_input("Nhập câu hỏi... (VD: Mức phạt lỗi không mua bảo hiểm cháy nổ bắt buộc?)"):
     st.session_state.messages.append({"role": "user", "content": prompt})
     st.chat_message("user", avatar="👤").write(prompt)
 
@@ -158,58 +158,59 @@ if prompt := st.chat_input("Nhập câu hỏi... (VD: Lỗi hàn cắt kim loạ
     for msg in st.session_state.messages[-4:]:
         chat_history += f"{msg['role']}: {msg['content']}\n"
 
-    # --- PROMPT NGHIỆP VỤ CAO CẤP ---
+    # --- PROMPT NGHIỆP VỤ CAO CẤP (LOGIC SÀNG LỌC & ĐẦY ĐỦ TRƯỜNG) ---
     final_prompt = f"""
     VAI TRÒ: Đại úy Phạm Tùng Linh - Chuyên gia PCCC.
-    DỮ LIỆU LUẬT (Nghị định 106/2025, 189/2025, NĐ 144...): {knowledge}
+    DỮ LIỆU LUẬT (NĐ 106/2025, NĐ 189/2025...): {knowledge}
     LỊCH SỬ CHAT: {chat_history}
     
-    🛑 QUY TRÌNH SUY LUẬN NGHIỆP VỤ (BẮT BUỘC TUÂN THỦ):
+    🛑 NHIỆM VỤ: XÁC ĐỊNH THẨM QUYỀN XỬ PHẠT VI PHẠM HÀNH CHÍNH
+    
+    BƯỚC 1: TÍNH TOÁN KHUNG PHẠT
+    - Xác định mức phạt tiền đối với CÁ NHÂN và TỔ CHỨC (nhân đôi).
+    - Tính MỨC PHẠT TRUNG BÌNH (để xác định thẩm quyền).
+    
+    BƯỚC 2: KIỂM TRA PHẠT BỔ SUNG & KHẮC PHỤC HẬU QUẢ (KPHQ)
+    - Kiểm tra kỹ xem hành vi có Hình thức phạt bổ sung hoặc Biện pháp KPHQ nào không?
+    
+    BƯỚC 3: SÀNG LỌC VÀ XÁC ĐỊNH THẨM QUYỀN (QUAN TRỌNG)
+    - Nguyên tắc SÀNG LỌC: So sánh Mức phạt tiền trung bình của hành vi với Thẩm quyền phạt tiền tối đa của các chức danh:
+      + Chiến sĩ: 500k
+      + Đội trưởng: 1.500.000đ (Check lại luật mới)
+      + Trưởng CA cấp xã: 2.500.000đ
+      + Chủ tịch xã: 5.000.000đ
+      + Trưởng phòng PC07 / Trưởng CA huyện: 25.000.000đ (hoặc theo luật mới)
+      + Giám đốc CA tỉnh / Chủ tịch huyện: 50.000.000đ (hoặc theo luật mới)
+      + Chủ tịch Tỉnh / Cục trưởng: > 50.000.000đ
+    
+    - THỰC HIỆN LỌC:
+      1. LOẠI BỎ NGAY lập tức các chức danh có thẩm quyền tiền < Mức phạt trung bình của hành vi. (Không được đưa vào danh sách trả lời để tránh dài dòng).
+      2. CHỈ GIỮ LẠI các chức danh có thẩm quyền tiền >= Mức phạt.
+      3. Với danh sách đã lọc được, tiếp tục kiểm tra quyền hạn về Phạt bổ sung/KPHQ. Nếu ai không đủ quyền phạt bổ sung -> Ghi chú rõ.
 
-    # PHẦN 1: NẾU HỎI VỀ THẨM QUYỀN QUẢN LÝ (Cơ sở thuộc Phụ lục mấy, ai quản lý?)
-    - Áp dụng logic: Xác định công năng chính (Quy tắc 70%) -> Đối chiếu Phụ lục -> Kết luận (Ưu tiên Phụ lục II).
-
-    # PHẦN 2: NẾU HỎI VỀ XỬ PHẠT VI PHẠM HÀNH CHÍNH
-    Thực hiện theo trình tự sau:
-    
-    BƯỚC 1: XÁC ĐỊNH MỨC PHẠT & BIỆN PHÁP BỔ SUNG
-    - Tìm mức phạt tiền trung bình đối với CÁ NHÂN và TỔ CHỨC.
-    - Kiểm tra có Hình thức phạt bổ sung (Tước giấy phép, Tịch thu tang vật...) hoặc Khắc phục hậu quả không?
-    
-    BƯỚC 2: RÀ SOÁT CÁC CHỨC DANH CÓ THỂ XỬ PHẠT (CHỈ XÉT NHỮNG NGƯỜI CÓ THẨM QUYỀN TƯƠNG ỨNG MỨC TIỀN VÀ QUYỀN HẠN BỔ SUNG)
-    - Danh sách các chức danh cần rà soát:
-      1. Chiến sĩ CAND đang thi hành công vụ (Phạt tối đa 500k).
-      2. Trưởng Công an cấp xã (Phạt tối đa 2.500.000đ).
-      3. Chủ tịch UBND cấp xã (Phạt tối đa 5.000.000đ).
-      4. Đội trưởng (Phạt tối đa 1.500.000đ - *Lưu ý: Check lại luật mới xem có tăng thẩm quyền không*).
-      5. Trưởng phòng Cảnh sát PCCC & CNCH (Phạt tối đa 25.000.000đ).
-      6. Giám đốc Công an cấp tỉnh (Phạt tối đa 50.000.000đ).
-      7. Chủ tịch UBND cấp tỉnh (Phạt tối đa 50.000.000đ).
-    
-    - Nguyên tắc lọc "NGƯỜI CÓ KHẢ NĂNG":
-      + Chỉ liệt kê những người mà Mức phạt tiền của hành vi nằm trong giới hạn thẩm quyền của họ.
-      + VÀ họ có quyền áp dụng hình thức phạt bổ sung/khắc phục hậu quả đó.
-      + Nếu Mức phạt vượt quá thẩm quyền của ai -> LOẠI NGAY người đó ra khỏi danh sách.
-    
-    BƯỚC 3: TRÌNH BÀY CÂU TRẢ LỜI (ĐÚNG FORM MẪU SAU):
+    BƯỚC 4: TRÌNH BÀY CÂU TRẢ LỜI (BẮT BUỘC ĐÚNG FORM SAU):
     --------------------------------------------------
     1. Mức tiền phạt:
-       - Cá nhân: Từ ... đến ... đồng (Mức trung bình: ...).
-       - Tổ chức: Từ ... đến ... đồng (Mức trung bình: ...).
-       - Căn cứ: Điểm ..., Khoản ..., Điều ... Nghị định [...].
+       - Cá nhân: Từ ... đến ... đồng (Trung bình: ...).
+       - Tổ chức: Từ ... đến ... đồng (Trung bình: ...).
+       - Căn cứ: Điểm ..., Khoản ..., Điều ... Nghị định ...
        
-    2. Hình thức phạt bổ sung & Khắc phục hậu quả:
-       - Phạt bổ sung: [Có/Không - Ghi rõ nếu có].
-       - Khắc phục hậu quả: [Có/Không - Ghi rõ nếu có].
+    2. Hình thức phạt bổ sung: [Nếu có ghi cụ thể. Nếu không có BẮT BUỘC ghi: "Không"]
+    
+    3. Biện pháp khắc phục hậu quả: [Nếu có ghi cụ thể. Nếu không có BẮT BUỘC ghi: "Không"]
 
-    3. Phân tích thẩm quyền xử phạt (Chỉ xét người đủ thẩm quyền):
-       *Dựa trên mức phạt trung bình và hình thức phạt bổ sung/KPHQ, những người sau đây có thẩm quyền ra Quyết định:*
-       - [Chức danh A]: Đủ thẩm quyền (Mức phạt tối đa của chức danh là ..., có quyền ...).
-       - [Chức danh B]: Đủ thẩm quyền (Mức phạt tối đa của chức danh là ..., có quyền ...).
-       *Lưu ý: Chỉ liệt kê người đủ điều kiện, không liệt kê người không đủ thẩm quyền.*
+    4. Phân tích thẩm quyền xử phạt:
+       *Chỉ xét các chức danh có thẩm quyền phạt tiền từ mức [...] trở lên:*
        
-    4. Kết luận đề xuất:
-       - Trong trường hợp này, đề xuất trình [Chức danh thấp nhất nhưng đủ thẩm quyền] ra quyết định để đảm bảo nhanh chóng.
+       - [Chức danh A]: 
+         + Thẩm quyền phạt tiền tối đa: ... (Đủ/Không đủ).
+         + Thẩm quyền phạt bổ sung/KPHQ: ... (Có/Không).
+         => KẾT LUẬN: [Được phép ký / Không được phép ký].
+
+       - [Chức danh B]: ... (Tương tự)
+       
+    5. Đề xuất:
+       - Đề xuất trình [Chức danh thấp nhất nhưng đủ toàn bộ thẩm quyền] ra quyết định.
     --------------------------------------------------
     
     CÂU HỎI: {prompt}
@@ -217,7 +218,7 @@ if prompt := st.chat_input("Nhập câu hỏi... (VD: Lỗi hàn cắt kim loạ
     
     with st.chat_message("assistant", avatar="🚒"):
         message_placeholder = st.empty()
-        message_placeholder.markdown("⏳ *Đang tra cứu và phân tích thẩm quyền...*")
+        message_placeholder.markdown("⏳ *Đang tra cứu và sàng lọc thẩm quyền...*")
         
         reply = ask_gemini(final_prompt)
         
