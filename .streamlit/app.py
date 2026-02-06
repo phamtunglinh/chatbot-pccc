@@ -89,7 +89,8 @@ def load_drive_data():
                     for page in reader.pages: content += page.extract_text() + "\n"
                 
                 if content:
-                    full_text += f"\n--- TÀI LIỆU: {fname} ---\n{content}\n"
+                    # Đánh dấu rõ tên file để AI biết nội dung này từ đâu ra
+                    full_text += f"\n--- BẮT ĐẦU VĂN BẢN: {fname} ---\n{content}\n--- KẾT THÚC VĂN BẢN: {fname} ---\n"
                     file_list.append(fname)
                     total_chars += len(content)
             except: continue 
@@ -119,15 +120,15 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Load dữ liệu
-with st.spinner('Đang kết nối toàn bộ văn bản quy phạm pháp luật...'):
+with st.spinner('Đang đọc và phân tích các văn bản trong Drive...'):
     knowledge, list_files = load_drive_data()
 
 if list_files:
     if "data_loaded_msg" not in st.session_state:
-        st.toast(f"Đã nạp thành công {len(list_files)} văn bản luật.", icon="✅")
+        st.toast(f"Đã đọc {len(list_files)} văn bản từ Drive.", icon="✅")
         st.session_state.data_loaded_msg = True
 else:
-    st.error("Lỗi kết nối dữ liệu."); st.stop()
+    st.error("Chưa kết nối được dữ liệu hoặc thư mục Drive trống."); st.stop()
 
 # KHUNG CHÀO MỪNG
 if "messages" not in st.session_state: st.session_state.messages = []
@@ -136,8 +137,8 @@ if len(st.session_state.messages) == 0:
     <div style='background-color: #f8f9fa; padding: 20px; border-radius: 12px; text-align: center; margin-bottom: 20px; border: 1px solid #eee;'>
         <h3 style='color: #B71C1C; margin: 0;'>XIN CHÀO!</h3>
         <p style='font-size: 15px; color: #333; margin-top: 10px;'>
-            Tôi là Trợ lý AI của <b>Đại úy Phạm Tùng Linh (Phòng PC07)</b>.<br>
-            Tôi sẵn sàng giải đáp mọi vấn đề về: Tiêu chuẩn kỹ thuật, Thẩm duyệt, Nghiệm thu, Xử phạt...
+            Tôi là Trợ lý AI của <b>Đại úy Phạm Tùng Linh</b>.<br>
+            Tôi chỉ trả lời dựa trên chính xác các văn bản anh đã cung cấp trong Drive.
         </p>
         <p style='font-size: 13px; color: #666; font-style: italic;'>👇 Hãy nhập câu hỏi bên dưới 👇</p>
     </div>
@@ -149,7 +150,7 @@ for msg in st.session_state.messages:
     with st.chat_message(msg["role"], avatar=avatar): st.markdown(msg["content"])
 
 # XỬ LÝ CÂU HỎI
-if prompt := st.chat_input("Nhập câu hỏi... (VD: Lối thoát nạn rộng bao nhiêu? Karaoke 5 tầng ai quản lý?)"):
+if prompt := st.chat_input("Nhập câu hỏi..."):
     st.session_state.messages.append({"role": "user", "content": prompt})
     st.chat_message("user", avatar="👤").write(prompt)
 
@@ -158,58 +159,39 @@ if prompt := st.chat_input("Nhập câu hỏi... (VD: Lối thoát nạn rộng 
     for msg in st.session_state.messages[-4:]:
         chat_history += f"{msg['role']}: {msg['content']}\n"
 
-    # --- PROMPT TỔNG HỢP (CẬP NHẬT THÊM QCVN 06:2022 & SỬA ĐỔI 1:2023) ---
+    # --- PROMPT "KHÓA MIỆNG" - CHỈ ĐƯỢC DÙNG DỮ LIỆU DRIVE ---
     final_prompt = f"""
-    VAI TRÒ: Đại úy Phạm Tùng Linh - Chuyên gia PCCC & CNCH.
-    DỮ LIỆU LUẬT CUNG CẤP: {knowledge}
+    VAI TRÒ: Bạn là một "MÁY ĐỌC VĂN BẢN THÔNG MINH".
+    
+    DỮ LIỆU ĐẦU VÀO DUY NHẤT (CONTEXT):
+    {knowledge}
+    
     LỊCH SỬ CHAT: {chat_history}
     
-    🛑 YÊU CẦU CỐT LÕI CHO MỌI CÂU TRẢ LỜI:
-    1. Căn cứ trả lời BẮT BUỘC phải lấy từ "DỮ LIỆU LUẬT CUNG CẤP" (Tuyệt đối không bịa đặt).
-    2. Phải trích dẫn nguồn gốc rõ ràng: "Theo quy định tại Điểm..., Khoản..., Điều..., Văn bản...".
-    
-    -----------------------------------------------------
-    PHÂN LOẠI CÂU HỎI VÀ QUY TRÌNH XỬ LÝ:
-    
-    🔵 TRƯỜNG HỢP 1: HỎI VỀ TIÊU CHUẨN KỸ THUẬT (TRANG BỊ PCCC, LỐI THOÁT NẠN, KIẾN TRÚC...)
-    
-    ⚠️ QUY TẮC ƯU TIÊN VĂN BẢN (QUAN TRỌNG):
-    - Nếu hỏi về TRANG BỊ PHƯƠNG TIỆN (Bình chữa cháy, báo cháy...):
-      -> Ưu tiên số 1: **QC10** (Quy chuẩn Kỹ thuật Quốc gia về Phương tiện PCCC).
-    
-    - Nếu hỏi về KIẾN TRÚC, LỐI THOÁT NẠN, BẬC CHỊU LỬA:
-      -> Ưu tiên số 1: **QCVN 06:2022/BXD** và **Sửa đổi 01:2023 QCVN 06:2022**.
-      
-    - **TUYỆT ĐỐI KHÔNG SỬ DỤNG TCVN 3890** để trả lời (trừ khi người dùng hỏi đích danh về nó).
-    
-    - Yêu cầu trả lời: Đưa ra thông số chính xác + Trích dẫn Bảng/Mục cụ thể trong QC10 hoặc QCVN 06/Sửa đổi 1:2023.
-    
-    🔵 TRƯỜNG HỢP 2: HỎI VỀ THỦ TỤC & PHÂN CẤP QUẢN LÝ (NĐ 136, NĐ 50)
-    (Ví dụ: Ai quản lý cơ sở này? Thủ tục thẩm duyệt thế nào?)
-    - Áp dụng LOGIC XÁC ĐỊNH THẨM QUYỀN:
-      + B1: Hỏi người dân diện tích, số tầng, công năng (nếu thiếu).
-      + B2: Tính công năng chính (Quy tắc 70% diện tích).
-      + B3: Đối chiếu Phụ lục I, II (NĐ 136/50). Ưu tiên Phụ lục II (PC07 quản lý).
-      + Kết luận + Trích dẫn Nghị định.
-
-    🔵 TRƯỜNG HỢP 3: HỎI VỀ XỬ PHẠT VI PHẠM (NĐ 106, NĐ 189, NĐ 144)
-    (Ví dụ: Lỗi này phạt bao nhiêu? Ai ra quyết định?)
-    - Thực hiện quy trình:
-      + B1: Tìm mức phạt tiền Cá nhân/Tổ chức + Phạt bổ sung + KPHQ (Trích dẫn điều khoản).
-      + B2: Sàng lọc thẩm quyền (Chỉ liệt kê người đủ thẩm quyền tiền VÀ quyền phạt bổ sung).
-      + B3: Trình bày theo form: Mức tiền -> Hình thức bổ sung -> Phân tích thẩm quyền (chỉ người đủ điều kiện) -> Đề xuất.
+    🛑 CHỈ THỊ TUYỆT ĐỐI (KHÔNG ĐƯỢC VI PHẠM):
+    1. Nhiệm vụ duy nhất của bạn là: Đọc nội dung trong phần "DỮ LIỆU ĐẦU VÀO DUY NHẤT" ở trên để trả lời câu hỏi.
+    2. TUYỆT ĐỐI KHÔNG sử dụng kiến thức bên ngoài (kiến thức đã được huấn luyện trước đó) nếu thông tin đó không xuất hiện trong Dữ liệu đầu vào.
+    3. Nếu câu trả lời không có trong Dữ liệu đầu vào -> Hãy trả lời thẳng: "Nội dung này không tìm thấy trong các văn bản đã được nạp trên hệ thống."
+    4. Khi trả lời, phải trích dẫn rõ: "Thông tin này nằm ở văn bản nào? Điều mấy? Khoản mấy?" (Dựa trên tên file tôi đã đánh dấu).
 
     -----------------------------------------------------
-    YÊU CẦU TRÌNH BÀY:
-    - Ngắn gọn, súc tích, chuyên nghiệp.
-    - Không chào hỏi lặp lại.
+    HƯỚNG DẪN XỬ LÝ CỤ THỂ:
     
-    CÂU HỎI CỦA NGƯỜI DÂN: {prompt}
+    - Nếu hỏi về "HỒ SƠ, THỦ TỤC": Hãy tìm các file có tên liên quan đến Nghị định 136, Nghị định 50 hoặc Luật PCCC trong dữ liệu. Đọc kỹ các điều khoản về hồ sơ để trả lời. Không được bịa ra hồ sơ nếu văn bản không ghi.
+    
+    - Nếu hỏi về "KỸ THUẬT": Hãy tìm trong các file QCVN 06, QC10, TCVN... (nếu có trong dữ liệu). Nếu trong dữ liệu chỉ có QCVN 06 thì chỉ trả lời theo QCVN 06.
+    
+    - Nếu hỏi về "XỬ PHẠT": Hãy tìm trong các file Nghị định xử phạt (106, 189...). Nếu không có file xử phạt trong dữ liệu -> Báo không tìm thấy.
+    
+    - Về logic phân tích (Thẩm quyền, công năng 70%...): Bạn được phép dùng khả năng tư duy logic để phân tích Dữ liệu đầu vào, NHƯNG dữ liệu gốc (số liệu, quy định) phải lấy từ văn bản.
+
+    -----------------------------------------------------
+    CÂU HỎI CỦA NGƯỜI DÙNG: {prompt}
     """
     
     with st.chat_message("assistant", avatar="🚒"):
         message_placeholder = st.empty()
-        message_placeholder.markdown("⏳ *Đang tra cứu dữ liệu văn bản...*")
+        message_placeholder.markdown("⏳ *Đang đọc tài liệu trong Drive...*")
         
         reply = ask_gemini(final_prompt)
         
@@ -218,4 +200,4 @@ if prompt := st.chat_input("Nhập câu hỏi... (VD: Lối thoát nạn rộng 
             message_placeholder.markdown(full_reply)
             st.session_state.messages.append({"role": "assistant", "content": full_reply})
         else:
-            message_placeholder.error("⚠️ Hệ thống đang bận. Vui lòng thử lại sau 10 giây.")
+            message_placeholder.error("⚠️ Hệ thống bận. Vui lòng thử lại.")
