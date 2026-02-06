@@ -136,8 +136,8 @@ if len(st.session_state.messages) == 0:
     <div style='background-color: #f8f9fa; padding: 20px; border-radius: 12px; text-align: center; margin-bottom: 20px; border: 1px solid #eee;'>
         <h3 style='color: #B71C1C; margin: 0;'>XIN CHÀO!</h3>
         <p style='font-size: 15px; color: #333; margin-top: 10px;'>
-            Tôi là Trợ lý AI của <b>Đại úy Phạm Tùng Linh (Phòng PC07)</b>.<br>
-            Tôi chuyên giải đáp về thẩm quyền quản lý, xử phạt, thẩm duyệt PCCC.
+            Tôi là Trợ lý AI được phát triển bởi <b>Đại úy Phạm Tùng Linh (Phòng PC07)</b>.<br>
+            Tôi chuyên giải đáp về công tác quản lý nhà nước PCCC và CNCH.
         </p>
         <p style='font-size: 13px; color: #666; font-style: italic;'>👇 Hãy nhập câu hỏi bên dưới 👇</p>
     </div>
@@ -160,7 +160,7 @@ if prompt := st.chat_input("Nhập câu hỏi... (VD: Mức phạt lỗi không 
 
     # --- PROMPT NGHIỆP VỤ CAO CẤP (LOGIC SÀNG LỌC & ĐẦY ĐỦ TRƯỜNG) ---
     final_prompt = f"""
-    VAI TRÒ: Đại úy Phạm Tùng Linh - Chuyên gia PCCC.
+    VAI TRÒ: AI - Chuyên gia PCCC.
     DỮ LIỆU LUẬT (NĐ 106/2025, NĐ 189/2025...): {knowledge}
     LỊCH SỬ CHAT: {chat_history}
     
