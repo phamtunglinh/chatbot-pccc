@@ -137,7 +137,7 @@ if len(st.session_state.messages) == 0:
         <h3 style='color: #B71C1C; margin: 0;'>XIN CHÀO!</h3>
         <p style='font-size: 15px; color: #333; margin-top: 10px;'>
             Tôi là Trợ lý AI của <b>Đại úy Phạm Tùng Linh (Phòng PC07)</b>.<br>
-            Tôi chuyên giải đáp về thẩm quyền quản lý, xử phạt, thẩm duyệt PCCC.
+            Tôi chuyên giải đáp về các quy định của Pháp luật về công tác PCCC và CNCH.
         </p>
         <p style='font-size: 13px; color: #666; font-style: italic;'>👇 Hãy nhập câu hỏi bên dưới 👇</p>
     </div>
@@ -160,7 +160,7 @@ if prompt := st.chat_input("Nhập câu hỏi... (VD: Lỗi không kiểm tra b�
 
     # --- PROMPT SIÊU NGHIỆP VỤ (PHÂN CẤP + XỬ PHẠT) ---
     final_prompt = f"""
-    VAI TRÒ: Đại úy Phạm Tùng Linh - Chuyên gia PCCC.
+    VAI TRÒ: AI - Chuyên gia PCCC.
     DỮ LIỆU LUẬT: {knowledge}
     LỊCH SỬ CHAT: {chat_history}
     
