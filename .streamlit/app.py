@@ -137,7 +137,7 @@ if len(st.session_state.messages) == 0:
         <h3 style='color: #B71C1C; margin: 0;'>XIN CHÀO!</h3>
         <p style='font-size: 15px; color: #333; margin-top: 10px;'>
             Tôi là Trợ lý AI của <b>Đại úy Phạm Tùng Linh (Phòng PC07)</b>.<br>
-            Tôi chuyên giải đáp về các quy định của Pháp luật về công tác PCCC và CNCH.
+            Tôi chuyên giải đáp về thẩm quyền quản lý, xử phạt, thẩm duyệt PCCC.
         </p>
         <p style='font-size: 13px; color: #666; font-style: italic;'>👇 Hãy nhập câu hỏi bên dưới 👇</p>
     </div>
@@ -149,7 +149,7 @@ for msg in st.session_state.messages:
     with st.chat_message(msg["role"], avatar=avatar): st.markdown(msg["content"])
 
 # XỬ LÝ CÂU HỎI
-if prompt := st.chat_input("Nhập câu hỏi... (VD: Lỗi không kiểm tra bảo dưỡng hệ thống PCCC phạt bao nhiêu?)"):
+if prompt := st.chat_input("Nhập câu hỏi... (VD: Lỗi hàn cắt kim loại không che chắn phạt bao nhiêu?)"):
     st.session_state.messages.append({"role": "user", "content": prompt})
     st.chat_message("user", avatar="👤").write(prompt)
 
@@ -158,56 +158,59 @@ if prompt := st.chat_input("Nhập câu hỏi... (VD: Lỗi không kiểm tra b�
     for msg in st.session_state.messages[-4:]:
         chat_history += f"{msg['role']}: {msg['content']}\n"
 
-    # --- PROMPT SIÊU NGHIỆP VỤ (PHÂN CẤP + XỬ PHẠT) ---
+    # --- PROMPT NGHIỆP VỤ CAO CẤP (ĐÃ CẬP NHẬT LOGIC MỚI) ---
     final_prompt = f"""
-    VAI TRÒ: AI - Chuyên gia PCCC.
-    DỮ LIỆU LUẬT: {knowledge}
+    VAI TRÒ: Đại úy Phạm Tùng Linh - Chuyên gia PCCC.
+    DỮ LIỆU LUẬT (Nghị định 106/2025, 189/2025, v.v...): {knowledge}
     LỊCH SỬ CHAT: {chat_history}
     
     🛑 QUY TRÌNH SUY LUẬN NGHIỆP VỤ (BẮT BUỘC TUÂN THỦ):
 
-    -----------------------------------------------------
-    🟢 QUY TRÌNH 1: XÁC ĐỊNH THẨM QUYỀN QUẢN LÝ CƠ SỞ
-    BƯỚC 1: Kiểm tra đủ thông tin (Diện tích, Tầng, Khối tích, Công năng) -> Nếu thiếu phải hỏi lại.
-    BƯỚC 2: Xác định công năng chính (Nếu 1 công năng > 70% diện tích -> Công năng chính. Nếu không -> Nhà hỗn hợp).
-    BƯỚC 3: Đối chiếu Phụ lục I và II (NĐ 50/2024 hoặc NĐ 136).
-    BƯỚC 4: Kết luận:
-    - Đạt Phụ lục II -> PC07 QUẢN LÝ.
-    - Chỉ đạt Phụ lục I (không đạt II) -> UBND CẤP XÃ QUẢN LÝ.
+    # PHẦN 1: NẾU HỎI VỀ THẨM QUYỀN QUẢN LÝ (Cơ sở thuộc Phụ lục mấy, ai quản lý?)
+    - Áp dụng logic: Xác định công năng chính (Quy tắc 70%) -> Đối chiếu Phụ lục -> Kết luận (Ưu tiên Phụ lục II).
 
-    -----------------------------------------------------
-    🔴 QUY TRÌNH 2: XÁC ĐỊNH THẨM QUYỀN XỬ PHẠT VI PHẠM HÀNH CHÍNH
-    Khi gặp câu hỏi về mức phạt và ai ra quyết định, hãy làm theo các bước:
+    # PHẦN 2: NẾU HỎI VỀ XỬ PHẠT VI PHẠM HÀNH CHÍNH
+    Bạn hãy thực hiện đúng trình tự suy luận sau:
     
-    BƯỚC 1: Xác định hành vi và Khung tiền phạt (Theo NĐ 106/2025/NĐ-CP hoặc văn bản hiện hành):
-    - Tính mức trung bình của khung phạt tiền (đối với cá nhân/tổ chức).
-    - Lưu ý: Mức phạt tiền tối đa PCCC là 50.000.000 đồng (cá nhân).
+    BƯỚC 1: XÁC ĐỊNH MỨC PHẠT (Theo NĐ 106/2025/NĐ-CP)
+    - Tìm mức phạt tiền đối với CÁ NHÂN.
+    - Suy ra mức phạt đối với TỔ CHỨC (= 2 lần mức cá nhân).
+    - Lưu ý: Mức phạt tiền tối đa lĩnh vực PCCC là 50.000.000 đồng.
     
-    BƯỚC 2: Kiểm tra Hình thức phạt bổ sung & Biện pháp khắc phục:
-    - Hành vi đó có bị Tước giấy phép, Tịch thu tang vật/phương tiện, hay Trục xuất không?
+    BƯỚC 2: KIỂM TRA HÌNH THỨC PHẠT BỔ SUNG & KHẮC PHỤC HẬU QUẢ
+    - Kiểm tra kỹ xem hành vi đó có bị: Tước giấy phép/chứng chỉ? Đình chỉ hoạt động? Tịch thu tang vật? Trục xuất không?
+    - Kiểm tra kỹ xem có Biện pháp khắc phục hậu quả không?
     
-    BƯỚC 3: Xác định Người ra quyết định (Theo Chương II NĐ 189/2025/NĐ-CP):
-    - Nguyên tắc: Người ra quyết định phải thỏa mãn ĐỒNG THỜI 2 điều kiện:
-      1. Có thẩm quyền phạt số tiền tối đa của khung phạt đó.
-      2. Có thẩm quyền áp dụng hình thức phạt bổ sung (nếu có).
+    BƯỚC 3: XÁC ĐỊNH THẨM QUYỀN RA QUYẾT ĐỊNH (Theo NĐ 189/2025/NĐ-CP)
+    - Nguyên tắc "HỘI TỤ ĐỦ": Người ra quyết định phải là người CÓ ĐỦ QUYỀN HẠN ở cả 3 yếu tố:
+      1. Đủ thẩm quyền phạt số tiền (đến mức tối đa của khung phạt).
+      2. Đủ thẩm quyền phạt bổ sung (nếu có).
+      3. Đủ thẩm quyền áp dụng biện pháp khắc phục hậu quả (nếu có).
     
-    *Ví dụ minh họa cho AI hiểu:* - Lỗi A phạt 5 triệu (thuộc quyền Đội trưởng).
-    - NHƯNG lỗi A có thêm "Tịch thu tang vật".
-    - Mà Đội trưởng không được tịch thu tang vật -> Phải đẩy lên Trưởng phòng.
-    -> KẾT LUẬN: Trưởng phòng ra quyết định.
-    
-    YÊU CẦU ĐẦU RA:
-    - Trả lời rõ ràng mức phạt cụ thể (từ ... đến ...).
-    - Chỉ rõ chức danh người có thẩm quyền ra quyết định (Chiến sĩ, Đội trưởng, Trưởng phòng, hay Giám đốc CA tỉnh...).
-    - Giải thích lý do (Vì mức tiền là X và có/không có phạt bổ sung Y).
-    - Không chào hỏi lại.
+    ⚠️ VÍ DỤ TƯ DUY:
+    - Lỗi A phạt 5 triệu (Đội trưởng phạt được).
+    - Nhưng Lỗi A có phạt bổ sung "Tịch thu tang vật". Mà Đội trưởng không được tịch thu -> Phải đẩy lên Trưởng phòng.
+    => KẾT LUẬN: Trưởng phòng ra quyết định.
 
+    BƯỚC 4: TRÌNH BÀY CÂU TRẢ LỜI (ĐÚNG FORM MẪU SAU):
+    --------------------------------------------------
+    1. Mức tiền phạt:
+       - Cá nhân: Từ ... đến ... đồng.
+       - Tổ chức: Từ ... đến ... đồng.
+       - Căn cứ: Điểm ..., Khoản ..., Điều ... Nghị định 106/2025/NĐ-CP.
+    2. Hình thức phạt bổ sung: [Ghi cụ thể hoặc ghi "Không"]
+    3. Biện pháp khắc phục hậu quả: [Ghi cụ thể hoặc ghi "Không"]
+    4. Phân tích và Kết luận thẩm quyền:
+       - Phân tích: [Ví dụ: Vì mức phạt là X, tuy nhiên có hình thức phạt bổ sung Y nên Đội trưởng không đủ thẩm quyền...]
+       - Kết luận: Người có thẩm quyền ra quyết định là [Tên chức danh].
+    --------------------------------------------------
+    
     CÂU HỎI: {prompt}
     """
     
     with st.chat_message("assistant", avatar="🚒"):
         message_placeholder = st.empty()
-        message_placeholder.markdown("⏳ *Đang tra cứu và tính toán...*")
+        message_placeholder.markdown("⏳ *Đang tra cứu và lập biên bản ảo...*")
         
         reply = ask_gemini(final_prompt)
         
