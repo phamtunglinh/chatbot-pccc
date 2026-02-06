@@ -67,7 +67,7 @@ def load_drive_data():
         full_text = ""
         file_list = []
         total_chars = 0
-        CHAR_LIMIT = 150000 
+        CHAR_LIMIT = 300000 # Tăng giới hạn lên một chút để đọc đủ luật xử phạt
         
         for file in files:
             if total_chars > CHAR_LIMIT: break 
@@ -122,12 +122,9 @@ st.markdown("""
 with st.spinner('Đang kết nối dữ liệu luật...'):
     knowledge, list_files = load_drive_data()
 
-# --- SỬA LỖI Ở ĐÂY: THÊM KIỂM TRA ĐỂ CHỈ HIỆN 1 LẦN ---
 if list_files:
-    # Kiểm tra xem đã hiện thông báo chưa
     if "data_loaded_msg" not in st.session_state:
         st.toast("Hệ thống đã sẵn sàng.", icon="✅")
-        # Đánh dấu là đã hiện rồi
         st.session_state.data_loaded_msg = True
 else:
     st.error("Lỗi kết nối dữ liệu."); st.stop()
@@ -140,7 +137,7 @@ if len(st.session_state.messages) == 0:
         <h3 style='color: #B71C1C; margin: 0;'>XIN CHÀO!</h3>
         <p style='font-size: 15px; color: #333; margin-top: 10px;'>
             Tôi là Trợ lý AI của <b>Đại úy Phạm Tùng Linh (Phòng PC07)</b>.<br>
-            Tôi chuyên giải đáp về thẩm quyền quản lý, thẩm duyệt, nghiệm thu PCCC.
+            Tôi chuyên giải đáp về thẩm quyền quản lý và tư vấn xử lý vi phạm hành chính.
         </p>
         <p style='font-size: 13px; color: #666; font-style: italic;'>👇 Hãy nhập câu hỏi bên dưới 👇</p>
     </div>
@@ -152,7 +149,7 @@ for msg in st.session_state.messages:
     with st.chat_message(msg["role"], avatar=avatar): st.markdown(msg["content"])
 
 # XỬ LÝ CÂU HỎI
-if prompt := st.chat_input("Nhập câu hỏi... (VD: Ai quản lý quán karaoke 5 tầng?)"):
+if prompt := st.chat_input("Nhập câu hỏi... (VD: Lỗi hàn cắt không che chắn phạt bao nhiêu? Ai ký?)"):
     st.session_state.messages.append({"role": "user", "content": prompt})
     st.chat_message("user", avatar="👤").write(prompt)
 
@@ -161,47 +158,62 @@ if prompt := st.chat_input("Nhập câu hỏi... (VD: Ai quản lý quán karaok
     for msg in st.session_state.messages[-4:]:
         chat_history += f"{msg['role']}: {msg['content']}\n"
 
-    # --- PROMPT THÔNG MINH ---
+    # --- PROMPT TỔNG HỢP (QUẢN LÝ + XỬ PHẠT) ---
     final_prompt = f"""
     VAI TRÒ: Bạn là Đại úy Phạm Tùng Linh - Chuyên gia PCCC.
+    DỮ LIỆU LUẬT (TRA CỨU CHÍNH XÁC): {knowledge}
+    LỊCH SỬ CHAT: {chat_history}
     
-    DỮ LIỆU LUẬT:
-    {knowledge}
+    🛑 NHIỆM VỤ: Phân tích câu hỏi và áp dụng đúng 1 trong 2 quy trình suy luận sau:
     
-    LỊCH SỬ CHAT:
-    {chat_history}
+    ------------------------------------------------------------------
+    🔵 QUY TRÌNH 1: NẾU HỎI VỀ "AI QUẢN LÝ CƠ SỞ NÀY?" (PHÂN CẤP)
+    1. Kiểm tra dữ liệu: Đã đủ Diện tích, Tầng, Khối tích chưa? Nếu thiếu phải hỏi lại.
+    2. Xác định công năng chính (Quy tắc 70%):
+       - Nếu 1 công năng > 70% diện tích -> Công năng chính.
+       - Nếu không -> Nhà hỗn hợp.
+    3. Đối chiếu Phụ lục (NĐ 136 hoặc NĐ 50):
+       - Ưu tiên Phụ lục II (PC07 quản lý).
+       - Chỉ khi không lọt vào Phụ lục II mới xét Phụ lục I (UBND Xã).
+    4. Kết luận: Đơn vị quản lý.
     
-    NHIỆM VỤ: Trả lời câu hỏi người dân.
+    ------------------------------------------------------------------
+    🔴 QUY TRÌNH 2: NẾU HỎI VỀ "XỬ PHẠT VI PHẠM" (TIỀN PHẠT & THẨM QUYỀN KÝ)
     
-    🔴 QUY TRÌNH SUY LUẬN (BẮT BUỘC TUÂN THỦ KHI XÁC ĐỊNH THẨM QUYỀN QUẢN LÝ):
+    1. BƯỚC 1: XÁC ĐỊNH KHUNG PHẠT (Theo NĐ 106/2025 hoặc văn bản trong dữ liệu)
+       - Tìm mức phạt Cá nhân -> Suy ra Tổ chức (x2).
+       - Tính Mức phạt trung bình của hành vi.
+       - Kiểm tra kỹ: Có phạt Bổ sung (Tước giấy phép, tịch thu...) hay Khắc phục hậu quả không?
+       - Trích dẫn căn cứ pháp lý: Điểm, Khoản, Điều...
+
+    2. BƯỚC 2: SÀNG LỌC NGƯỜI CÓ THẨM QUYỀN (Theo NĐ 189/2025)
+       - Nguyên tắc: Chỉ liệt kê những người ĐỦ ĐIỀU KIỆN (Thẩm quyền tiền >= Mức phạt TB hành vi VÀ Có quyền phạt bổ sung).
+       - Tự động LOẠI BỎ những người không đủ thẩm quyền tiền (Ví dụ: Phạt 10tr thì không được liệt kê Chiến sĩ, Chủ tịch xã...).
+       
+    3. BƯỚC 3: TRẢ LỜI THEO MẪU SAU (BẮT BUỘC):
+       * Về mức phạt:
+         - Cá nhân: ... (Căn cứ ...)
+         - Tổ chức: ...
+       * Hình thức phạt bổ sung & KPHQ:
+         - Bổ sung: [Ghi rõ hoặc ghi "Không"] (Căn cứ ...)
+         - KPHQ: [Ghi rõ hoặc ghi "Không"] (Căn cứ ...)
+       * Phân tích thẩm quyền giải quyết:
+         (Chỉ liệt kê các chức danh đã qua sàng lọc ở Bước 2)
+         - [Chức danh A]: Đủ thẩm quyền (Tiền tối đa ..., Quyền bổ sung ...). => ĐƯỢC KÝ.
+         - [Chức danh B]: ...
+       * Đề xuất: Trình [Chức danh thấp nhất đủ quyền] ra quyết định.
     
-    BƯỚC 1: KIỂM TRA DỮ LIỆU
-    - Để xác định ai quản lý, bạn CẦN BIẾT: Tổng diện tích sàn, Số tầng, Chiều cao, Khối tích, Công năng chi tiết.
-    - Nếu người dùng KHÔNG cung cấp đủ -> HÃY HỎI NGƯỢC LẠI NGƯỜI DÙNG để lấy thông tin. Đừng trả lời chung chung.
-    
-    BƯỚC 2: XÁC ĐỊNH CÔNG NĂNG CHÍNH (QUY TẮC 70%)
-    - Nếu một công năng chiếm > 70% tổng diện tích -> Đó là công năng chính.
-    - Nếu Công năng nhà ở > 70% -> Nhà ở kết hợp SXKD.
-    - Nếu KHÔNG CÓ công năng nào vượt 70% -> Kết luận là: NHÀ HỖN HỢP.
-    
-    BƯỚC 3: ĐỐI CHIẾU PHỤ LỤC (Nghị định 105/2025/NĐ-CP)
-    - So sánh số tầng, khối tích, diện tích với Phụ lục I và Phụ lục II.
-    
-    BƯỚC 4: KẾT LUẬN (QUY TẮC ƯU TIÊN TUYỆT ĐỐI)
-    - Nếu cơ sở đạt tiêu chí Phụ lục II -> PHÒNG CẢNH SÁT PCCC & CNCH (PC07) quản lý.
-    - Lưu ý: Dù diện tích nhỏ (thuộc Phụ lục I) nhưng Số tầng cao (thuộc Phụ lục II) -> Vẫn là PC07 quản lý.
-    - Chỉ khi nào KHÔNG đạt Phụ lục II mà chỉ đạt Phụ lục I -> Mới do UBND CẤP XÃ quản lý.
-    
-    YÊU CẦU ĐẦU RA:
-    - Trả lời ngắn gọn, lập luận rõ ràng.
-    - Không chào hỏi lại.
+    ------------------------------------------------------------------
+    YÊU CẦU CHUNG:
+    - Trả lời ngắn gọn, đúng trọng tâm.
+    - Luôn trích dẫn văn bản pháp luật cụ thể.
     
     CÂU HỎI CỦA NGƯỜI DÂN: {prompt}
     """
     
     with st.chat_message("assistant", avatar="🚒"):
         message_placeholder = st.empty()
-        message_placeholder.markdown("⏳ *Đang phân tích dữ liệu...*")
+        message_placeholder.markdown("⏳ *Đang tra cứu luật và phân tích thẩm quyền...*")
         
         reply = ask_gemini(final_prompt)
         
