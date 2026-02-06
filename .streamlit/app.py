@@ -184,7 +184,7 @@ if prompt := st.chat_input("Nhập câu hỏi... (VD: Ai quản lý quán karaok
     - Nếu Công năng nhà ở > 70% -> Nhà ở kết hợp SXKD.
     - Nếu KHÔNG CÓ công năng nào vượt 70% -> Kết luận là: NHÀ HỖN HỢP.
     
-    BƯỚC 3: ĐỐI CHIẾU PHỤ LỤC (Nghị định 50/2024 hoặc 136/2020)
+    BƯỚC 3: ĐỐI CHIẾU PHỤ LỤC (Nghị định 105/2025/NĐ-CP)
     - So sánh số tầng, khối tích, diện tích với Phụ lục I và Phụ lục II.
     
     BƯỚC 4: KẾT LUẬN (QUY TẮC ƯU TIÊN TUYỆT ĐỐI)
