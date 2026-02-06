@@ -67,7 +67,7 @@ def load_drive_data():
         full_text = ""
         file_list = []
         total_chars = 0
-        CHAR_LIMIT = 150000 
+        CHAR_LIMIT = 200000 
         
         for file in files:
             if total_chars > CHAR_LIMIT: break 
@@ -119,12 +119,12 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Load dữ liệu
-with st.spinner('Đang kết nối dữ liệu luật...'):
+with st.spinner('Đang kết nối toàn bộ văn bản quy phạm pháp luật...'):
     knowledge, list_files = load_drive_data()
 
 if list_files:
     if "data_loaded_msg" not in st.session_state:
-        st.toast("Hệ thống đã sẵn sàng.", icon="✅")
+        st.toast(f"Đã nạp thành công {len(list_files)} văn bản luật.", icon="✅")
         st.session_state.data_loaded_msg = True
 else:
     st.error("Lỗi kết nối dữ liệu."); st.stop()
@@ -137,7 +137,7 @@ if len(st.session_state.messages) == 0:
         <h3 style='color: #B71C1C; margin: 0;'>XIN CHÀO!</h3>
         <p style='font-size: 15px; color: #333; margin-top: 10px;'>
             Tôi là Trợ lý AI của <b>Đại úy Phạm Tùng Linh (Phòng PC07)</b>.<br>
-            Tôi chuyên giải đáp về thẩm quyền quản lý, xử phạt, thẩm duyệt PCCC.
+            Tôi sẵn sàng giải đáp mọi vấn đề về: Tiêu chuẩn kỹ thuật, Thẩm duyệt, Nghiệm thu, Xử phạt...
         </p>
         <p style='font-size: 13px; color: #666; font-style: italic;'>👇 Hãy nhập câu hỏi bên dưới 👇</p>
     </div>
@@ -149,7 +149,7 @@ for msg in st.session_state.messages:
     with st.chat_message(msg["role"], avatar=avatar): st.markdown(msg["content"])
 
 # XỬ LÝ CÂU HỎI
-if prompt := st.chat_input("Nhập câu hỏi... (VD: Chiều cao lan can an toàn là bao nhiêu?)"):
+if prompt := st.chat_input("Nhập câu hỏi... (VD: Lối thoát nạn rộng bao nhiêu? Karaoke 5 tầng ai quản lý?)"):
     st.session_state.messages.append({"role": "user", "content": prompt})
     st.chat_message("user", avatar="👤").write(prompt)
 
@@ -158,64 +158,58 @@ if prompt := st.chat_input("Nhập câu hỏi... (VD: Chiều cao lan can an to�
     for msg in st.session_state.messages[-4:]:
         chat_history += f"{msg['role']}: {msg['content']}\n"
 
-    # --- PROMPT TOÀN DIỆN (LUÔN LUÔN TRÍCH DẪN) ---
+    # --- PROMPT TỔNG HỢP (CẬP NHẬT THÊM QCVN 06:2022 & SỬA ĐỔI 1:2023) ---
     final_prompt = f"""
-    VAI TRÒ: Đại úy Phạm Tùng Linh - Chuyên gia Pháp chế PCCC.
-    DỮ LIỆU LUẬT (QCVN 06, NĐ 136, NĐ 50, NĐ 106...): {knowledge}
+    VAI TRÒ: Đại úy Phạm Tùng Linh - Chuyên gia PCCC & CNCH.
+    DỮ LIỆU LUẬT CUNG CẤP: {knowledge}
     LỊCH SỬ CHAT: {chat_history}
     
-    🛑 NGUYÊN TẮC VÀNG (BẮT BUỘC ÁP DỤNG CHO MỌI CÂU TRẢ LỜI):
-    1. TUYỆT ĐỐI KHÔNG trả lời chung chung (kiểu "theo quy định pháp luật...").
-    2. MỌI con số, nhận định, yêu cầu kỹ thuật đưa ra ĐỀU PHẢI CÓ TRÍCH DẪN CỤ THỂ.
-    -> Mẫu trích dẫn bắt buộc: "...(Căn cứ: Điểm..., Khoản..., Điều..., Văn bản...)".
-    3. Nếu không tìm thấy điều khoản cụ thể trong dữ liệu -> Hãy nói thẳng "Trong dữ liệu hiện tại không tìm thấy quy định chi tiết về vấn đề này".
-
-    -----------------------------------------------------
-    🟢 QUY TRÌNH 1: ĐỐI VỚI CÂU HỎI VỀ KỸ THUẬT / QUẢN LÝ
-    - Trả lời nội dung kỹ thuật (chiều cao, khoảng cách, lưu lượng...).
-    - Ngay sau thông số phải mở ngoặc ghi nguồn gốc văn bản (Ví dụ: QCVN 06:2022/BXD, Bảng mấy, Mục mấy).
+    🛑 YÊU CẦU CỐT LÕI CHO MỌI CÂU TRẢ LỜI:
+    1. Căn cứ trả lời BẮT BUỘC phải lấy từ "DỮ LIỆU LUẬT CUNG CẤP" (Tuyệt đối không bịa đặt).
+    2. Phải trích dẫn nguồn gốc rõ ràng: "Theo quy định tại Điểm..., Khoản..., Điều..., Văn bản...".
     
     -----------------------------------------------------
-    🔴 QUY TRÌNH 2: ĐỐI VỚI CÂU HỎI VỀ XỬ PHẠT VI PHẠM HÀNH CHÍNH
-    Thực hiện nghiêm ngặt 3 bước:
+    PHÂN LOẠI CÂU HỎI VÀ QUY TRÌNH XỬ LÝ:
     
-    BƯỚC 1: XÁC ĐỊNH MỨC PHẠT & HÌNH THỨC BỔ SUNG
-    - Tìm mức phạt Cá nhân & Tổ chức.
-    - Tìm Hình thức phạt bổ sung & Khắc phục hậu quả.
-    -> Ghi rõ căn cứ từng mục.
+    🔵 TRƯỜNG HỢP 1: HỎI VỀ TIÊU CHUẨN KỸ THUẬT (TRANG BỊ PCCC, LỐI THOÁT NẠN, KIẾN TRÚC...)
     
-    BƯỚC 2: SÀNG LỌC THẨM QUYỀN (Theo NĐ 189/2025/NĐ-CP)
-    - So sánh mức phạt trung bình với quyền hạn tiền tối đa của các chức danh.
-    - LOẠI BỎ NGAY các chức danh không đủ tiền phạt hoặc không đủ quyền phạt bổ sung.
+    ⚠️ QUY TẮC ƯU TIÊN VĂN BẢN (QUAN TRỌNG):
+    - Nếu hỏi về TRANG BỊ PHƯƠNG TIỆN (Bình chữa cháy, báo cháy...):
+      -> Ưu tiên số 1: **QC10** (Quy chuẩn Kỹ thuật Quốc gia về Phương tiện PCCC).
     
-    BƯỚC 3: TRÌNH BÀY (FORM MẪU):
-    1. Về hành vi và mức tiền phạt:
-       - Hành vi: ...
-       - Mức phạt Cá nhân: ... -> Căn cứ: Điểm..., Khoản..., Điều... NĐ...
-       - Mức phạt Tổ chức: ...
-       
-    2. Hình thức phạt bổ sung & KPHQ:
-       - Phạt bổ sung: [Có/Không] -> Căn cứ: ...
-       - KPHQ: [Có/Không] -> Căn cứ: ...
+    - Nếu hỏi về KIẾN TRÚC, LỐI THOÁT NẠN, BẬC CHỊU LỬA:
+      -> Ưu tiên số 1: **QCVN 06:2022/BXD** và **Sửa đổi 01:2023 QCVN 06:2022**.
+      
+    - **TUYỆT ĐỐI KHÔNG SỬ DỤNG TCVN 3890** để trả lời (trừ khi người dùng hỏi đích danh về nó).
+    
+    - Yêu cầu trả lời: Đưa ra thông số chính xác + Trích dẫn Bảng/Mục cụ thể trong QC10 hoặc QCVN 06/Sửa đổi 1:2023.
+    
+    🔵 TRƯỜNG HỢP 2: HỎI VỀ THỦ TỤC & PHÂN CẤP QUẢN LÝ (NĐ 136, NĐ 50)
+    (Ví dụ: Ai quản lý cơ sở này? Thủ tục thẩm duyệt thế nào?)
+    - Áp dụng LOGIC XÁC ĐỊNH THẨM QUYỀN:
+      + B1: Hỏi người dân diện tích, số tầng, công năng (nếu thiếu).
+      + B2: Tính công năng chính (Quy tắc 70% diện tích).
+      + B3: Đối chiếu Phụ lục I, II (NĐ 136/50). Ưu tiên Phụ lục II (PC07 quản lý).
+      + Kết luận + Trích dẫn Nghị định.
 
-    3. Phân tích thẩm quyền xử phạt:
-       *Chỉ xét các chức danh ĐỦ ĐIỀU KIỆN (Tiền + Bổ sung/KPHQ):*
-       - [Chức danh A]: 
-         + Thẩm quyền tiền: ... (Căn cứ: Khoản..., Điều... NĐ 189/2025).
-         + Thẩm quyền bổ sung: ... (Nếu có).
-         => KẾT LUẬN: Đủ thẩm quyền ký.
+    🔵 TRƯỜNG HỢP 3: HỎI VỀ XỬ PHẠT VI PHẠM (NĐ 106, NĐ 189, NĐ 144)
+    (Ví dụ: Lỗi này phạt bao nhiêu? Ai ra quyết định?)
+    - Thực hiện quy trình:
+      + B1: Tìm mức phạt tiền Cá nhân/Tổ chức + Phạt bổ sung + KPHQ (Trích dẫn điều khoản).
+      + B2: Sàng lọc thẩm quyền (Chỉ liệt kê người đủ thẩm quyền tiền VÀ quyền phạt bổ sung).
+      + B3: Trình bày theo form: Mức tiền -> Hình thức bổ sung -> Phân tích thẩm quyền (chỉ người đủ điều kiện) -> Đề xuất.
 
-       - [Chức danh B]: ... (Tương tự)
-       
-    4. Đề xuất: Trình [Chức danh thấp nhất đủ quyền] quyết định.
     -----------------------------------------------------
+    YÊU CẦU TRÌNH BÀY:
+    - Ngắn gọn, súc tích, chuyên nghiệp.
+    - Không chào hỏi lặp lại.
     
-    CÂU HỎI: {prompt}
+    CÂU HỎI CỦA NGƯỜI DÂN: {prompt}
     """
     
     with st.chat_message("assistant", avatar="🚒"):
         message_placeholder = st.empty()
-        message_placeholder.markdown("⏳ *Đang tra cứu căn cứ pháp lý...*")
+        message_placeholder.markdown("⏳ *Đang tra cứu dữ liệu văn bản...*")
         
         reply = ask_gemini(final_prompt)
         
