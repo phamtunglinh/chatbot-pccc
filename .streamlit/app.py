@@ -118,16 +118,13 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# Load dữ liệu (Chạy ngầm)
+# Load dữ liệu
 with st.spinner('Đang kết nối dữ liệu luật...'):
     knowledge, list_files = load_drive_data()
 
-# --- SỬA LỖI Ở ĐÂY: THÊM KIỂM TRA ĐỂ CHỈ HIỆN 1 LẦN ---
 if list_files:
-    # Kiểm tra xem đã hiện thông báo chưa
     if "data_loaded_msg" not in st.session_state:
         st.toast("Hệ thống đã sẵn sàng.", icon="✅")
-        # Đánh dấu là đã hiện rồi
         st.session_state.data_loaded_msg = True
 else:
     st.error("Lỗi kết nối dữ liệu."); st.stop()
@@ -140,7 +137,7 @@ if len(st.session_state.messages) == 0:
         <h3 style='color: #B71C1C; margin: 0;'>XIN CHÀO!</h3>
         <p style='font-size: 15px; color: #333; margin-top: 10px;'>
             Tôi là Trợ lý AI của <b>Đại úy Phạm Tùng Linh (Phòng PC07)</b>.<br>
-            Tôi chuyên giải đáp về thẩm quyền quản lý, thẩm duyệt, nghiệm thu PCCC.
+            Tôi chuyên giải đáp về thẩm quyền quản lý, xử phạt, thẩm duyệt PCCC.
         </p>
         <p style='font-size: 13px; color: #666; font-style: italic;'>👇 Hãy nhập câu hỏi bên dưới 👇</p>
     </div>
@@ -152,7 +149,7 @@ for msg in st.session_state.messages:
     with st.chat_message(msg["role"], avatar=avatar): st.markdown(msg["content"])
 
 # XỬ LÝ CÂU HỎI
-if prompt := st.chat_input("Nhập câu hỏi... (VD: Ai quản lý quán karaoke 5 tầng?)"):
+if prompt := st.chat_input("Nhập câu hỏi... (VD: Lỗi không kiểm tra bảo dưỡng hệ thống PCCC phạt bao nhiêu?)"):
     st.session_state.messages.append({"role": "user", "content": prompt})
     st.chat_message("user", avatar="👤").write(prompt)
 
@@ -161,47 +158,56 @@ if prompt := st.chat_input("Nhập câu hỏi... (VD: Ai quản lý quán karaok
     for msg in st.session_state.messages[-4:]:
         chat_history += f"{msg['role']}: {msg['content']}\n"
 
-    # --- PROMPT THÔNG MINH ---
+    # --- PROMPT SIÊU NGHIỆP VỤ (PHÂN CẤP + XỬ PHẠT) ---
     final_prompt = f"""
-    VAI TRÒ: Bạn là Đại úy Phạm Tùng Linh - Chuyên gia PCCC.
+    VAI TRÒ: Đại úy Phạm Tùng Linh - Chuyên gia PCCC.
+    DỮ LIỆU LUẬT: {knowledge}
+    LỊCH SỬ CHAT: {chat_history}
     
-    DỮ LIỆU LUẬT:
-    {knowledge}
+    🛑 QUY TRÌNH SUY LUẬN NGHIỆP VỤ (BẮT BUỘC TUÂN THỦ):
+
+    -----------------------------------------------------
+    🟢 QUY TRÌNH 1: XÁC ĐỊNH THẨM QUYỀN QUẢN LÝ CƠ SỞ
+    BƯỚC 1: Kiểm tra đủ thông tin (Diện tích, Tầng, Khối tích, Công năng) -> Nếu thiếu phải hỏi lại.
+    BƯỚC 2: Xác định công năng chính (Nếu 1 công năng > 70% diện tích -> Công năng chính. Nếu không -> Nhà hỗn hợp).
+    BƯỚC 3: Đối chiếu Phụ lục I và II (NĐ 50/2024 hoặc NĐ 136).
+    BƯỚC 4: Kết luận:
+    - Đạt Phụ lục II -> PC07 QUẢN LÝ.
+    - Chỉ đạt Phụ lục I (không đạt II) -> UBND CẤP XÃ QUẢN LÝ.
+
+    -----------------------------------------------------
+    🔴 QUY TRÌNH 2: XÁC ĐỊNH THẨM QUYỀN XỬ PHẠT VI PHẠM HÀNH CHÍNH
+    Khi gặp câu hỏi về mức phạt và ai ra quyết định, hãy làm theo các bước:
     
-    LỊCH SỬ CHAT:
-    {chat_history}
+    BƯỚC 1: Xác định hành vi và Khung tiền phạt (Theo NĐ 106/2025/NĐ-CP hoặc văn bản hiện hành):
+    - Tính mức trung bình của khung phạt tiền (đối với cá nhân/tổ chức).
+    - Lưu ý: Mức phạt tiền tối đa PCCC là 50.000.000 đồng (cá nhân).
     
-    NHIỆM VỤ: Trả lời câu hỏi người dân.
+    BƯỚC 2: Kiểm tra Hình thức phạt bổ sung & Biện pháp khắc phục:
+    - Hành vi đó có bị Tước giấy phép, Tịch thu tang vật/phương tiện, hay Trục xuất không?
     
-    🔴 QUY TRÌNH SUY LUẬN (BẮT BUỘC TUÂN THỦ KHI XÁC ĐỊNH THẨM QUYỀN QUẢN LÝ):
+    BƯỚC 3: Xác định Người ra quyết định (Theo Chương II NĐ 189/2025/NĐ-CP):
+    - Nguyên tắc: Người ra quyết định phải thỏa mãn ĐỒNG THỜI 2 điều kiện:
+      1. Có thẩm quyền phạt số tiền tối đa của khung phạt đó.
+      2. Có thẩm quyền áp dụng hình thức phạt bổ sung (nếu có).
     
-    BƯỚC 1: KIỂM TRA DỮ LIỆU
-    - Để xác định ai quản lý, bạn CẦN BIẾT: Tổng diện tích sàn, Số tầng, Chiều cao, Khối tích, Công năng chi tiết.
-    - Nếu người dùng KHÔNG cung cấp đủ -> HÃY HỎI NGƯỢC LẠI NGƯỜI DÙNG để lấy thông tin. Đừng trả lời chung chung.
-    
-    BƯỚC 2: XÁC ĐỊNH CÔNG NĂNG CHÍNH (QUY TẮC 70%)
-    - Nếu một công năng chiếm > 70% tổng diện tích -> Đó là công năng chính.
-    - Nếu Công năng nhà ở > 70% -> Nhà ở kết hợp SXKD.
-    - Nếu KHÔNG CÓ công năng nào vượt 70% -> Kết luận là: NHÀ HỖN HỢP.
-    
-    BƯỚC 3: ĐỐI CHIẾU PHỤ LỤC (Nghị định 50/2024 hoặc 136/2020)
-    - So sánh số tầng, khối tích, diện tích với Phụ lục I và Phụ lục II.
-    
-    BƯỚC 4: KẾT LUẬN (QUY TẮC ƯU TIÊN TUYỆT ĐỐI)
-    - Nếu cơ sở đạt tiêu chí Phụ lục II -> PHÒNG CẢNH SÁT PCCC & CNCH (PC07) quản lý.
-    - Lưu ý: Dù diện tích nhỏ (thuộc Phụ lục I) nhưng Số tầng cao (thuộc Phụ lục II) -> Vẫn là PC07 quản lý.
-    - Chỉ khi nào KHÔNG đạt Phụ lục II mà chỉ đạt Phụ lục I -> Mới do UBND CẤP XÃ quản lý.
+    *Ví dụ minh họa cho AI hiểu:* - Lỗi A phạt 5 triệu (thuộc quyền Đội trưởng).
+    - NHƯNG lỗi A có thêm "Tịch thu tang vật".
+    - Mà Đội trưởng không được tịch thu tang vật -> Phải đẩy lên Trưởng phòng.
+    -> KẾT LUẬN: Trưởng phòng ra quyết định.
     
     YÊU CẦU ĐẦU RA:
-    - Trả lời ngắn gọn, lập luận rõ ràng.
+    - Trả lời rõ ràng mức phạt cụ thể (từ ... đến ...).
+    - Chỉ rõ chức danh người có thẩm quyền ra quyết định (Chiến sĩ, Đội trưởng, Trưởng phòng, hay Giám đốc CA tỉnh...).
+    - Giải thích lý do (Vì mức tiền là X và có/không có phạt bổ sung Y).
     - Không chào hỏi lại.
-    
-    CÂU HỎI CỦA NGƯỜI DÂN: {prompt}
+
+    CÂU HỎI: {prompt}
     """
     
     with st.chat_message("assistant", avatar="🚒"):
         message_placeholder = st.empty()
-        message_placeholder.markdown("⏳ *Đang phân tích dữ liệu...*")
+        message_placeholder.markdown("⏳ *Đang tra cứu và tính toán...*")
         
         reply = ask_gemini(final_prompt)
         
