@@ -8,7 +8,6 @@ from pypdf import PdfReader
 import io
 import json
 import time
-import random
 
 # --- CẤU HÌNH TRANG ---
 st.set_page_config(
@@ -40,20 +39,34 @@ try:
     DRIVE_FOLDER_ID = st.secrets["DRIVE_FOLDER_ID"]
     GCP_JSON = json.loads(st.secrets["GCP_JSON"])
 except Exception as e:
-    st.error(f"⚠️ Lỗi cấu hình: {str(e)}")
+    st.error(f"⚠️ Lỗi cấu hình Secrets: {str(e)}")
     st.stop()
 
 genai.configure(api_key=GEMINI_KEY)
 
-# --- DANH SÁCH MODEL (CƠ CHẾ DỰ PHÒNG) ---
-# Nếu cái đầu lỗi, nó tự nhảy sang cái sau
-MODEL_LIST = [
-    "gemini-1.5-flash",
-    "gemini-1.5-pro",
-    "gemini-1.0-pro"
-]
+# --- HÀM KIỂM TRA MODEL KHẢ DỤNG (CHỮA LỖI 404) ---
+@st.cache_resource
+def get_available_model():
+    # Danh sách ưu tiên
+    preferred_models = ["models/gemini-1.5-flash", "models/gemini-1.5-pro", "models/gemini-pro"]
+    try:
+        available_models = [m.name for m in genai.list_models()]
+        # Tìm model tốt nhất có trong danh sách khả dụng
+        for model in preferred_models:
+            if model in available_models:
+                return model.replace("models/", "") # Trả về tên sạch (vd: gemini-1.5-flash)
+        # Nếu không thấy cái nào quen, lấy cái đầu tiên generateContent được
+        for m in genai.list_models():
+            if 'generateContent' in m.supported_generation_methods:
+                return m.name.replace("models/", "")
+    except Exception as e:
+        return "gemini-pro" # Fallback an toàn nhất
+    return "gemini-pro"
 
-# --- HÀM ĐỌC DRIVE (MỞ RỘNG TỪ KHÓA) ---
+# Xác định model sẽ dùng ngay khi chạy app
+ACTIVE_MODEL_NAME = get_available_model()
+
+# --- HÀM ĐỌC DRIVE (GOM KHÔNG BỎ SÓT) ---
 @st.cache_resource(ttl=3600)
 def load_drive_data_categorized():
     try:
@@ -67,15 +80,14 @@ def load_drive_data_categorized():
         groups = {
             "xu_phat": "",  
             "ky_thuat": "", 
-            "thu_tuc": "",  
-            "khac": "",
-            "debug_info": {"xu_phat": [], "ky_thuat": [], "thu_tuc": [], "khac": []} # Để anh kiểm tra
+            "thu_tuc": "",  # Nhóm này sẽ chứa cả Thủ tục + Các file chưa phân loại
+            "debug_info": {"xu_phat": [], "ky_thuat": [], "thu_tuc": []}
         }
         
         file_count = 0
         
         for file in files:
-            fname = file['name'].lower() # Chuyển tên file về chữ thường để so sánh
+            fname = file['name'].lower()
             if "google-apps" in file['mimeType']: continue 
             
             try:
@@ -95,29 +107,23 @@ def load_drive_data_categorized():
                     for page in reader.pages: content += page.extract_text() + "\n"
                 
                 if content:
-                    # Đóng dấu văn bản
-                    formatted_content = f"\n=== BẮT ĐẦU TÀI LIỆU: {file['name']} ===\n{content}\n=== KẾT THÚC TÀI LIỆU: {file['name']} ===\n"
+                    formatted_content = f"\n=== FILE: {file['name']} ===\n{content}\n=== HẾT FILE ===\n"
                     
-                    # --- PHÂN LOẠI (Logic bắt dính) ---
-                    # 1. XỬ PHẠT: Có chữ 106, 189, 144, xử phạt...
+                    # --- PHÂN LOẠI MỚI (CHẶT CHẼ HƠN) ---
+                    # 1. Nhóm Xử phạt (Ưu tiên cao nhất)
                     if any(x in fname for x in ["106", "189", "144", "xử phạt", "vi phạm", "xphc"]):
                         groups["xu_phat"] += formatted_content
                         groups["debug_info"]["xu_phat"].append(file['name'])
                     
-                    # 2. KỸ THUẬT: Có chữ 06, qc10, tcvn, tiêu chuẩn...
+                    # 2. Nhóm Kỹ thuật
                     elif any(x in fname for x in ["06", "qc10", "tcvn", "tiêu chuẩn", "quy chuẩn", "kỹ thuật"]):
                         groups["ky_thuat"] += formatted_content
                         groups["debug_info"]["ky_thuat"].append(file['name'])
 
-                    # 3. THỦ TỤC/HỒ SƠ: Có chữ 136, 50, 105, luật, hồ sơ, quản lý, nghị định...
-                    elif any(x in fname for x in ["136", "50", "105", "luật", "thẩm duyệt", "nghiệm thu", "hồ sơ", "quản lý", "nghị định", "nd"]):
+                    # 3. Nhóm Thủ tục & Còn lại (GOM HẾT VÀO ĐÂY ĐỂ KHÔNG SÓT NĐ 105)
+                    else:
                         groups["thu_tuc"] += formatted_content
                         groups["debug_info"]["thu_tuc"].append(file['name'])
-                    
-                    # 4. KHÁC
-                    else:
-                        groups["khac"] += formatted_content
-                        groups["debug_info"]["khac"].append(file['name'])
                     
                     file_count += 1
             except: continue 
@@ -129,46 +135,32 @@ def load_drive_data_categorized():
 def select_context(prompt, groups):
     prompt_lower = prompt.lower()
     
-    # Logic ưu tiên
     if any(x in prompt_lower for x in ["phạt", "tiền", "lỗi", "vi phạm", "xử lý"]):
-        return groups["xu_phat"] + groups["thu_tuc"], "Xử phạt + Thủ tục"
+        # Hỏi phạt -> Lấy Xử phạt + Thủ tục (để tham chiếu hành vi)
+        return groups["xu_phat"] + groups["thu_tuc"], "Xử phạt + Pháp lý"
         
     elif any(x in prompt_lower for x in ["mét", "chiều cao", "rộng", "khoảng cách", "trang bị", "lối thoát", "bậc"]):
-        return groups["ky_thuat"], "Kỹ thuật"
-        
-    elif any(x in prompt_lower for x in ["hồ sơ", "thủ tục", "quản lý", "thẩm duyệt", "nghiệm thu", "ai quản lý"]):
-        # Lấy Thủ tục (Tuyệt đối KHÔNG lấy xử phạt)
-        return groups["thu_tuc"], "Thủ tục (NĐ 136, 50, 105...)"
+        return groups["ky_thuat"], "Kỹ thuật (QC10, QCVN 06)"
         
     else:
-        return groups["thu_tuc"] + groups["xu_phat"], "Tổng hợp"
+        # Mặc định lấy nhóm Thủ tục (chứa NĐ 105, 136, 50...)
+        return groups["thu_tuc"], "Hồ sơ & Thủ tục"
 
-# --- HÀM GỌI AI ĐA MODEL (CHỐNG LỖI 404 & 429) ---
-def ask_gemini_resilient(full_prompt):
-    debug_log = ""
-    # Thử lần lượt từng Model trong danh sách
-    for model_name in MODEL_LIST:
-        # Với mỗi model, thử 2 lần nếu mạng lag
-        for attempt in range(2): 
+# --- HÀM GỌI AI (ĐƠN GIẢN HÓA) ---
+def ask_gemini_safe(full_prompt):
+    try:
+        model = genai.GenerativeModel(ACTIVE_MODEL_NAME)
+        response = model.generate_content(full_prompt)
+        return response.text 
+    except Exception as e:
+        # Nếu lỗi quá tải, đợi chút rồi thử lại 1 lần
+        if "429" in str(e):
+            time.sleep(5)
             try:
-                model = genai.GenerativeModel(model_name)
                 response = model.generate_content(full_prompt)
-                return response.text 
-            except Exception as e:
-                error_msg = str(e)
-                debug_log += f"\n- {model_name} (Lần {attempt+1}): {error_msg}"
-                
-                # Nếu lỗi 429 (Quá tải) -> Nghỉ 5s rồi thử lại
-                if "429" in error_msg or "quota" in error_msg.lower():
-                    time.sleep(5)
-                    continue 
-                # Nếu lỗi 404 (Không tìm thấy model) -> Bỏ qua model này, thử cái tiếp theo
-                elif "404" in error_msg:
-                    break 
-                else:
-                    time.sleep(2)
-                    continue
-    return f"⚠️ Hệ thống đang bận hoặc lỗi kết nối. Vui lòng thử lại sau ít phút.\n(Chi tiết kỹ thuật: {debug_log})"
+                return response.text
+            except: pass
+        return f"⚠️ Lỗi kết nối AI ({str(e)}). Vui lòng thử lại sau."
 
 # --- GIAO DIỆN CHÍNH ---
 st.markdown("""
@@ -183,34 +175,33 @@ st.markdown("""
 with st.spinner('Đang nạp dữ liệu từ Drive...'):
     data_groups, count = load_drive_data_categorized()
 
-if data_groups:
-    if "data_loaded_msg" not in st.session_state:
-        st.toast(f"Đã nạp {count} văn bản.", icon="✅")
-        st.session_state.data_loaded_msg = True
-else:
+if not data_groups:
     st.error("Chưa kết nối được Drive."); st.stop()
 
-# --- CÔNG CỤ KIỂM TRA (QUAN TRỌNG ĐỂ SỬA LỖI) ---
-with st.expander("🛠️ ADMIN: KIỂM TRA DỮ LIỆU ĐÃ NẠP"):
-    st.write("Dưới đây là danh sách file AI đã đọc được. Anh hãy kiểm tra xem NĐ 105 nằm ở đâu.")
+# --- ADMIN PANEL: KIỂM TRA TRẠNG THÁI ---
+with st.expander("🛠️ TRẠNG THÁI HỆ THỐNG (Bấm để xem)"):
+    st.write(f"✅ **Model đang dùng:** `{ACTIVE_MODEL_NAME}` (Đã tự động chọn model tốt nhất)")
+    st.write(f"📂 **Tổng số file:** {count}")
     
-    col1, col2 = st.columns(2)
-    with col1:
-        st.info(f"📂 Giỏ THỦ TỤC (Dùng cho câu hỏi Hồ sơ/Quản lý):\n" + "\n".join([f"- {f}" for f in data_groups["debug_info"]["thu_tuc"]]))
-        st.warning(f"📂 Giỏ XỬ PHẠT:\n" + "\n".join([f"- {f}" for f in data_groups["debug_info"]["xu_phat"]]))
-    with col2:
-        st.success(f"📂 Giỏ KỸ THUẬT:\n" + "\n".join([f"- {f}" for f in data_groups["debug_info"]["ky_thuat"]]))
-        st.error(f"📂 Giỏ KHÁC (Chưa phân loại):\n" + "\n".join([f"- {f}" for f in data_groups["debug_info"]["khac"]]))
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        st.info(f"Giỏ THỦ TỤC (Chứa NĐ 105...):\n" + str(len(data_groups["debug_info"]["thu_tuc"])) + " file")
+        # In tên file để kiểm tra
+        for f in data_groups["debug_info"]["thu_tuc"]: st.caption(f"- {f}")
+    with c2:
+        st.warning(f"Giỏ XỬ PHẠT:\n" + str(len(data_groups["debug_info"]["xu_phat"])) + " file")
+    with c3:
+        st.success(f"Giỏ KỸ THUẬT:\n" + str(len(data_groups["debug_info"]["ky_thuat"])) + " file")
 
 # KHUNG CHÀO MỪNG
 if "messages" not in st.session_state: st.session_state.messages = []
 if len(st.session_state.messages) == 0:
-    st.markdown("""
+    st.markdown(f"""
     <div style='background-color: #f8f9fa; padding: 20px; border-radius: 12px; text-align: center; margin-bottom: 20px; border: 1px solid #eee;'>
         <h3 style='color: #B71C1C; margin: 0;'>XIN CHÀO!</h3>
         <p style='font-size: 15px; color: #333; margin-top: 10px;'>
             Tôi là Trợ lý AI của <b>Đại úy Phạm Tùng Linh</b>.<br>
-            Tôi hoạt động độc lập dựa trên dữ liệu văn bản nội bộ.
+            Hệ thống đang hoạt động trên nền tảng: <b>{ACTIVE_MODEL_NAME}</b>
         </p>
     </div>
     """, unsafe_allow_html=True)
@@ -232,36 +223,32 @@ if prompt := st.chat_input("Nhập câu hỏi..."):
     # 1. Chọn dữ liệu
     selected_knowledge, source_type = select_context(prompt, data_groups)
 
-    # 2. Prompt chỉ đạo
+    # 2. Prompt
     final_prompt = f"""
     VAI TRÒ: Đại úy Phạm Tùng Linh - Chuyên gia PCCC.
     
-    DỮ LIỆU ĐƯỢC PHÉP SỬ DỤNG (CONTEXT):
+    DỮ LIỆU SỬ DỤNG (CONTEXT):
     {selected_knowledge}
     
     LỊCH SỬ CHAT: {chat_history}
     
     🛑 CHỈ THỊ TUYỆT ĐỐI:
     1. CHỈ TRẢ LỜI DỰA TRÊN DỮ LIỆU ĐÃ CUNG CẤP.
-    2. Nếu dữ liệu không có -> Trả lời "Không tìm thấy".
-    3. NGOẠI LỆ: Được dùng kiến thức về QCVN 06:2022 để trả lời câu hỏi kỹ thuật.
+    2. Nếu không có thông tin -> Trả lời "Không tìm thấy trong dữ liệu hiện có".
+    3. NGOẠI LỆ: Được dùng kiến thức QCVN 06:2022 cho câu hỏi kỹ thuật.
     
-    CÁC QUY TẮC NGHIỆP VỤ:
-    - Hỏi **Hồ sơ/Thủ tục**: Tìm trong NĐ 105, 136, 50, Luật PCCC. (Tuyệt đối không lấy từ luật xử phạt).
-    - Hỏi **Xử phạt**: Tìm trong NĐ 106, 189. Áp dụng Logic sàng lọc thẩm quyền (Tiền + Bổ sung).
-    - Hỏi **Quản lý**: Áp dụng công năng 70% + Phụ lục.
-       
-    YÊU CẦU TRÌNH BÀY:
-    - Trích dẫn: "Theo Khoản..., Điều..., Văn bản [Tên file]...".
+    CÁC QUY TẮC TRẢ LỜI:
+    - **Hỏi Hồ sơ/Thủ tục:** Tìm kỹ trong các file thuộc nhóm Thủ tục (NĐ 105, 136, 50, Luật PCCC...). TUYỆT ĐỐI KHÔNG dùng NĐ 106 (Xử phạt) để trả lời câu hỏi "Hồ sơ gồm những gì".
+    - **Hỏi Xử phạt:** Tìm trong NĐ 106, 189. Áp dụng logic Thẩm quyền (Tiền + Bổ sung).
     
     CÂU HỎI: {prompt}
     """
     
     with st.chat_message("assistant", avatar="🚒"):
         message_placeholder = st.empty()
-        message_placeholder.markdown(f"⏳ *Đang tra cứu dữ liệu...*")
+        message_placeholder.markdown(f"⏳ *Đang tra cứu ({source_type})...*")
         
-        reply = ask_gemini_resilient(final_prompt)
+        reply = ask_gemini_safe(final_prompt)
         
         full_reply = reply + "\n\n---\n*Bạn cần hỏi gì thêm không?*"
         message_placeholder.markdown(full_reply)
