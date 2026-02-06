@@ -55,23 +55,19 @@ MODEL_LIST = [
 
 # --- HÀM ĐỌC DRIVE ---
 @st.cache_resource(ttl=3600)
-def load_drive_data():
+def load_drive_data_categorized():
     try:
         creds = service_account.Credentials.from_service_account_info(GCP_JSON)
         service = build('drive', 'v3', credentials=creds)
         results = service.files().list(
             q=f"'{DRIVE_FOLDER_ID}' in parents and trashed=false",
-            fields="files(id, name, mimeType)").execute()
+            pageSize=100, fields="files(id, name, mimeType)").execute()
         files = results.get('files', [])
         
-        full_text = ""
-        file_list = []
-        total_chars = 0
-        CHAR_LIMIT = 300000 # Tăng giới hạn lên một chút để đọc đủ luật xử phạt
+        groups = {"all": ""}
+        file_count = 0
         
         for file in files:
-            if total_chars > CHAR_LIMIT: break 
-            fname = file['name']
             if "google-apps" in file['mimeType']: continue 
             try:
                 request = service.files().get_media(fileId=file['id'])
@@ -81,19 +77,21 @@ def load_drive_data():
                 while done is False: status, done = downloader.next_chunk()
                 fh.seek(0)
                 content = ""
-                if fname.endswith(".docx"):
+                
+                if file['name'].endswith(".docx"):
                     doc = Document(fh)
                     for p in doc.paragraphs: content += p.text + "\n"
-                elif fname.endswith(".pdf"):
+                elif file['name'].endswith(".pdf"):
                     reader = PdfReader(fh)
                     for page in reader.pages: content += page.extract_text() + "\n"
                 
                 if content:
-                    full_text += f"\n--- TÀI LIỆU: {fname} ---\n{content}\n"
-                    file_list.append(fname)
-                    total_chars += len(content)
+                    formatted_content = f"\n=== BẮT ĐẦU VĂN BẢN: {file['name']} ===\n{content}\n=== KẾT THÚC VĂN BẢN: {file['name']} ===\n"
+                    groups["all"] += formatted_content
+                    file_count += 1
             except: continue 
-        return full_text, file_list
+            
+        return groups["all"], file_count
     except Exception as e: return None, str(e)
 
 # --- HÀM XỬ LÝ AI ---
@@ -118,16 +116,16 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# Load dữ liệu (Chạy ngầm)
-with st.spinner('Đang kết nối dữ liệu luật...'):
-    knowledge, list_files = load_drive_data()
+# Load dữ liệu
+with st.spinner('Đang nạp dữ liệu Drive và cài đặt thuật toán xử lý...'):
+    knowledge, count = load_drive_data_categorized()
 
-if list_files:
+if knowledge:
     if "data_loaded_msg" not in st.session_state:
-        st.toast("Hệ thống đã sẵn sàng.", icon="✅")
+        st.toast(f"Đã nạp {count} văn bản. Đã kích hoạt Logic nghiệp vụ.", icon="✅")
         st.session_state.data_loaded_msg = True
 else:
-    st.error("Lỗi kết nối dữ liệu."); st.stop()
+    st.error("Chưa tìm thấy tài liệu nào trong Drive."); st.stop()
 
 # KHUNG CHÀO MỪNG
 if "messages" not in st.session_state: st.session_state.messages = []
@@ -136,20 +134,19 @@ if len(st.session_state.messages) == 0:
     <div style='background-color: #f8f9fa; padding: 20px; border-radius: 12px; text-align: center; margin-bottom: 20px; border: 1px solid #eee;'>
         <h3 style='color: #B71C1C; margin: 0;'>XIN CHÀO!</h3>
         <p style='font-size: 15px; color: #333; margin-top: 10px;'>
-            Tôi là Trợ lý AI của <b>Đại úy Phạm Tùng Linh (Phòng PC07)</b>.<br>
-            Tôi chuyên giải đáp về thẩm quyền quản lý và tư vấn xử lý vi phạm hành chính.
+            Tôi là Trợ lý AI của <b>Đại úy Phạm Tùng Linh</b>.<br>
+            Tôi tuân thủ: <b>Chỉ dùng dữ liệu Drive + Áp dụng đúng thuật toán phân tích.</b>
         </p>
-        <p style='font-size: 13px; color: #666; font-style: italic;'>👇 Hãy nhập câu hỏi bên dưới 👇</p>
     </div>
     """, unsafe_allow_html=True)
 
-# Hiển thị lịch sử chat
+# Hiển thị lịch sử
 for msg in st.session_state.messages:
     avatar = "👤" if msg["role"] == "user" else "🚒"
     with st.chat_message(msg["role"], avatar=avatar): st.markdown(msg["content"])
 
 # XỬ LÝ CÂU HỎI
-if prompt := st.chat_input("Nhập câu hỏi... (VD: Lỗi hàn cắt không che chắn phạt bao nhiêu? Ai ký?)"):
+if prompt := st.chat_input("Nhập câu hỏi..."):
     st.session_state.messages.append({"role": "user", "content": prompt})
     st.chat_message("user", avatar="👤").write(prompt)
 
@@ -158,62 +155,52 @@ if prompt := st.chat_input("Nhập câu hỏi... (VD: Lỗi hàn cắt không ch
     for msg in st.session_state.messages[-4:]:
         chat_history += f"{msg['role']}: {msg['content']}\n"
 
-    # --- PROMPT TỔNG HỢP (QUẢN LÝ + XỬ PHẠT) ---
+    # --- PROMPT HOÀN HẢO: DỮ LIỆU DRIVE + LOGIC NGHIỆP VỤ ---
     final_prompt = f"""
-    VAI TRÒ: Bạn là Đại úy Phạm Tùng Linh - Chuyên gia PCCC.
-    DỮ LIỆU LUẬT (TRA CỨU CHÍNH XÁC): {knowledge}
+    VAI TRÒ: Đại úy Phạm Tùng Linh - Chuyên gia PCCC.
+    
+    DỮ LIỆU ĐƯỢC PHÉP SỬ DỤNG (CONTEXT):
+    {knowledge}
+    
     LỊCH SỬ CHAT: {chat_history}
     
-    🛑 NHIỆM VỤ: Phân tích câu hỏi và áp dụng đúng 1 trong 2 quy trình suy luận sau:
+    🛑 NGUYÊN TẮC CỐT LÕI (KHÔNG ĐƯỢC VI PHẠM):
+    1. CHỈ sử dụng thông tin có trong phần "DỮ LIỆU ĐƯỢC PHÉP SỬ DỤNG".
+    2. KHÔNG sử dụng kiến thức bên ngoài về các Nghị định (136, 50, 106...) nếu chúng không có trong dữ liệu.
+    3. NGOẠI LỆ DUY NHẤT: Được phép dùng kiến thức về **QCVN 06:2022/BXD** và **Sửa đổi 1:2023** để trả lời câu hỏi kỹ thuật (nếu trong dữ liệu bị thiếu).
     
-    ------------------------------------------------------------------
-    🔵 QUY TRÌNH 1: NẾU HỎI VỀ "AI QUẢN LÝ CƠ SỞ NÀY?" (PHÂN CẤP)
-    1. Kiểm tra dữ liệu: Đã đủ Diện tích, Tầng, Khối tích chưa? Nếu thiếu phải hỏi lại.
-    2. Xác định công năng chính (Quy tắc 70%):
-       - Nếu 1 công năng > 70% diện tích -> Công năng chính.
-       - Nếu không -> Nhà hỗn hợp.
-    3. Đối chiếu Phụ lục (NĐ 136 hoặc NĐ 50):
-       - Ưu tiên Phụ lục II (PC07 quản lý).
-       - Chỉ khi không lọt vào Phụ lục II mới xét Phụ lục I (UBND Xã).
-    4. Kết luận: Đơn vị quản lý.
+    -----------------------------------------------------
+    ⚡ CÁC THUẬT TOÁN TƯ DUY BẮT BUỘC PHẢI ÁP DỤNG:
     
-    ------------------------------------------------------------------
-    🔴 QUY TRÌNH 2: NẾU HỎI VỀ "XỬ PHẠT VI PHẠM" (TIỀN PHẠT & THẨM QUYỀN KÝ)
+    🔵 1. THUẬT TOÁN XÁC ĐỊNH LOẠI HÌNH & THẨM QUYỀN QUẢN LÝ (Khi hỏi: Ai quản lý? Cơ sở này thuộc diện nào?):
+       - Bước 1: Tính toán công năng chính (Nếu 1 công năng > 70% diện tích -> Công năng chính. Nếu không -> Hỗn hợp).
+       - Bước 2: Tìm kiếm Phụ lục phân cấp (Phụ lục I, II, III...) TRONG DỮ LIỆU ĐÃ NẠP.
+       - Bước 3: Đối chiếu thông số (Tầng, Khối tích) với Phụ lục tìm được.
+       - Bước 4: Kết luận (Ưu tiên Phụ lục II - PC07 quản lý).
     
-    1. BƯỚC 1: XÁC ĐỊNH KHUNG PHẠT (Theo NĐ 106/2025 hoặc văn bản trong dữ liệu)
-       - Tìm mức phạt Cá nhân -> Suy ra Tổ chức (x2).
-       - Tính Mức phạt trung bình của hành vi.
-       - Kiểm tra kỹ: Có phạt Bổ sung (Tước giấy phép, tịch thu...) hay Khắc phục hậu quả không?
-       - Trích dẫn căn cứ pháp lý: Điểm, Khoản, Điều...
-
-    2. BƯỚC 2: SÀNG LỌC NGƯỜI CÓ THẨM QUYỀN (Theo NĐ 189/2025)
-       - Nguyên tắc: Chỉ liệt kê những người ĐỦ ĐIỀU KIỆN (Thẩm quyền tiền >= Mức phạt TB hành vi VÀ Có quyền phạt bổ sung).
-       - Tự động LOẠI BỎ những người không đủ thẩm quyền tiền (Ví dụ: Phạt 10tr thì không được liệt kê Chiến sĩ, Chủ tịch xã...).
-       
-    3. BƯỚC 3: TRẢ LỜI THEO MẪU SAU (BẮT BUỘC):
-       * Về mức phạt:
-         - Cá nhân: ... (Căn cứ ...)
-         - Tổ chức: ...
-       * Hình thức phạt bổ sung & KPHQ:
-         - Bổ sung: [Ghi rõ hoặc ghi "Không"] (Căn cứ ...)
-         - KPHQ: [Ghi rõ hoặc ghi "Không"] (Căn cứ ...)
-       * Phân tích thẩm quyền giải quyết:
-         (Chỉ liệt kê các chức danh đã qua sàng lọc ở Bước 2)
-         - [Chức danh A]: Đủ thẩm quyền (Tiền tối đa ..., Quyền bổ sung ...). => ĐƯỢC KÝ.
-         - [Chức danh B]: ...
-       * Đề xuất: Trình [Chức danh thấp nhất đủ quyền] ra quyết định.
+    🔴 2. THUẬT TOÁN SÀNG LỌC THẨM QUYỀN XỬ PHẠT (Khi hỏi: Lỗi này phạt bao nhiêu? Ai ký?):
+       - Bước 1: Tìm hành vi trong Dữ liệu (NĐ 106 hoặc văn bản tương đương có trong Drive).
+       - Bước 2: Xác định Mức phạt tiền (Cá nhân/Tổ chức) + Hình thức phạt bổ sung (Tước, Tịch thu...) + KPHQ.
+       - Bước 3: SÀNG LỌC NGƯỜI CÓ THẨM QUYỀN (Dựa trên NĐ 189 hoặc Luật XLVPHC có trong dữ liệu):
+         + Loại bỏ ngay người có Thẩm quyền phạt tiền < Mức phạt của hành vi.
+         + Loại bỏ người không có quyền áp dụng hình thức phạt bổ sung (nếu hành vi có phạt bổ sung).
+       - Bước 4: Trả lời theo Form: Mức tiền -> Phạt bổ sung -> Danh sách người đủ điều kiện -> Đề xuất.
     
-    ------------------------------------------------------------------
-    YÊU CẦU CHUNG:
-    - Trả lời ngắn gọn, đúng trọng tâm.
-    - Luôn trích dẫn văn bản pháp luật cụ thể.
+    🟢 3. KHI HỎI VỀ HỒ SƠ / THỦ TỤC:
+       - Ưu tiên tìm kiếm trong **Nghị định 105/2025/NĐ-CP** (Điều 4, Điều 13...) có trong dữ liệu.
+       - Nếu không có NĐ 105 mới tìm các văn bản khác trong dữ liệu.
+       - Tuyệt đối không lấy danh mục hồ sơ từ văn bản xử phạt.
     
-    CÂU HỎI CỦA NGƯỜI DÂN: {prompt}
+    -----------------------------------------------------
+    YÊU CẦU TRÌNH BÀY:
+    - Trích dẫn rõ: "Theo Khoản..., Điều..., Văn bản [Tên file]...".
+    
+    CÂU HỎI: {prompt}
     """
     
     with st.chat_message("assistant", avatar="🚒"):
         message_placeholder = st.empty()
-        message_placeholder.markdown("⏳ *Đang tra cứu luật và phân tích thẩm quyền...*")
+        message_placeholder.markdown("⏳ *Đang rà soát dữ liệu và áp dụng thuật toán...*")
         
         reply = ask_gemini(final_prompt)
         
@@ -222,4 +209,4 @@ if prompt := st.chat_input("Nhập câu hỏi... (VD: Lỗi hàn cắt không ch
             message_placeholder.markdown(full_reply)
             st.session_state.messages.append({"role": "assistant", "content": full_reply})
         else:
-            message_placeholder.error("⚠️ Hệ thống đang bận. Vui lòng thử lại sau 10 giây.")
+            message_placeholder.error("⚠️ Hệ thống bận.")
