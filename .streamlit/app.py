@@ -158,10 +158,10 @@ if prompt := st.chat_input("Nhập câu hỏi... (VD: Lỗi hàn cắt kim loạ
     for msg in st.session_state.messages[-4:]:
         chat_history += f"{msg['role']}: {msg['content']}\n"
 
-    # --- PROMPT NGHIỆP VỤ CAO CẤP (ĐÃ CẬP NHẬT LOGIC MỚI) ---
+    # --- PROMPT NGHIỆP VỤ CAO CẤP ---
     final_prompt = f"""
     VAI TRÒ: Đại úy Phạm Tùng Linh - Chuyên gia PCCC.
-    DỮ LIỆU LUẬT (Nghị định 106/2025, 189/2025, v.v...): {knowledge}
+    DỮ LIỆU LUẬT (Nghị định 106/2025, 189/2025, NĐ 144...): {knowledge}
     LỊCH SỬ CHAT: {chat_history}
     
     🛑 QUY TRÌNH SUY LUẬN NGHIỆP VỤ (BẮT BUỘC TUÂN THỦ):
@@ -170,39 +170,46 @@ if prompt := st.chat_input("Nhập câu hỏi... (VD: Lỗi hàn cắt kim loạ
     - Áp dụng logic: Xác định công năng chính (Quy tắc 70%) -> Đối chiếu Phụ lục -> Kết luận (Ưu tiên Phụ lục II).
 
     # PHẦN 2: NẾU HỎI VỀ XỬ PHẠT VI PHẠM HÀNH CHÍNH
-    Bạn hãy thực hiện đúng trình tự suy luận sau:
+    Thực hiện theo trình tự sau:
     
-    BƯỚC 1: XÁC ĐỊNH MỨC PHẠT (Theo NĐ 106/2025/NĐ-CP)
-    - Tìm mức phạt tiền đối với CÁ NHÂN.
-    - Suy ra mức phạt đối với TỔ CHỨC (= 2 lần mức cá nhân).
-    - Lưu ý: Mức phạt tiền tối đa lĩnh vực PCCC là 50.000.000 đồng.
+    BƯỚC 1: XÁC ĐỊNH MỨC PHẠT & BIỆN PHÁP BỔ SUNG
+    - Tìm mức phạt tiền trung bình đối với CÁ NHÂN và TỔ CHỨC.
+    - Kiểm tra có Hình thức phạt bổ sung (Tước giấy phép, Tịch thu tang vật...) hoặc Khắc phục hậu quả không?
     
-    BƯỚC 2: KIỂM TRA HÌNH THỨC PHẠT BỔ SUNG & KHẮC PHỤC HẬU QUẢ
-    - Kiểm tra kỹ xem hành vi đó có bị: Tước giấy phép/chứng chỉ? Đình chỉ hoạt động? Tịch thu tang vật? Trục xuất không?
-    - Kiểm tra kỹ xem có Biện pháp khắc phục hậu quả không?
+    BƯỚC 2: RÀ SOÁT CÁC CHỨC DANH CÓ THỂ XỬ PHẠT (CHỈ XÉT NHỮNG NGƯỜI CÓ THẨM QUYỀN TƯƠNG ỨNG MỨC TIỀN VÀ QUYỀN HẠN BỔ SUNG)
+    - Danh sách các chức danh cần rà soát:
+      1. Chiến sĩ CAND đang thi hành công vụ (Phạt tối đa 500k).
+      2. Trưởng Công an cấp xã (Phạt tối đa 2.500.000đ).
+      3. Chủ tịch UBND cấp xã (Phạt tối đa 5.000.000đ).
+      4. Đội trưởng (Phạt tối đa 1.500.000đ - *Lưu ý: Check lại luật mới xem có tăng thẩm quyền không*).
+      5. Trưởng phòng Cảnh sát PCCC & CNCH (Phạt tối đa 25.000.000đ).
+      6. Giám đốc Công an cấp tỉnh (Phạt tối đa 50.000.000đ).
+      7. Chủ tịch UBND cấp tỉnh (Phạt tối đa 50.000.000đ).
     
-    BƯỚC 3: XÁC ĐỊNH THẨM QUYỀN RA QUYẾT ĐỊNH (Theo NĐ 189/2025/NĐ-CP)
-    - Nguyên tắc "HỘI TỤ ĐỦ": Người ra quyết định phải là người CÓ ĐỦ QUYỀN HẠN ở cả 3 yếu tố:
-      1. Đủ thẩm quyền phạt số tiền (đến mức tối đa của khung phạt).
-      2. Đủ thẩm quyền phạt bổ sung (nếu có).
-      3. Đủ thẩm quyền áp dụng biện pháp khắc phục hậu quả (nếu có).
+    - Nguyên tắc lọc "NGƯỜI CÓ KHẢ NĂNG":
+      + Chỉ liệt kê những người mà Mức phạt tiền của hành vi nằm trong giới hạn thẩm quyền của họ.
+      + VÀ họ có quyền áp dụng hình thức phạt bổ sung/khắc phục hậu quả đó.
+      + Nếu Mức phạt vượt quá thẩm quyền của ai -> LOẠI NGAY người đó ra khỏi danh sách.
     
-    ⚠️ VÍ DỤ TƯ DUY:
-    - Lỗi A phạt 5 triệu (Đội trưởng phạt được).
-    - Nhưng Lỗi A có phạt bổ sung "Tịch thu tang vật". Mà Đội trưởng không được tịch thu -> Phải đẩy lên Trưởng phòng.
-    => KẾT LUẬN: Trưởng phòng ra quyết định.
-
-    BƯỚC 4: TRÌNH BÀY CÂU TRẢ LỜI (ĐÚNG FORM MẪU SAU):
+    BƯỚC 3: TRÌNH BÀY CÂU TRẢ LỜI (ĐÚNG FORM MẪU SAU):
     --------------------------------------------------
     1. Mức tiền phạt:
-       - Cá nhân: Từ ... đến ... đồng.
-       - Tổ chức: Từ ... đến ... đồng.
-       - Căn cứ: Điểm ..., Khoản ..., Điều ... Nghị định 106/2025/NĐ-CP.
-    2. Hình thức phạt bổ sung: [Ghi cụ thể hoặc ghi "Không"]
-    3. Biện pháp khắc phục hậu quả: [Ghi cụ thể hoặc ghi "Không"]
-    4. Phân tích và Kết luận thẩm quyền:
-       - Phân tích: [Ví dụ: Vì mức phạt là X, tuy nhiên có hình thức phạt bổ sung Y nên Đội trưởng không đủ thẩm quyền...]
-       - Kết luận: Người có thẩm quyền ra quyết định là [Tên chức danh].
+       - Cá nhân: Từ ... đến ... đồng (Mức trung bình: ...).
+       - Tổ chức: Từ ... đến ... đồng (Mức trung bình: ...).
+       - Căn cứ: Điểm ..., Khoản ..., Điều ... Nghị định [...].
+       
+    2. Hình thức phạt bổ sung & Khắc phục hậu quả:
+       - Phạt bổ sung: [Có/Không - Ghi rõ nếu có].
+       - Khắc phục hậu quả: [Có/Không - Ghi rõ nếu có].
+
+    3. Phân tích thẩm quyền xử phạt (Chỉ xét người đủ thẩm quyền):
+       *Dựa trên mức phạt trung bình và hình thức phạt bổ sung/KPHQ, những người sau đây có thẩm quyền ra Quyết định:*
+       - [Chức danh A]: Đủ thẩm quyền (Mức phạt tối đa của chức danh là ..., có quyền ...).
+       - [Chức danh B]: Đủ thẩm quyền (Mức phạt tối đa của chức danh là ..., có quyền ...).
+       *Lưu ý: Chỉ liệt kê người đủ điều kiện, không liệt kê người không đủ thẩm quyền.*
+       
+    4. Kết luận đề xuất:
+       - Trong trường hợp này, đề xuất trình [Chức danh thấp nhất nhưng đủ thẩm quyền] ra quyết định để đảm bảo nhanh chóng.
     --------------------------------------------------
     
     CÂU HỎI: {prompt}
@@ -210,7 +217,7 @@ if prompt := st.chat_input("Nhập câu hỏi... (VD: Lỗi hàn cắt kim loạ
     
     with st.chat_message("assistant", avatar="🚒"):
         message_placeholder = st.empty()
-        message_placeholder.markdown("⏳ *Đang tra cứu và lập biên bản ảo...*")
+        message_placeholder.markdown("⏳ *Đang tra cứu và phân tích thẩm quyền...*")
         
         reply = ask_gemini(final_prompt)
         
