@@ -8,16 +8,17 @@ from pypdf import PdfReader
 import io
 import json
 import time
+import random
 
 # --- CẤU HÌNH TRANG ---
 st.set_page_config(
-    page_title="PCCC & CNCH Phú Thọ",
+    page_title="Hệ thống Trợ lý ảo PCCC & CNCH",
     page_icon="🛡️",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
 
-# --- CSS ---
+# --- CSS GIAO DIỆN ---
 st.markdown("""
 <style>
     #MainMenu {visibility: hidden;}
@@ -32,20 +33,24 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- KẾT NỐI ---
+# --- 1. KẾT NỐI & ĐA KEY ---
 try:
-    GEMINI_KEY = st.secrets["GEMINI_API_KEY"]
+    keys_string = st.secrets["GEMINI_API_KEYS"]
+    API_KEYS_LIST = [k.strip() for k in keys_string.split(",") if k.strip()]
     DRIVE_FOLDER_ID = st.secrets["DRIVE_FOLDER_ID"]
     GCP_JSON = json.loads(st.secrets["GCP_JSON"])
 except Exception as e:
-    st.error(f"⚠️ Lỗi cấu hình: {str(e)}")
+    st.error(f"⚠️ Lỗi cấu hình Secrets: {str(e)}")
     st.stop()
 
-genai.configure(api_key=GEMINI_KEY)
+def get_random_key(): return random.choice(API_KEYS_LIST)
 
-# --- MODEL ---
+# --- 2. TỰ ĐỘNG CHỌN MODEL (FIX LỖI 404) ---
 @st.cache_resource
 def get_best_model():
+    # Thử kết nối để tìm model
+    genai.configure(api_key=API_KEYS_LIST[0])
+    # Danh sách ưu tiên: Flash (Nhanh) -> Pro (Thông minh) -> 1.0 (Cũ)
     priority = ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-1.0-pro"]
     try:
         available = [m.name.replace("models/", "") for m in genai.list_models()]
@@ -56,7 +61,7 @@ def get_best_model():
 
 ACTIVE_MODEL = get_best_model()
 
-# --- HÀM ĐỌC DRIVE (5 GIỎ) ---
+# --- 3. HÀM ĐỌC DRIVE (ĐÃ SỬA LỖI PHÂN LOẠI) ---
 @st.cache_resource(ttl=3600)
 def load_drive_data_categorized():
     try:
@@ -73,11 +78,9 @@ def load_drive_data_categorized():
         }
         
         file_count = 0
-        
         for file in files:
             fname = file['name'].lower()
             if "google-apps" in file['mimeType']: continue 
-            
             try:
                 request = service.files().get_media(fileId=file['id'])
                 fh = io.BytesIO()
@@ -86,7 +89,6 @@ def load_drive_data_categorized():
                 while done is False: status, done = downloader.next_chunk()
                 fh.seek(0)
                 content = ""
-                
                 if file['name'].endswith(".docx"):
                     doc = Document(fh)
                     for p in doc.paragraphs: content += p.text + "\n"
@@ -95,85 +97,80 @@ def load_drive_data_categorized():
                     for page in reader.pages: content += page.extract_text() + "\n"
                 
                 if content:
-                    formatted_content = f"\n=== FILE: {file['name']} ===\n{content}\n=== HẾT FILE ===\n"
+                    formatted = f"\n=== TÀI LIỆU: {file['name']} ===\n{content}\n=== HẾT ===\n"
                     
-                    # LOGIC PHÂN LOẠI (Ưu tiên từ trên xuống)
+                    # --- LOGIC PHÂN LOẠI MỚI (CHÍNH XÁC HƠN) ---
+                    
+                    # Ưu tiên 1: XỬ PHẠT (Đặc thù nhất)
                     if any(x in fname for x in ["xu phat", "vi pham", "106", "189", "144", "xphc"]):
-                        groups["xu_phat"] += formatted_content
+                        groups["xu_phat"] += formatted
                         groups["debug"]["xu_phat"].append(file['name'])
-                    elif any(x in fname for x in ["chua chay", "cuu nan", "cnch", "phuong an", "chien thuat"]):
-                        groups["chua_chay"] += formatted_content
-                        groups["debug"]["chua_chay"].append(file['name'])
-                    elif any(x in fname for x in ["quy chuan", "tieu chuan", "qcvn", "tcvn", "qc10", "ky thuat", "06", "3890"]):
-                        groups["quy_chuan"] += formatted_content
-                        groups["debug"]["quy_chuan"].append(file['name'])
+                    
+                    # Ưu tiên 2: PHÁP LUẬT (Luật, NĐ, TT phải nằm ở đây, dù có chữ CNCH)
                     elif any(x in fname for x in ["luat", "nghi dinh", "thong tu", "nd", "tt", "136", "50", "105", "ho so", "thu tuc", "quan ly"]):
-                        groups["phap_luat"] += formatted_content
+                        groups["phap_luat"] += formatted
                         groups["debug"]["phap_luat"].append(file['name'])
+
+                    # Ưu tiên 3: QUY CHUẨN
+                    elif any(x in fname for x in ["quy chuan", "tieu chuan", "qcvn", "tcvn", "qc10", "ky thuat", "06", "3890"]):
+                        groups["quy_chuan"] += formatted
+                        groups["debug"]["quy_chuan"].append(file['name'])
+                    
+                    # Ưu tiên 4: CHỮA CHÁY (Chỉ những file CNCH không phải là Luật mới vào đây)
+                    elif any(x in fname for x in ["chua chay", "cuu nan", "cnch", "phuong an", "chien thuat"]):
+                        groups["chua_chay"] += formatted
+                        groups["debug"]["chua_chay"].append(file['name'])
+                        
+                    # Ưu tiên 5: KHÁC
                     else:
-                        groups["van_ban_khac"] += formatted_content
+                        groups["van_ban_khac"] += formatted
                         groups["debug"]["van_ban_khac"].append(file['name'])
                     
                     file_count += 1
             except: continue 
-            
         return groups, file_count
     except Exception as e: return None, str(e)
 
-# --- HÀM CHỌN DỮ LIỆU (LOGIC CỘNG DỒN THÔNG MINH) ---
+# --- 4. HÀM CHỌN DỮ LIỆU ---
 def select_context(prompt, groups):
     p = prompt.lower()
-    
     selected_content = ""
     source_list = []
     
-    # 1. KIỂM TRA YẾU TỐ XỬ PHẠT (Nếu có -> Lấy Giỏ Xử phạt)
     if any(x in p for x in ["phạt", "tiền", "lỗi", "vi phạm", "xử lý"]):
-        selected_content += groups["xu_phat"]
-        source_list.append("Xử phạt")
-        # Mẹo: Đã hỏi phạt thì thường cần cả Luật gốc để đối chiếu hành vi
-        selected_content += groups["phap_luat"] 
-        source_list.append("Pháp luật (tham chiếu)")
-
-    # 2. KIỂM TRA YẾU TỐ KỸ THUẬT (Nếu có -> Lấy Giỏ Quy chuẩn)
-    # (Ví dụ: hỏi "Lỗi cửa thoát nạn 0.8m phạt bao nhiêu" -> Lấy cả Xử phạt + Quy chuẩn)
-    if any(x in p for x in ["mét", "chiều cao", "rộng", "khoảng cách", "trang bị", "lối thoát", "bậc", "cầu thang", "xe", "bơm"]):
+        selected_content += groups["xu_phat"] + groups["phap_luat"]
+        source_list.append("Xử phạt + Pháp lý")
+    if any(x in p for x in ["mét", "chiều cao", "rộng", "khoảng cách", "trang bị", "lối thoát", "bậc", "cầu thang"]):
         selected_content += groups["quy_chuan"]
-        source_list.append("Quy chuẩn Kỹ thuật")
-
-    # 3. KIỂM TRA YẾU TỐ THỦ TỤC/HỒ SƠ (Nếu có -> Lấy Giỏ Pháp luật)
-    if any(x in p for x in ["hồ sơ", "thủ tục", "quản lý", "thẩm duyệt", "nghiệm thu", "ai quản lý"]):
-        if "Pháp luật (tham chiếu)" not in source_list: # Tránh trùng lặp
-            selected_content += groups["phap_luat"]
-            source_list.append("Pháp luật (Thủ tục)")
-
-    # 4. KIỂM TRA YẾU TỐ CHỮA CHÁY (Nếu có -> Lấy Giỏ Chữa cháy)
+        source_list.append("Kỹ thuật")
+    if any(x in p for x in ["hồ sơ", "thủ tục", "quản lý", "thẩm duyệt", "nghiệm thu", "ai quản lý", "gồm những gì"]):
+        selected_content += groups["phap_luat"]
+        source_list.append("Thủ tục")
     if any(x in p for x in ["chữa cháy", "cứu nạn", "chiến thuật", "đội hình", "phương án"]):
         selected_content += groups["chua_chay"]
-        source_list.append("Chữa cháy & CNCH")
+        source_list.append("Chữa cháy")
 
-    # 5. TRƯỜNG HỢP KHÔNG BẮT ĐƯỢC TỪ KHÓA NÀO -> Gửi tất cả (An toàn)
-    # Hoặc nếu nội dung quá ngắn, sợ thiếu ý
     if not selected_content:
         selected_content = groups["phap_luat"] + groups["xu_phat"] + groups["quy_chuan"] + groups["chua_chay"] + groups["van_ban_khac"]
-        source_list = ["TẤT CẢ (Tìm kiếm diện rộng)"]
+        source_list = ["TỔNG HỢP"]
         
-    return selected_content, " + ".join(source_list)
+    return selected_content, " + ".join(list(set(source_list)))
 
-# --- HÀM GỌI AI ---
-def ask_gemini_safe(full_prompt):
-    model = genai.GenerativeModel(ACTIVE_MODEL)
-    try:
-        response = model.generate_content(full_prompt)
-        return response.text 
-    except Exception as e:
-        if "429" in str(e):
-            time.sleep(5)
-            try: return model.generate_content(full_prompt).text
-            except: return "⚠️ Hệ thống đang bận. Vui lòng đợi 30s."
-        return f"⚠️ Lỗi: {str(e)}"
+# --- 5. GỌI AI ĐA LUỒNG (FIX LỖI 429) ---
+def ask_gemini_resilient(full_prompt):
+    for attempt in range(4): 
+        current_key = get_random_key()
+        genai.configure(api_key=current_key)
+        model = genai.GenerativeModel(ACTIVE_MODEL)
+        try:
+            response = model.generate_content(full_prompt)
+            return response.text 
+        except Exception as e:
+            if "429" in str(e) or "quota" in str(e).lower(): continue 
+            time.sleep(1) 
+    return "⚠️ Hệ thống đang quá tải (Tất cả API Key đều bận). Vui lòng thử lại sau 30s."
 
-# --- GIAO DIỆN ---
+# --- GIAO DIỆN CHÍNH ---
 st.markdown("""
 <div class="header-banner">
     <div style="font-size: 40px; margin-bottom: 5px;">🛡️</div>
@@ -182,14 +179,14 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-with st.spinner('Đang phân loại dữ liệu đa chiều...'):
+with st.spinner(f'Đang khởi động...'):
     data_groups, count = load_drive_data_categorized()
 
-if not data_groups: st.error("Lỗi Drive"); st.stop()
+if not data_groups: st.error("Lỗi kết nối Drive"); st.stop()
 
-# --- ADMIN PANEL ---
-with st.expander("🛠️ KIỂM TRA 5 NHÓM DỮ LIỆU"):
-    st.write(f"✅ Model: `{ACTIVE_MODEL}` | Tổng file: {count}")
+# ADMIN PANEL (KIỂM TRA LẠI Ở ĐÂY)
+with st.expander("🛠️ TRẠNG THÁI HỆ THỐNG (ADMIN)"):
+    st.write(f"🚀 **Model:** {ACTIVE_MODEL} | **Key:** {len(API_KEYS_LIST)}")
     c1, c2, c3, c4, c5 = st.columns(5)
     with c1: 
         st.info("1. PHÁP LUẬT")
@@ -198,7 +195,7 @@ with st.expander("🛠️ KIỂM TRA 5 NHÓM DỮ LIỆU"):
         st.warning("2. XỬ PHẠT")
         for f in data_groups["debug"]["xu_phat"]: st.caption(f"- {f}")
     with c3: 
-        st.success("3. QUY CHUẨN")
+        st.success("3. KỸ THUẬT")
         for f in data_groups["debug"]["quy_chuan"]: st.caption(f"- {f}")
     with c4: 
         st.error("4. CHỮA CHÁY")
@@ -209,6 +206,9 @@ with st.expander("🛠️ KIỂM TRA 5 NHÓM DỮ LIỆU"):
 
 # CHAT
 if "messages" not in st.session_state: st.session_state.messages = []
+if len(st.session_state.messages) == 0:
+    st.markdown("<div style='text-align: center; color: #666;'><i>👋 Xin chào! Tôi có thể giúp gì về Luật, Thủ tục, Kỹ thuật PCCC?</i></div>", unsafe_allow_html=True)
+
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"], avatar="👤" if msg["role"] == "user" else "🚒"): st.markdown(msg["content"])
 
@@ -219,7 +219,6 @@ if prompt := st.chat_input("Nhập câu hỏi..."):
     chat_history = ""
     for msg in st.session_state.messages[-4:]: chat_history += f"{msg['role']}: {msg['content']}\n"
     
-    # GỌI HÀM CHỌN DỮ LIỆU THÔNG MINH
     selected_knowledge, source_type = select_context(prompt, data_groups)
     
     final_prompt = f"""
@@ -228,20 +227,16 @@ if prompt := st.chat_input("Nhập câu hỏi..."):
     LỊCH SỬ CHAT: {chat_history}
     
     🛑 CHỈ THỊ:
-    1. Chỉ trả lời dựa trên dữ liệu cung cấp.
-    2. CÁC QUY TẮC NGHIỆP VỤ:
-       - Câu hỏi hỗn hợp (Vừa kỹ thuật vừa phạt): Phải trích dẫn cả Tiêu chuẩn kỹ thuật bị vi phạm VÀ Mức phạt tương ứng.
-       - Hỏi Xử phạt: Luôn áp dụng Sàng lọc thẩm quyền (Tiền + Bổ sung).
-       - Hỏi Hồ sơ: Ưu tiên NĐ 105, 136.
+    1. Chỉ trả lời dựa trên dữ liệu.
+    2. Hỏi Xử phạt: Áp dụng Sàng lọc thẩm quyền.
+    3. Hỏi Hồ sơ: Tra cứu nhóm Pháp luật (NĐ 105, 136).
     
     CÂU HỎI: {prompt}
     """
     
     with st.chat_message("assistant", avatar="🚒"):
         msg_ph = st.empty()
-        # Hiển thị cho anh biết nó đang kết hợp những giỏ nào
-        msg_ph.markdown(f"⏳ *Đang tổng hợp dữ liệu từ: {source_type}...*")
-        reply = ask_gemini_safe(final_prompt)
-        full_reply = reply + "\n\n---\n*Đại úy cần hỏi gì thêm không?*"
-        msg_ph.markdown(full_reply)
-        st.session_state.messages.append({"role": "assistant", "content": full_reply})
+        msg_ph.markdown(f"⏳ *Đang xử lý ({source_type})...*")
+        reply = ask_gemini_resilient(final_prompt)
+        msg_ph.markdown(reply + "\n\n---\n*Đại úy cần hỏi gì thêm không?*")
+        st.session_state.messages.append({"role": "assistant", "content": reply + "\n\n---\n*Đại úy cần hỏi gì thêm không?*"})
