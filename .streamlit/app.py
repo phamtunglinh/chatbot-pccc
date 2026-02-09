@@ -10,7 +10,7 @@ import json
 import time
 import random
 
-# --- 1. CẤU HÌNH GIAO DIỆN ---
+# --- CẤU HÌNH TRANG ---
 st.set_page_config(
     page_title="Hệ thống Trợ lý ảo PCCC & CNCH",
     page_icon="🛡️",
@@ -18,6 +18,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
+# --- CSS GIAO DIỆN ---
 st.markdown("""
 <style>
     #MainMenu {visibility: hidden;}
@@ -32,17 +33,15 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- 2. KẾT NỐI & ĐA KEY (SỬA LỖI KEY) ---
+# --- 1. KẾT NỐI & ĐA KEY ---
 try:
-    # Lưu ý: Trong secrets.toml anh phải để tên biến là GEMINI_API_KEYS (có chữ S)
+    # Hỗ trợ cả 2 tên biến (có S hoặc không S) để tránh lỗi
     if "GEMINI_API_KEYS" in st.secrets:
         keys_string = st.secrets["GEMINI_API_KEYS"]
-        API_KEYS_LIST = [k.strip() for k in keys_string.split(",") if k.strip()]
     else:
-        # Fallback nếu anh lỡ để tên cũ (không có S)
         keys_string = st.secrets["GEMINI_API_KEY"]
-        API_KEYS_LIST = [k.strip() for k in keys_string.split(",") if k.strip()]
-
+        
+    API_KEYS_LIST = [k.strip() for k in keys_string.split(",") if k.strip()]
     DRIVE_FOLDER_ID = st.secrets["DRIVE_FOLDER_ID"]
     GCP_JSON = json.loads(st.secrets["GCP_JSON"])
 except Exception as e:
@@ -51,10 +50,12 @@ except Exception as e:
 
 def get_random_key(): return random.choice(API_KEYS_LIST)
 
-# --- 3. TỰ ĐỘNG CHỌN MODEL (FIX LỖI 404) ---
+# --- 2. TỰ ĐỘNG CHỌN MODEL (FIX LỖI 404) ---
 @st.cache_resource
 def get_best_model():
+    # Thử kết nối bằng key đầu tiên
     genai.configure(api_key=API_KEYS_LIST[0])
+    # Ưu tiên Flash (Nhanh, token lớn) -> Pro (Thông minh) -> 1.0 (Cũ)
     priority = ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-1.0-pro"]
     try:
         available = [m.name.replace("models/", "") for m in genai.list_models()]
@@ -65,7 +66,7 @@ def get_best_model():
 
 ACTIVE_MODEL = get_best_model()
 
-# --- 4. HÀM ĐỌC DRIVE (PHÂN LOẠI CHUẨN) ---
+# --- 3. HÀM ĐỌC DRIVE (ĐÃ SỬA LỖI PHÂN LOẠI) ---
 @st.cache_resource(ttl=3600)
 def load_drive_data_categorized():
     try:
@@ -103,33 +104,46 @@ def load_drive_data_categorized():
                 if content:
                     formatted = f"\n=== TÀI LIỆU: {file['name']} ===\n{content}\n=== HẾT ===\n"
                     
-                    # LOGIC PHÂN LOẠI (ĐÃ SỬA LỖI LUẬT/CHỮA CHÁY)
+                    # --- LOGIC PHÂN LOẠI MỚI (CHÍNH XÁC HƠN) ---
+                    
+                    # Ưu tiên 1: XỬ PHẠT (Đặc thù nhất)
                     if any(x in fname for x in ["xu phat", "vi pham", "106", "189", "144", "xphc"]):
                         groups["xu_phat"] += formatted
                         groups["debug"]["xu_phat"].append(file['name'])
+                    
+                    # Ưu tiên 2: PHÁP LUẬT (Luật, NĐ, TT phải nằm ở đây, dù có chữ CNCH)
+                    # SỬA LỖI: Đưa nhóm này lên trước nhóm Chữa cháy
                     elif any(x in fname for x in ["luat", "nghi dinh", "thong tu", "nd", "tt", "136", "50", "105", "ho so", "thu tuc", "quan ly"]):
                         groups["phap_luat"] += formatted
                         groups["debug"]["phap_luat"].append(file['name'])
+
+                    # Ưu tiên 3: QUY CHUẨN
                     elif any(x in fname for x in ["quy chuan", "tieu chuan", "qcvn", "tcvn", "qc10", "ky thuat", "06", "3890"]):
                         groups["quy_chuan"] += formatted
                         groups["debug"]["quy_chuan"].append(file['name'])
+                    
+                    # Ưu tiên 4: CHỮA CHÁY (Chỉ những file CNCH không phải là Luật mới vào đây)
                     elif any(x in fname for x in ["chua chay", "cuu nan", "cnch", "phuong an", "chien thuat"]):
                         groups["chua_chay"] += formatted
                         groups["debug"]["chua_chay"].append(file['name'])
+                        
+                    # Ưu tiên 5: KHÁC
                     else:
                         groups["van_ban_khac"] += formatted
                         groups["debug"]["van_ban_khac"].append(file['name'])
+                    
                     file_count += 1
             except: continue 
         return groups, file_count
     except Exception as e: return None, str(e)
 
-# --- 5. HÀM CHỌN DỮ LIỆU ---
+# --- 4. HÀM CHỌN DỮ LIỆU ---
 def select_context(prompt, groups):
     p = prompt.lower()
     selected_content = ""
     source_list = []
     
+    # Logic cộng dồn
     if any(x in p for x in ["phạt", "tiền", "lỗi", "vi phạm", "xử lý"]):
         selected_content += groups["xu_phat"] + groups["phap_luat"]
         source_list.append("Xử phạt + Pháp lý")
@@ -143,15 +157,17 @@ def select_context(prompt, groups):
         selected_content += groups["chua_chay"]
         source_list.append("Chữa cháy")
 
+    # Mặc định: Nếu không bắt được từ khóa, CHỈ LẤY PHÁP LUẬT + QUY CHUẨN (Tránh lấy hết gây quá tải)
     if not selected_content:
-        selected_content = groups["phap_luat"] + groups["xu_phat"] + groups["quy_chuan"] + groups["chua_chay"] + groups["van_ban_khac"]
-        source_list = ["TỔNG HỢP"]
+        selected_content = groups["phap_luat"] + groups["quy_chuan"]
+        source_list = ["Cơ bản (Luật + Quy chuẩn)"]
         
     return selected_content, " + ".join(list(set(source_list)))
 
-# --- 6. GỌI AI ĐA LUỒNG ---
+# --- 5. GỌI AI ĐA LUỒNG (FIX LỖI 429) ---
 def ask_gemini_resilient(full_prompt):
-    for attempt in range(4): 
+    # Thử tối đa 5 lần với các key khác nhau
+    for attempt in range(5): 
         current_key = get_random_key()
         genai.configure(api_key=current_key)
         model = genai.GenerativeModel(ACTIVE_MODEL)
@@ -159,9 +175,15 @@ def ask_gemini_resilient(full_prompt):
             response = model.generate_content(full_prompt)
             return response.text 
         except Exception as e:
-            if "429" in str(e) or "quota" in str(e).lower(): continue 
+            error_msg = str(e).lower()
+            # Nếu lỗi Quá tải (429) hoặc Hết quota
+            if "429" in error_msg or "quota" in error_msg:
+                time.sleep(2) # Nghỉ 2 giây rồi đổi key thử lại
+                continue 
+            # Nếu lỗi khác
             time.sleep(1) 
-    return "⚠️ Hệ thống đang quá tải. Vui lòng thử lại sau 30s."
+            
+    return "⚠️ Hệ thống đang quá tải (Google API Busy). Vui lòng đợi 30 giây rồi hỏi lại."
 
 # --- GIAO DIỆN CHÍNH ---
 st.markdown("""
@@ -179,7 +201,7 @@ if not data_groups: st.error("Lỗi kết nối Drive"); st.stop()
 
 # ADMIN PANEL
 with st.expander("🛠️ TRẠNG THÁI HỆ THỐNG (ADMIN)"):
-    st.write(f"🚀 **Model:** {ACTIVE_MODEL} | **Key:** {len(API_KEYS_LIST)} Key")
+    st.write(f"🚀 **Model:** {ACTIVE_MODEL} | **Key:** {len(API_KEYS_LIST)} | **Tổng file:** {count}")
     c1, c2, c3, c4, c5 = st.columns(5)
     with c1: 
         st.info("1. PHÁP LUẬT")
