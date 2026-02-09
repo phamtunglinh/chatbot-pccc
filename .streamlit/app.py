@@ -9,12 +9,11 @@ import io
 import json
 import time
 import random
-import re
 
-# --- 1. CẤU HÌNH GIAO DIỆN & BẢO MẬT ---
+# --- 1. CẤU HÌNH GIAO DIỆN ---
 st.set_page_config(
-    page_title="Hệ thống Trợ lý ảo PCCC & CNCH (Pro)",
-    page_icon="🔥",
+    page_title="Hệ thống Trợ lý ảo PCCC & CNCH",
+    page_icon="🛡️",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
@@ -26,53 +25,49 @@ st.markdown("""
     header {visibility: hidden;}
     .stChatInput {border-radius: 20px;}
     .header-banner {
-        background: linear-gradient(90deg, #b92b27 0%, #1565C0 100%);
+        background: linear-gradient(90deg, #B71C1C 0%, #D32F2F 100%);
         padding: 1.5rem; border-radius: 0 0 15px 15px;
         color: white; text-align: center; margin-top: -60px; margin-bottom: 20px;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
     }
-    .user-msg {text-align: right; background-color: #e3f2fd; padding: 10px; border-radius: 10px; margin: 5px 0;}
-    .bot-msg {text-align: left; background-color: #f1f1f1; padding: 10px; border-radius: 10px; margin: 5px 0;}
 </style>
 """, unsafe_allow_html=True)
 
-# --- BẢO MẬT ĐĂNG NHẬP ---
-def check_password():
-    if "password_correct" not in st.session_state: st.session_state["password_correct"] = False
-    if st.session_state["password_correct"]: return True
-    pwd = st.text_input("🔐 MẬT KHẨU HỆ THỐNG:", type="password")
-    if pwd:
-        if pwd == st.secrets["APP_PASSWORD"]:
-            st.session_state["password_correct"] = True
-            st.rerun()
-        else: st.error("❌ Mật khẩu sai!")
-    return False
-
-if not check_password(): st.stop()
-
-# --- 2. KẾT NỐI & QUẢN LÝ "KHO ĐẠN" (API KEYS) ---
+# --- 2. KẾT NỐI & ĐA KEY (SỬA LỖI KEY) ---
 try:
-    keys_string = st.secrets["GEMINI_API_KEYS"]
-    API_KEYS_LIST = [k.strip() for k in keys_string.split(",") if k.strip()]
+    # Lưu ý: Trong secrets.toml anh phải để tên biến là GEMINI_API_KEYS (có chữ S)
+    if "GEMINI_API_KEYS" in st.secrets:
+        keys_string = st.secrets["GEMINI_API_KEYS"]
+        API_KEYS_LIST = [k.strip() for k in keys_string.split(",") if k.strip()]
+    else:
+        # Fallback nếu anh lỡ để tên cũ (không có S)
+        keys_string = st.secrets["GEMINI_API_KEY"]
+        API_KEYS_LIST = [k.strip() for k in keys_string.split(",") if k.strip()]
+
     DRIVE_FOLDER_ID = st.secrets["DRIVE_FOLDER_ID"]
     GCP_JSON = json.loads(st.secrets["GCP_JSON"])
 except Exception as e:
-    st.error(f"⚠️ Lỗi cấu hình: {str(e)}")
+    st.error(f"⚠️ Lỗi cấu hình Secrets: {str(e)}")
     st.stop()
 
-# Cơ chế xoay vòng Key thông minh (Load Balancing)
-if "key_index" not in st.session_state: st.session_state.key_index = 0
+def get_random_key(): return random.choice(API_KEYS_LIST)
 
-def get_next_key():
-    # Lấy key tiếp theo trong danh sách, xoay vòng
-    current = API_KEYS_LIST[st.session_state.key_index]
-    st.session_state.key_index = (st.session_state.key_index + 1) % len(API_KEYS_LIST)
-    return current
+# --- 3. TỰ ĐỘNG CHỌN MODEL (FIX LỖI 404) ---
+@st.cache_resource
+def get_best_model():
+    genai.configure(api_key=API_KEYS_LIST[0])
+    priority = ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-1.0-pro"]
+    try:
+        available = [m.name.replace("models/", "") for m in genai.list_models()]
+        for model in priority:
+            if model in available: return model
+        return "gemini-pro"
+    except: return "gemini-pro"
 
-# --- 3. CORE: ĐỌC DỮ LIỆU SIÊU TỐC (SMART CACHING) ---
-# Dùng cache_data để lưu vĩnh viễn trong RAM, không tải lại khi F5
-@st.cache_data(ttl=7200, show_spinner=False) 
-def load_and_process_drive_data():
+ACTIVE_MODEL = get_best_model()
+
+# --- 4. HÀM ĐỌC DRIVE (PHÂN LOẠI CHUẨN) ---
+@st.cache_resource(ttl=3600)
+def load_drive_data_categorized():
     try:
         creds = service_account.Credentials.from_service_account_info(GCP_JSON)
         service = build('drive', 'v3', credentials=creds)
@@ -81,18 +76,16 @@ def load_and_process_drive_data():
             pageSize=100, fields="files(id, name, mimeType)").execute()
         files = results.get('files', [])
         
-        # Cấu trúc dữ liệu mới: Dictionary
-        data_store = {
-            "phap_luat": [], "xu_phat": [], "ky_thuat": [], "chua_chay": [], "khac": []
+        groups = {
+            "phap_luat": "", "xu_phat": "", "quy_chuan": "", "chua_chay": "", "van_ban_khac": "",
+            "debug": {"phap_luat": [], "xu_phat": [], "quy_chuan": [], "chua_chay": [], "van_ban_khac": []}
         }
         
-        total_files = 0
-        
+        file_count = 0
         for file in files:
             fname = file['name'].lower()
             if "google-apps" in file['mimeType']: continue 
             try:
-                # Tải file
                 request = service.files().get_media(fileId=file['id'])
                 fh = io.BytesIO()
                 downloader = MediaIoBaseDownload(fh, request)
@@ -100,191 +93,143 @@ def load_and_process_drive_data():
                 while done is False: status, done = downloader.next_chunk()
                 fh.seek(0)
                 content = ""
-                
-                # Đọc nội dung
                 if file['name'].endswith(".docx"):
                     doc = Document(fh)
-                    for p in doc.paragraphs: 
-                        if p.text.strip(): content += p.text + "\n"
+                    for p in doc.paragraphs: content += p.text + "\n"
                 elif file['name'].endswith(".pdf"):
                     reader = PdfReader(fh)
-                    for page in reader.pages: 
-                        if page.extract_text(): content += page.extract_text() + "\n"
+                    for page in reader.pages: content += page.extract_text() + "\n"
                 
                 if content:
-                    # Đóng gói văn bản sạch sẽ
-                    doc_item = f"SOURCE: {file['name']}\nCONTENT:\n{content}\n----------------\n"
+                    formatted = f"\n=== TÀI LIỆU: {file['name']} ===\n{content}\n=== HẾT ===\n"
                     
-                    # PHÂN LOẠI THÔNG MINH
-                    if any(x in fname for x in ["106", "189", "144", "xu phat", "vi pham"]):
-                        data_store["xu_phat"].append(doc_item)
-                    elif any(x in fname for x in ["06", "qc10", "tcvn", "ky thuat", "tieu chuan"]):
-                        data_store["ky_thuat"].append(doc_item)
-                    elif any(x in fname for x in ["chua chay", "cnch", "phuong an", "chien thuat"]):
-                        data_store["chua_chay"].append(doc_item)
-                    elif any(x in fname for x in ["136", "50", "105", "luat", "nghi dinh", "ho so", "thu tuc"]):
-                        data_store["phap_luat"].append(doc_item)
+                    # LOGIC PHÂN LOẠI (ĐÃ SỬA LỖI LUẬT/CHỮA CHÁY)
+                    if any(x in fname for x in ["xu phat", "vi pham", "106", "189", "144", "xphc"]):
+                        groups["xu_phat"] += formatted
+                        groups["debug"]["xu_phat"].append(file['name'])
+                    elif any(x in fname for x in ["luat", "nghi dinh", "thong tu", "nd", "tt", "136", "50", "105", "ho so", "thu tuc", "quan ly"]):
+                        groups["phap_luat"] += formatted
+                        groups["debug"]["phap_luat"].append(file['name'])
+                    elif any(x in fname for x in ["quy chuan", "tieu chuan", "qcvn", "tcvn", "qc10", "ky thuat", "06", "3890"]):
+                        groups["quy_chuan"] += formatted
+                        groups["debug"]["quy_chuan"].append(file['name'])
+                    elif any(x in fname for x in ["chua chay", "cuu nan", "cnch", "phuong an", "chien thuat"]):
+                        groups["chua_chay"] += formatted
+                        groups["debug"]["chua_chay"].append(file['name'])
                     else:
-                        data_store["khac"].append(doc_item)
-                    
-                    total_files += 1
-            except: continue
-            
-        return data_store, total_files
+                        groups["van_ban_khac"] += formatted
+                        groups["debug"]["van_ban_khac"].append(file['name'])
+                    file_count += 1
+            except: continue 
+        return groups, file_count
     except Exception as e: return None, str(e)
 
-# --- 4. ENGINE: TƯ DUY & TRẢ LỜI (SMART ENGINE) ---
-
-def smart_context_retrieval(prompt, data_store):
-    """
-    Hàm chọn lọc dữ liệu thông minh "Cộng dồn"
-    """
+# --- 5. HÀM CHỌN DỮ LIỆU ---
+def select_context(prompt, groups):
     p = prompt.lower()
-    context = ""
-    sources = []
+    selected_content = ""
+    source_list = []
     
-    # Logic cộng dồn (Không loại trừ)
-    # 1. Nếu hỏi phạt -> Cần Xử phạt + Luật gốc (để xem hành vi)
     if any(x in p for x in ["phạt", "tiền", "lỗi", "vi phạm", "xử lý"]):
-        context += "\n".join(data_store["xu_phat"])
-        context += "\n".join(data_store["phap_luat"]) # Tham chiếu hành vi
-        sources.append("Xử phạt + Pháp lý")
-        
-    # 2. Nếu hỏi kỹ thuật -> Cần Quy chuẩn
-    if any(x in p for x in ["mét", "cao", "rộng", "cách", "trang bị", "lối", "bậc", "thang", "cửa"]):
-        context += "\n".join(data_store["ky_thuat"])
-        sources.append("Kỹ thuật")
-        
-    # 3. Nếu hỏi thủ tục/hồ sơ -> Cần Pháp luật
-    if any(x in p for x in ["hồ sơ", "thủ tục", "thẩm duyệt", "nghiệm thu", "quản lý", "gồm những gì"]):
-        context += "\n".join(data_store["phap_luat"])
-        sources.append("Thủ tục")
-        
-    # 4. Nếu hỏi chữa cháy -> Cần Chữa cháy + Kỹ thuật (để xem thông số xe)
-    if any(x in p for x in ["chữa cháy", "cứu nạn", "xe", "bơm", "đội hình", "phương án"]):
-        context += "\n".join(data_store["chua_chay"])
-        context += "\n".join(data_store["ky_thuat"])
-        sources.append("Chữa cháy")
+        selected_content += groups["xu_phat"] + groups["phap_luat"]
+        source_list.append("Xử phạt + Pháp lý")
+    if any(x in p for x in ["mét", "chiều cao", "rộng", "khoảng cách", "trang bị", "lối thoát", "bậc", "cầu thang"]):
+        selected_content += groups["quy_chuan"]
+        source_list.append("Kỹ thuật")
+    if any(x in p for x in ["hồ sơ", "thủ tục", "quản lý", "thẩm duyệt", "nghiệm thu", "ai quản lý", "gồm những gì"]):
+        selected_content += groups["phap_luat"]
+        source_list.append("Thủ tục")
+    if any(x in p for x in ["chữa cháy", "cứu nạn", "chiến thuật", "đội hình", "phương án"]):
+        selected_content += groups["chua_chay"]
+        source_list.append("Chữa cháy")
 
-    # Fallback: Nếu không bắt được từ khóa nào, hoặc context quá ngắn -> Lấy TẤT CẢ
-    if len(context) < 100: 
-        all_docs = []
-        for key in data_store: all_docs.extend(data_store[key])
-        context = "\n".join(all_docs)
-        sources = ["TỔNG HỢP TOÀN BỘ"]
+    if not selected_content:
+        selected_content = groups["phap_luat"] + groups["xu_phat"] + groups["quy_chuan"] + groups["chua_chay"] + groups["van_ban_khac"]
+        source_list = ["TỔNG HỢP"]
         
-    return context, ", ".join(list(set(sources)))
+    return selected_content, " + ".join(list(set(source_list)))
 
-def ask_gemini_advanced(full_prompt):
-    """
-    Hàm gọi AI với cơ chế: Tự đổi Key + Tự chọn Model + Retry
-    """
-    # Danh sách model ưu tiên (Sống dai)
-    models = ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-1.0-pro"]
-    
-    for attempt in range(5): # Thử tối đa 5 lần (tương ứng 5 key khác nhau)
+# --- 6. GỌI AI ĐA LUỒNG ---
+def ask_gemini_resilient(full_prompt):
+    for attempt in range(4): 
+        current_key = get_random_key()
+        genai.configure(api_key=current_key)
+        model = genai.GenerativeModel(ACTIVE_MODEL)
         try:
-            current_key = get_next_key() # Lấy key mới
-            genai.configure(api_key=current_key)
-            
-            # Chọn model khả dụng cho Key này
-            active_model = "gemini-pro" # Mặc định
-            try:
-                available_models = [m.name for m in genai.list_models()]
-                for m in models:
-                    if f"models/{m}" in available_models:
-                        active_model = m
-                        break
-            except: pass
-
-            model = genai.GenerativeModel(active_model)
             response = model.generate_content(full_prompt)
-            return response.text
-            
+            return response.text 
         except Exception as e:
-            error_msg = str(e).lower()
-            # Nếu lỗi Quá tải (429) hoặc Hết quota -> Đổi key ngay và thử lại
-            if "429" in error_msg or "quota" in error_msg:
-                continue 
-            time.sleep(1) # Lỗi mạng thì nghỉ xíu
-            
-    return "⚠️ Hệ thống đang quá tải toàn bộ. Vui lòng thử lại sau 30 giây."
+            if "429" in str(e) or "quota" in str(e).lower(): continue 
+            time.sleep(1) 
+    return "⚠️ Hệ thống đang quá tải. Vui lòng thử lại sau 30s."
 
 # --- GIAO DIỆN CHÍNH ---
 st.markdown("""
 <div class="header-banner">
-    <div style="font-size: 40px; margin-bottom: 5px;">🔥</div>
-    <p style="font-size: 24px; font-weight: 900; margin: 0;">TRỢ LÝ AI PCCC & CNCH</p>
-    <p style="font-size: 14px; opacity: 0.9;">PHÒNG PC07 - CÔNG AN TỈNH PHÚ THỌ</p>
+    <div style="font-size: 40px; margin-bottom: 5px;">🛡️</div>
+    <p class="header-title">TRỢ LÝ AI PCCC & CNCH</p>
+    <p class="header-subtitle">PHÒNG CẢNH SÁT PCCC & CNCH - CÔNG AN TỈNH PHÚ THỌ</p>
 </div>
 """, unsafe_allow_html=True)
 
-# Load dữ liệu (Chỉ chạy 1 lần khi khởi động)
-with st.spinner('🚀 Đang khởi động hệ thống siêu tốc...'):
-    data_store, file_count = load_and_process_drive_data()
+with st.spinner(f'Đang khởi động...'):
+    data_groups, count = load_drive_data_categorized()
 
-if not data_store: 
-    st.error("❌ Không kết nối được dữ liệu Drive.")
-    st.stop()
+if not data_groups: st.error("Lỗi kết nối Drive"); st.stop()
 
-# Hiển thị trạng thái Admin (Gọn gàng)
-with st.expander(f"✅ HỆ THỐNG SẴN SÀNG | {file_count} TÀI LIỆU | {len(API_KEYS_LIST)} API KEYS"):
-    cols = st.columns(5)
-    cols[0].metric("Pháp luật", len(data_store["phap_luat"]))
-    cols[1].metric("Xử phạt", len(data_store["xu_phat"]))
-    cols[2].metric("Kỹ thuật", len(data_store["ky_thuat"]))
-    cols[3].metric("Chữa cháy", len(data_store["chua_chay"]))
-    cols[4].metric("Khác", len(data_store["khac"]))
+# ADMIN PANEL
+with st.expander("🛠️ TRẠNG THÁI HỆ THỐNG (ADMIN)"):
+    st.write(f"🚀 **Model:** {ACTIVE_MODEL} | **Key:** {len(API_KEYS_LIST)} Key")
+    c1, c2, c3, c4, c5 = st.columns(5)
+    with c1: 
+        st.info("1. PHÁP LUẬT")
+        for f in data_groups["debug"]["phap_luat"]: st.caption(f"- {f}")
+    with c2: 
+        st.warning("2. XỬ PHẠT")
+        for f in data_groups["debug"]["xu_phat"]: st.caption(f"- {f}")
+    with c3: 
+        st.success("3. KỸ THUẬT")
+        for f in data_groups["debug"]["quy_chuan"]: st.caption(f"- {f}")
+    with c4: 
+        st.error("4. CHỮA CHÁY")
+        for f in data_groups["debug"]["chua_chay"]: st.caption(f"- {f}")
+    with c5: 
+        st.write("5. KHÁC")
+        for f in data_groups["debug"]["van_ban_khac"]: st.caption(f"- {f}")
 
-# --- CHAT ---
+# CHAT
 if "messages" not in st.session_state: st.session_state.messages = []
+if len(st.session_state.messages) == 0:
+    st.markdown("<div style='text-align: center; color: #666;'><i>👋 Xin chào! Tôi có thể giúp gì về Luật, Thủ tục, Kỹ thuật PCCC?</i></div>", unsafe_allow_html=True)
 
-# Hiển thị lịch sử
 for msg in st.session_state.messages:
-    with st.chat_message(msg["role"], avatar="👤" if msg["role"] == "user" else "🚒"):
-        st.markdown(msg["content"])
+    with st.chat_message(msg["role"], avatar="👤" if msg["role"] == "user" else "🚒"): st.markdown(msg["content"])
 
-# Xử lý câu hỏi
-if prompt := st.chat_input("Nhập câu hỏi nghiệp vụ..."):
+if prompt := st.chat_input("Nhập câu hỏi..."):
     st.session_state.messages.append({"role": "user", "content": prompt})
     st.chat_message("user", avatar="👤").write(prompt)
     
-    # 1. Lấy dữ liệu liên quan
-    context_text, source_type = smart_context_retrieval(prompt, data_store)
+    chat_history = ""
+    for msg in st.session_state.messages[-4:]: chat_history += f"{msg['role']}: {msg['content']}\n"
     
-    # 2. Tạo Prompt "Chain of Thought" (Tư duy chuỗi)
-    # Đây là bí mật để AI thông minh hơn: Bắt nó suy luận trước khi trả lời
+    selected_knowledge, source_type = select_context(prompt, data_groups)
+    
     final_prompt = f"""
-    VAI TRÒ: Bạn là Đại úy Phạm Tùng Linh - Trợ lý nghiệp vụ PCCC & CNCH uy tín, chính xác.
+    VAI TRÒ: Đại úy Phạm Tùng Linh - Chuyên gia PCCC.
+    DỮ LIỆU (CONTEXT): {selected_knowledge}
+    LỊCH SỬ CHAT: {chat_history}
     
-    DỮ LIỆU THAM KHẢO (CONTEXT):
-    {context_text}
+    🛑 CHỈ THỊ:
+    1. Chỉ trả lời dựa trên dữ liệu.
+    2. Hỏi Xử phạt: Áp dụng Sàng lọc thẩm quyền.
+    3. Hỏi Hồ sơ: Tra cứu nhóm Pháp luật (NĐ 105, 136).
     
-    CÂU HỎI: "{prompt}"
-    
-    🛑 NHIỆM VỤ:
-    Hãy thực hiện quy trình suy luận từng bước (Chain of Thought) trước khi đưa ra câu trả lời cuối cùng:
-    
-    1. **PHÂN TÍCH:** Xác định câu hỏi thuộc lĩnh vực nào (Phạt, Hồ sơ, hay Kỹ thuật)?
-    2. **TÌM KIẾM:** Rà soát trong DỮ LIỆU THAM KHẢO để tìm các điều khoản chính xác.
-    3. **KIỂM TRA CHÉO:** - Nếu là Xử phạt: Kiểm tra mức tiền + Thẩm quyền (Ai được ký?).
-       - Nếu là Kỹ thuật: Kiểm tra thông số cụ thể trong QCVN/TCVN.
-       - Nếu là Hồ sơ: Kiểm tra NĐ 105/136.
-    4. **TỔNG HỢP:** Trả lời ngắn gọn, súc tích, trích dẫn văn bản pháp luật (Điều, Khoản, Nghị định...).
-    
-    YÊU CẦU ĐẦU RA:
-    - Không hiển thị quá trình suy luận, chỉ hiển thị KẾT QUẢ CUỐI CÙNG.
-    - Văn phong: Chuyên nghiệp, quân sự, rõ ràng.
-    - Nếu không có dữ liệu: Trả lời "Nội dung này chưa được cập nhật trong hệ thống văn bản hiện tại."
+    CÂU HỎI: {prompt}
     """
     
     with st.chat_message("assistant", avatar="🚒"):
         msg_ph = st.empty()
-        msg_ph.markdown(f"⚡ *Đang truy xuất dữ liệu ({source_type}) và suy luận pháp lý...*")
-        
-        # Gọi AI
-        reply = ask_gemini_advanced(final_prompt)
-        
-        full_reply = reply + "\n\n---\n*Đại úy cần tra cứu thêm nội dung gì không?*"
-        msg_ph.markdown(full_reply)
-        st.session_state.messages.append({"role": "assistant", "content": full_reply})
+        msg_ph.markdown(f"⏳ *Đang xử lý ({source_type})...*")
+        reply = ask_gemini_resilient(final_prompt)
+        msg_ph.markdown(reply + "\n\n---\n*Đại úy cần hỏi gì thêm không?*")
+        st.session_state.messages.append({"role": "assistant", "content": reply + "\n\n---\n*Đại úy cần hỏi gì thêm không?*"})
