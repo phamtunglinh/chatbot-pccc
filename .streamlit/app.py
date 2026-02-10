@@ -1,59 +1,47 @@
 import streamlit as st
 import requests
-import json
 
-st.set_page_config(page_title="Trạm Cấp Cứu Key", page_icon="🚑")
-st.title("🚑 TRẠM CẤP CỨU KEY")
+st.set_page_config(page_title="Check Model", page_icon="📋")
+st.title("📋 DANH SÁCH MODEL KHẢ DỤNG")
 
-# --- HIỂN THỊ TRẠNG THÁI SECRETS ---
-st.subheader("1. Kiểm tra file Secrets")
+# Lấy Key từ Secrets
 try:
-    if "GEMINI_API_KEYS" in st.secrets:
-        raw = st.secrets["GEMINI_API_KEYS"]
-        st.success(f"✅ Đã đọc được file Secrets. Nội dung đang có {len(raw)} ký tự.")
-        # Lấy key đầu tiên để test
-        first_key = [k.strip() for k in raw.split(",") if k.strip()][0]
-        st.info(f"Key đầu tiên hệ thống đang dùng: {first_key[:5]}...{first_key[-5:]}")
-    else:
-        st.error("❌ Không tìm thấy biến 'GEMINI_API_KEYS' trong Secrets!")
-        first_key = ""
-except Exception as e:
-    st.error(f"❌ Lỗi đọc Secrets: {str(e)}")
-    first_key = ""
+    if "GEMINI_API_KEYS" in st.secrets: keys = st.secrets["GEMINI_API_KEYS"]
+    else: keys = st.secrets["GEMINI_API_KEY"]
+    MY_KEY = [k.strip() for k in keys.split(",") if k.strip()][0]
+    st.success(f"🔑 Đang kiểm tra Key: ...{MY_KEY[-6:]}")
+except:
+    st.error("Chưa có Key trong Secrets!"); st.stop()
 
-# --- NHẬP KEY THỦ CÔNG ĐỂ TEST ---
-st.subheader("2. Test Key trực tiếp (Bỏ qua Secrets)")
-st.caption("Nếu Secrets bị lỗi, hãy dán Key vào đây để kiểm tra xem Key có sống không.")
-manual_key = st.text_input("Dán 1 Key của anh vào đây:", value=first_key, type="password")
-
-if st.button("🚀 BẮT ĐẦU TEST KẾT NỐI"):
-    if not manual_key:
-        st.warning("Vui lòng nhập Key!")
-        st.stop()
-        
-    # URL gọi thẳng vào Google (Gemini 1.5 Flash)
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={manual_key}"
-    headers = {'Content-Type': 'application/json'}
-    data = {
-        "contents": [{"parts": [{"text": "Xin chào, hãy trả lời 'OK' nếu bạn nhận được tin này."}]}]
-    }
+# Nút bấm kiểm tra
+if st.button("🚀 XEM DANH SÁCH MODEL CỦA TÔI"):
+    url = f"https://generativelanguage.googleapis.com/v1beta/models?key={MY_KEY}"
     
-    with st.spinner("Đang gửi tín hiệu lên vệ tinh Google..."):
+    with st.spinner("Đang lấy dữ liệu từ Google..."):
         try:
-            response = requests.post(url, headers=headers, json=data, timeout=10)
+            response = requests.get(url)
+            data = response.json()
             
-            st.write("---")
-            st.write(f"📡 Mã phản hồi: `{response.status_code}`")
-            
-            if response.status_code == 200:
+            if "models" in data:
                 st.balloons()
-                st.success("✅ THÀNH CÔNG RỰC RỠ! Key này hoạt động TỐT.")
-                st.json(response.json())
-                st.info("👉 Kết luận: Key của anh KHÔNG HỎNG. Vấn đề nằm ở file Secrets hoặc Code cũ.")
+                st.write("### ✅ KẾT QUẢ: Key của anh dùng được các Model sau:")
+                
+                valid_models = []
+                for m in data["models"]:
+                    # Chỉ lấy những model tạo nội dung (generateContent)
+                    if "generateContent" in m["supportedGenerationMethods"]:
+                        name = m["name"].replace("models/", "")
+                        st.code(name)
+                        valid_models.append(name)
+                
+                if not valid_models:
+                    st.warning("Key này đúng, nhưng không có model nào hỗ trợ chat (generateContent).")
+                else:
+                    st.info(f"👉 Hãy copy một cái tên ở trên (ví dụ: {valid_models[0]}) gửi cho tôi!")
+            
             else:
-                st.error("❌ THẤT BẠI! Google từ chối Key này.")
-                st.write("🔴 Chi tiết lỗi Google báo về:")
-                st.json(response.json()) # Quan trọng: Xem nó báo lỗi gì (Key sai, Hết tiền, hay chưa bật API)
+                st.error("❌ Lỗi: Không lấy được danh sách.")
+                st.json(data)
                 
         except Exception as e:
-            st.error(f"Lỗi mạng: {str(e)}")
+            st.error(f"Lỗi mạng: {e}")
