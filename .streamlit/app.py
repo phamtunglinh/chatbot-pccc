@@ -42,82 +42,85 @@ except Exception as e:
 
 def get_random_key(): return random.choice(API_KEYS_LIST)
 
-# --- 3. BỘ NÃO NGHIỆP VỤ (SYSTEM INSTRUCTION) ---
-# Đây là phần quan trọng nhất: Chứa 3 thuật toán tư duy anh yêu cầu
+# --- 3. BỘ NÃO NGHIỆP VỤ (ĐÃ NÂNG CẤP LOGIC KARAOKE) ---
 ALGORITHMS_INSTRUCTION = """
 VAI TRÒ: Bạn là Đại úy Phạm Tùng Linh - Chuyên gia Xử lý nghiệp vụ PCCC & CNCH.
-NHIỆM VỤ: Trả lời câu hỏi dựa trên DỮ LIỆU ĐƯỢC CUNG CẤP (Context).
+NHIỆM VỤ: Trả lời câu hỏi dựa trên DỮ LIỆU ĐƯỢC CUNG CẤP.
 
-⚡ CÁC THUẬT TOÁN TƯ DUY BẮT BUỘC PHẢI ÁP DỤNG KHI TRẢ LỜI:
+⚡ QUY TẮC TƯ DUY NGHIỆP VỤ (BẮT BUỘC ÁP DỤNG):
 
-🔵 1. KHI HỎI VỀ PHÂN CẤP QUẢN LÝ (Ai quản lý? Thuộc phụ lục nào?):
-   - Bước 1: Xác định công năng chính (Nếu 1 công năng > 70% diện tích -> Công năng chính. Nếu không -> Hỗn hợp).
-   - Bước 2: Tìm kiếm Phụ lục phân cấp (Phụ lục I, II, III, IV...) trong Nghị định 136 hoặc Nghị định 50 có trong dữ liệu.
-   - Bước 3: Đối chiếu thông số (Số tầng, Khối tích m3) của cơ sở với Phụ lục tìm được.
-   - Bước 4: Kết luận: Cơ sở thuộc Phụ lục mấy? Do Công an cấp Tỉnh (PC07) hay Công an cấp Huyện quản lý?
+🔵 1. THUẬT TOÁN PHÂN CẤP QUẢN LÝ (Ai quản lý?):
+   - NGUYÊN TẮC "CHỐT HẠ": Chỉ cần cơ sở thỏa mãn 01 điều kiện cao nhất là KẾT LUẬN NGAY. (Ví dụ: Đã đủ số tầng thì không cần xét diện tích/khối tích nữa).
+   - Ví dụ cụ thể: Karaoke cao >= 3 tầng -> Kết luận ngay thuộc Phụ lục II (Do PC07 quản lý). Không nói "nếu... thì...".
+   - Quy trình:
+     + B1: So sánh Số tầng của cơ sở với Phụ lục trong dữ liệu (NĐ 50 hoặc NĐ 136/105).
+     + B2: Nếu Số tầng đạt -> Kết luận luôn. Nếu chưa đạt -> So tiếp Khối tích/Diện tích.
+     + B3: Kết luận thẩm quyền (PC07 hay Công an Huyện/UBND Xã).
 
-🔴 2. KHI HỎI VỀ XỬ PHẠT (Lỗi này phạt bao nhiêu? Ai ký quyết định?):
-   - Bước 1: Tìm hành vi trong Nghị định xử phạt (NĐ 144, NĐ 106...) có trong dữ liệu.
-   - Bước 2: Xác định Khung tiền phạt (Lưu ý: Phạt Tổ chức = 2 lần Phạt Cá nhân). Xác định Phạt bổ sung (Tạm đình chỉ, Tịch thu...) và Biện pháp khắc phục hậu quả.
-   - Bước 3: SÀNG LỌC THẨM QUYỀN (Dựa trên NĐ 189 hoặc Luật XLVPHC):
-     + Loại bỏ ngay người có Thẩm quyền phạt tiền tối đa < Mức phạt của hành vi này.
-     + Loại bỏ người không có quyền áp dụng hình thức phạt bổ sung (nếu hành vi đó có phạt bổ sung).
-   - Bước 4: ĐỀ XUẤT: Chọn người có thẩm quyền thấp nhất nhưng đủ quyền hạn để ký quyết định.
+🔴 2. THUẬT TOÁN XỬ PHẠT (Lỗi này phạt bao nhiêu? Ai ký?):
+   - B1: Tìm hành vi trong NĐ 144/109/106.
+   - B2: Xác định khung tiền phạt (Cá nhân & Tổ chức).
+   - B3: SÀNG LỌC THẨM QUYỀN (Rất quan trọng):
+     + So sánh mức phạt tối đa của hành vi với thẩm quyền của: Chiến sĩ -> Đội trưởng -> Trưởng phòng -> Giám đốc CA Tỉnh -> Chủ tịch UBND.
+     + CHỌN NGƯỜI CÓ THẨM QUYỀN THẤP NHẤT NHƯNG ĐỦ QUYỀN PHẠT.
+     + Ví dụ: Lỗi phạt 40 triệu -> Trưởng phòng (max 25tr) không ký được -> Phải đề xuất Giám đốc CA Tỉnh.
 
-🟢 3. KHI HỎI VỀ HỒ SƠ / THỦ TỤC:
-   - Ưu tiên số 1: Tìm kiếm trong **Nghị định 105/2025/NĐ-CP** (nếu có trong dữ liệu).
-   - Ưu tiên số 2: Nếu không có NĐ 105 mới tìm trong NĐ 136/2020.
-   - Tuyệt đối không tự bịa ra danh mục hồ sơ. Không lấy danh mục hồ sơ từ văn bản xử phạt.
+🟢 3. HỒ SƠ / THỦ TỤC:
+   - Ưu tiên tìm trong NĐ 105/2025 hoặc NĐ 136. Trả lời chính xác danh mục hồ sơ.
 
 YÊU CẦU TRÌNH BÀY:
-- Trích dẫn rõ ràng: "Theo Khoản..., Điều..., Văn bản...".
-- Văn phong: Quân sự, dứt khoát, chính xác.
-- Nếu dữ liệu không có thông tin: Trả lời "Trong các văn bản hiện có chưa cập nhật nội dung này."
+- Ngắn gọn, dứt khoát. Không giải thích dông dài.
+- Trích dẫn: "Theo Khoản..., Điều..., Văn bản...".
 """
 
-# --- 4. HÀM GỌI AI TRỰC TIẾP (DIRECT API) ---
+# --- 4. HÀM GỌI AI (FIX LỖI QUÁ TẢI) ---
 def call_gemini_logic(prompt, context):
-    api_key = get_random_key()
-    # Ưu tiên Flash 2.5 (Tư duy nhanh) -> Pro (Tư duy sâu)
-    models = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-pro", "gemini-1.5-flash"]
-    
-    # Ghép Prompt cuối cùng
+    # GIỚI HẠN DỮ LIỆU: Chỉ lấy 30.000 ký tự đầu tiên để tránh lỗi quá tải
+    if len(context) > 30000:
+        context = context[:30000] + "\n...(Đã lược bớt văn bản cũ)..."
+
     full_prompt = f"""
-    DỮ LIỆU THAM KHẢO (CONTEXT):
+    DỮ LIỆU (CONTEXT):
     {context}
     
-    CÂU HỎI CỦA NGƯỜI DÙNG:
+    CÂU HỎI:
     {prompt}
     """
     
-    for model in models:
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
-        headers = {'Content-Type': 'application/json'}
-        
-        payload = {
-            "contents": [{"parts": [{"text": full_prompt}]}],
-            "system_instruction": {"parts": [{"text": ALGORITHMS_INSTRUCTION}]}, # Gửi kèm thuật toán
-            "safetySettings": [
-                {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_ONLY_HIGH"},
-                {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_ONLY_HIGH"},
-                {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_ONLY_HIGH"}
-            ]
-        }
-
-        try:
-            response = requests.post(url, headers=headers, json=payload, timeout=50) # Tăng timeout để AI "suy nghĩ"
-            if response.status_code == 200:
-                result = response.json()
-                try: return result['candidates'][0]['content']['parts'][0]['text']
-                except: return "⚠️ AI trả lời rỗng."
-            elif response.status_code == 404: continue 
-            elif response.status_code == 429: time.sleep(2); continue 
-            else: continue
-        except: continue
+    models = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
+    
+    for attempt in range(3): # Thử 3 lần
+        api_key = get_random_key()
+        for model in models:
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
+            headers = {'Content-Type': 'application/json'}
             
-    return "⚠️ Hệ thống đang bận. Vui lòng thử lại sau."
+            payload = {
+                "contents": [{"parts": [{"text": full_prompt}]}],
+                "system_instruction": {"parts": [{"text": ALGORITHMS_INSTRUCTION}]},
+                "safetySettings": [
+                    {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_ONLY_HIGH"},
+                    {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_ONLY_HIGH"},
+                ]
+            }
 
-# --- 5. ĐỌC DỮ LIỆU DRIVE (SMART FILTER) ---
+            try:
+                # Timeout ngắn (30s) để fail nhanh còn thử cái khác
+                response = requests.post(url, headers=headers, json=payload, timeout=30)
+                
+                if response.status_code == 200:
+                    try: return response.json()['candidates'][0]['content']['parts'][0]['text']
+                    except: continue
+                elif response.status_code == 429: # Quá tải
+                    time.sleep(2); continue
+                elif response.status_code == 404: # Model không có
+                    continue
+                else: continue
+            except: continue
+            
+    return "⚠️ Hệ thống đang quá tải hoặc dữ liệu quá lớn. Đại úy vui lòng hỏi ngắn gọn lại hoặc thử lại sau 1 phút."
+
+# --- 5. ĐỌC DỮ LIỆU (TỐI ƯU HÓA) ---
 @st.cache_data(ttl=7200, show_spinner=False) 
 def load_data_smart():
     try:
@@ -125,18 +128,12 @@ def load_data_smart():
         service = build('drive', 'v3', credentials=creds)
         results = service.files().list(
             q=f"'{DRIVE_FOLDER_ID}' in parents and trashed=false",
-            pageSize=100, fields="files(id, name, mimeType)").execute()
+            pageSize=80, fields="files(id, name, mimeType)").execute() # Giảm xuống 80 file
         files = results.get('files', [])
         
-        # Phân loại kỹ hơn để phục vụ Thuật toán
-        data_store = {
-            "xu_phat": [],    # NĐ 144, 109, 106, 189 (Thẩm quyền)
-            "phap_luat": [],  # NĐ 136, 105 (Thủ tục), 50 (Phân cấp)
-            "ky_thuat": [],   # QCVN, TCVN
-            "chua_chay": []   # Chiến thuật
-        }
-        
+        data_store = {"xu_phat": [], "phap_luat": [], "ky_thuat": [], "chua_chay": []}
         file_count = 0
+        
         for file in files:
             fname = file['name'].lower()
             if "google-apps" in file['mimeType']: continue 
@@ -150,25 +147,22 @@ def load_data_smart():
                 
                 if file['name'].endswith(".docx"):
                     doc = Document(fh)
-                    for p in doc.paragraphs: content += p.text + "\n"
+                    # Chỉ lấy văn bản, bỏ qua bảng biểu phức tạp để nhẹ gánh
+                    content = "\n".join([p.text for p in doc.paragraphs if len(p.text) > 5])
                 elif file['name'].endswith(".pdf"):
                     reader = PdfReader(fh)
-                    for page in reader.pages[:25]: # Đọc 25 trang đầu
-                        if page.extract_text(): content += page.extract_text() + "\n"
+                    # CHỈ ĐỌC 15 TRANG ĐẦU MỖI FILE (Để tránh lỗi quá tải)
+                    content = "\n".join([p.extract_text() for p in reader.pages[:15] if p.extract_text()])
                 
                 if content:
-                    item = f"VĂN BẢN: {file['name']}\nNỘI DUNG:\n{content}\n---\n"
+                    item = f"VB: {file['name']}\nND:\n{content}\n---\n"
                     
-                    # LOGIC PHÂN LOẠI MỚI (Cập nhật NĐ 105, 106)
-                    if any(x in fname for x in ["144", "109", "106", "189", "xu phat", "vi pham"]):
+                    if any(x in fname for x in ["144", "109", "106", "189", "xu phat"]):
                         data_store["xu_phat"].append(item)
                     elif any(x in fname for x in ["06", "qc10", "tcvn", "3890"]):
                         data_store["ky_thuat"].append(item)
-                    elif any(x in fname for x in ["chua chay", "cnch", "phuong an"]):
+                    elif any(x in fname for x in ["chua chay", "cnch"]):
                         data_store["chua_chay"].append(item)
-                    # Ưu tiên NĐ 105, 136, 50 vào nhóm Pháp luật
-                    elif any(x in fname for x in ["136", "50", "105", "luat", "nghi dinh", "ho so"]):
-                        data_store["phap_luat"].append(item)
                     else:
                         data_store["phap_luat"].append(item)
                     
@@ -186,13 +180,13 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-with st.spinner('🚀 Đang khởi tạo bộ não nghiệp vụ...'):
+with st.spinner('🚀 Đang khởi tạo bộ não nghiệp vụ (V2)...'):
     data_store, file_count = load_data_smart()
 
 if not data_store: st.error("❌ Lỗi dữ liệu."); st.stop()
 
-with st.expander(f"✅ TRẠNG THÁI: {file_count} VĂN BẢN ĐÃ NẠP"):
-    st.info("Hệ thống đã tích hợp thuật toán: Sàng lọc thẩm quyền xử phạt & Phân cấp quản lý.")
+with st.expander(f"✅ TRẠNG THÁI: {file_count} VĂN BẢN (ĐÃ TỐI ƯU DUNG LƯỢNG)"):
+    st.info("Đã kích hoạt chế độ: 'Chốt phương án' & 'Sàng lọc quá tải'.")
 
 # --- CHAT ENGINE ---
 if "messages" not in st.session_state: st.session_state.messages = []
@@ -201,38 +195,37 @@ for msg in st.session_state.messages:
     with st.chat_message(msg["role"], avatar="👤" if msg["role"] == "user" else "👮"):
         st.markdown(msg["content"])
 
-if prompt := st.chat_input("Nhập câu hỏi (Ví dụ: Lỗi này ai ký phạt? Cơ sở này ai quản lý?)..."):
+if prompt := st.chat_input("Nhập câu hỏi nghiệp vụ..."):
     st.session_state.messages.append({"role": "user", "content": prompt})
     st.chat_message("user", avatar="👤").write(prompt)
     
-    # 1. Chọn dữ liệu (Smart Context)
+    # CHỌN DỮ LIỆU THÔNG MINH
     p = prompt.lower()
     ctx = ""
     label = "Tổng hợp"
     
-    if "phạt" in p or "tiền" in p or "thẩm quyền" in p or "ai ký" in p:
-        # Cần cả Xử phạt (để biết lỗi) + Pháp luật (để biết thẩm quyền NĐ 189)
-        ctx += "\n".join(data_store["xu_phat"] + data_store["phap_luat"])
+    # 1. Nếu hỏi Phạt (cần cả Luật để tra thẩm quyền)
+    if any(x in p for x in ["phạt", "tiền", "thẩm quyền", "ai ký"]):
+        ctx = "\n".join(data_store["xu_phat"] + data_store["phap_luat"])
         label = "Xử phạt & Thẩm quyền"
-    elif "quản lý" in p or "phân cấp" in p or "phụ lục" in p:
-        # Cần Pháp luật (NĐ 136/50)
-        ctx += "\n".join(data_store["phap_luat"])
-        label = "Phân cấp quản lý"
-    elif "kỹ thuật" in p or "mét" in p or "bậc" in p:
-        ctx += "\n".join(data_store["ky_thuat"])
-        label = "Quy chuẩn Kỹ thuật"
-    elif "hồ sơ" in p or "thủ tục" in p:
-        # Ưu tiên Pháp luật (NĐ 105)
-        ctx += "\n".join(data_store["phap_luat"])
-        label = "Thủ tục hành chính"
-    else:
-        # Mặc định lấy Luật + Phạt
-        ctx += "\n".join(data_store["phap_luat"] + data_store["xu_phat"])
     
-    # 2. Gọi AI với Thuật toán
+    # 2. Nếu hỏi Phân cấp/Quản lý (cần Luật)
+    elif any(x in p for x in ["quản lý", "phân cấp", "karaoke", "nhà hàng"]):
+        ctx = "\n".join(data_store["phap_luat"])
+        label = "Phân cấp quản lý"
+        
+    # 3. Kỹ thuật
+    elif any(x in p for x in ["kỹ thuật", "mét", "chiều cao"]):
+        ctx = "\n".join(data_store["ky_thuat"])
+        label = "Quy chuẩn"
+        
+    else: # Mặc định lấy Luật
+        ctx = "\n".join(data_store["phap_luat"])
+
+    # 4. GỌI AI
     with st.chat_message("assistant", avatar="👮"):
         msg_ph = st.empty()
-        msg_ph.markdown(f"⚡ *Đang áp dụng thuật toán ({label})...*")
+        msg_ph.markdown(f"⚡ *Đang xử lý ({label})...*")
         
         reply = call_gemini_logic(prompt, ctx)
         
