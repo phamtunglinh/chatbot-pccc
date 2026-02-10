@@ -11,7 +11,7 @@ from pypdf import PdfReader
 import io
 
 # --- 1. CẤU HÌNH GIAO DIỆN ---
-st.set_page_config(page_title="Trợ lý Nghiệp vụ PCCC", page_icon="🛡️", layout="wide", initial_sidebar_state="collapsed")
+st.set_page_config(page_title="Trợ lý PCCC (NĐ 105 ONLY)", page_icon="🔥", layout="wide", initial_sidebar_state="collapsed")
 st.markdown("""<style>.header-banner {background: linear-gradient(90deg, #b92b27 0%, #1565C0 100%); padding: 1.5rem; border-radius: 0 0 15px 15px; color: white; text-align: center; margin-top: -60px; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);} .stChatInput {border-radius: 20px;}</style>""", unsafe_allow_html=True)
 
 # --- 2. KẾT NỐI KEY & DRIVE ---
@@ -25,28 +25,22 @@ except: st.error("⚠️ Lỗi cấu hình Secrets."); st.stop()
 
 def get_random_key(): return random.choice(API_KEYS_LIST)
 
-# --- 3. BỘ NÃO TƯ DUY NGHIỆP VỤ (HƯỚNG DẪN CỤ THỂ) ---
+# --- 3. BỘ NÃO "TẨY NÃO" NGHỊ ĐỊNH CŨ ---
 ALGORITHMS_INSTRUCTION = """
-VAI TRÒ: Đại úy Phạm Tùng Linh - Chuyên gia Nghiệp vụ PCCC.
-NHIỆM VỤ: Trả lời câu hỏi về THẨM QUYỀN QUẢN LÝ và XỬ PHẠT.
+VAI TRÒ: Đại úy Phạm Tùng Linh - Chuyên gia PCCC (Chỉ dùng quy định MỚI NHẤT).
 
-⚡ QUY TẮC "BẮT BUỘC" (STRICT RULES):
+🚫 QUY TẮC "CẤM VẬN" (NEGATIVE CONSTRAINTS) - TUYỆT ĐỐI TUÂN THỦ:
+1. KHÔNG ĐƯỢC SỬ DỤNG Nghị định 136/2020/NĐ-CP. (Đã hết hiệu lực).
+2. KHÔNG ĐƯỢC SỬ DỤNG Nghị định 50/2024/NĐ-CP. (Đã hết hiệu lực).
+3. NẾU Dữ liệu tham khảo không có Nghị định 105/2025/NĐ-CP -> TRẢ LỜI: "Hiện tại trong Drive chưa có dữ liệu Nghị định 105/2025, tôi không thể trả lời bằng văn bản cũ."
 
-1. KHI HỎI "AI QUẢN LÝ / CƠ SỞ THUỘC DIỆN NÀO":
-   - ⛔ KHÔNG ĐƯỢC trả lời chung chung theo Luật PCCC (kiểu "Bộ Công an quản lý", "UBND quản lý").
-   - ✅ PHẢI TÌM TRONG "PHỤ LỤC" CỦA NGHỊ ĐỊNH (Ưu tiên NĐ 105/2025, NĐ 50/2024, NĐ 136/2020).
-   - TƯ DUY PHÂN CẤP:
-     + Tìm xem cơ sở (Ví dụ: Karaoke 3 tầng) nằm ở Phụ lục mấy? (Phụ lục I, II, III hay IV).
-     + Nếu thuộc Phụ lục II -> Do Phòng Cảnh sát PCCC (PC07) quản lý.
-     + Nếu thuộc Phụ lục III -> Do Công an cấp Huyện quản lý.
-     + Nếu thuộc Phụ lục IV -> Do UBND cấp Xã quản lý.
-   - TRẢ LỜI: "Cơ sở Karaoke 3 tầng thuộc Mục..., Phụ lục..., Nghị định... -> Do [Cơ quan] quản lý."
+✅ QUY TẮC "BẮT BUỘC":
+1. Mọi câu trả lời về QUẢN LÝ, PHÂN CẤP, HỒ SƠ -> Phải căn cứ vào **Nghị định 105/2025/NĐ-CP**.
+2. Tìm kiếm PHỤ LỤC trong file Nghị định 105 để trả lời câu hỏi "Ai quản lý".
+3. Chỉ dùng QCVN/TCVN khi hỏi về KỸ THUẬT (Trang bị, lắp đặt).
 
-2. KHI HỎI VỀ "KARAOKE":
-   - Chỉ cần CAO TỪ 3 TẦNG TRỞ LÊN hoặc KHỐI TÍCH TỪ 1.000 M3 -> Là thuộc diện quản lý của Cơ quan Công an cấp Tỉnh (PC07) theo Phụ lục II. (Không cần xét diện tích).
-
-3. TRÍCH DẪN NGUỒN:
-   - Phải ghi rõ thông tin lấy từ file nào trong Drive.
+VÍ DỤ TRẢ LỜI ĐÚNG:
+"Căn cứ Phụ lục..., Nghị định 105/2025/NĐ-CP: Cơ sở Karaoke 3 tầng thuộc diện quản lý của Phòng Cảnh sát PCCC (PC07)."
 """
 
 # --- 4. HÀM GỌI AI ---
@@ -54,12 +48,12 @@ def call_gemini_logic(prompt, context):
     if len(context) > 35000: context = context[:35000] + "\n...(Cắt bớt)..."
     
     full_prompt = f"""
-    DỮ LIỆU THAM KHẢO TỪ DRIVE:
+    DỮ LIỆU THAM KHẢO TỪ DRIVE (CHỈ DÙNG CÁI NÀY):
     {context}
     
     CÂU HỎI: "{prompt}"
     
-    YÊU CẦU: Áp dụng quy tắc Phân cấp quản lý. Không trả lời lý thuyết Luật chung.
+    YÊU CẦU: Trả lời theo Nghị định 105/2025. CẤM dùng NĐ 136.
     """
     
     models = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
@@ -82,7 +76,7 @@ def call_gemini_logic(prompt, context):
             except: continue
     return "⚠️ Hệ thống bận."
 
-# --- 5. ĐỌC DỮ LIỆU (LỌC FILE THÔNG MINH) ---
+# --- 5. ĐỌC DỮ LIỆU (LỌC BỎ NĐ 136/50 NGAY TỪ CỬA VÀO) ---
 @st.cache_data(ttl=7200, show_spinner=False) 
 def load_data_smart():
     try:
@@ -91,12 +85,17 @@ def load_data_smart():
         results = service.files().list(q=f"'{DRIVE_FOLDER_ID}' in parents and trashed=false", pageSize=80, fields="files(id, name, mimeType)").execute()
         files = results.get('files', [])
         
-        data_store = {"nghi_dinh": [], "luat_chung": [], "ky_thuat": [], "xu_phat": []}
+        data_store = {"nd_105": [], "xu_phat": [], "ky_thuat": [], "khac": []}
         file_count = 0
         
         for file in files:
             fname = file['name'].lower()
             if "google-apps" in file['mimeType']: continue 
+            
+            # 🛑 BỘ LỌC CẤM VẬN: Bỏ qua ngay lập tức các file cũ
+            if "136" in fname or "50" in fname:
+                continue # Không đọc, không nạp, coi như không tồn tại
+            
             try:
                 request = service.files().get_media(fileId=file['id'])
                 fh = io.BytesIO(); downloader = MediaIoBaseDownload(fh, request)
@@ -105,34 +104,33 @@ def load_data_smart():
                 fh.seek(0)
                 content = ""
                 
-                # CHẾ ĐỘ ĐỌC MẠNH MẼ HƠN CHO DOCX (Để tìm Phụ lục)
-                if file['name'].endswith(".docx"):
-                    doc = Document(fh)
-                    # Đọc toàn bộ văn bản (DOCX thường nhẹ hơn PDF nên đọc hết được)
-                    content = "\n".join([p.text for p in doc.paragraphs if len(p.text) > 5])
-                
-                elif file['name'].endswith(".pdf"):
+                # Đọc sâu PDF để tìm Phụ lục NĐ 105
+                if file['name'].endswith(".pdf"):
                     reader = PdfReader(fh)
-                    # Đọc 10 trang đầu + 20 trang cuối (Chứa Phụ lục)
-                    content += "\n".join([p.extract_text() for p in reader.pages[:10] if p.extract_text()])
-                    if len(reader.pages) > 20:
+                    # Đọc 15 trang đầu
+                    content += "\n".join([p.extract_text() for p in reader.pages[:15] if p.extract_text()])
+                    # Đọc 25 trang cuối (Phụ lục thường dài)
+                    if len(reader.pages) > 25:
                         content += "\n...[PHỤ LỤC PHÂN CẤP]...\n"
-                        content += "\n".join([p.extract_text() for p in reader.pages[-20:] if p.extract_text()])
+                        content += "\n".join([p.extract_text() for p in reader.pages[-25:] if p.extract_text()])
+                
+                elif file['name'].endswith(".docx"):
+                    doc = Document(fh)
+                    content = "\n".join([p.text for p in doc.paragraphs if len(p.text) > 10])
 
                 if content:
-                    item = f"NGUỒN: {file['name']}\nNỘI DUNG:\n{content}\n---\n"
+                    # Gắn nhãn rõ ràng để AI biết đây là file gì
+                    item = f"TÀI LIỆU: {file['name']}\nNỘI DUNG:\n{content}\n---\n"
                     
-                    # PHÂN LOẠI CHÍNH XÁC:
-                    if any(x in fname for x in ["nghi dinh", "136", "50", "105", "nd-cp"]):
-                        data_store["nghi_dinh"].append(item) # QUAN TRỌNG NHẤT
-                    elif any(x in fname for x in ["luat", "quoc hoi"]):
-                        data_store["luat_chung"].append(item) # Ít quan trọng hơn khi hỏi về chi tiết
-                    elif any(x in fname for x in ["144", "109", "106", "xu phat"]):
+                    # PHÂN LOẠI ƯU TIÊN 105
+                    if "105" in fname:
+                        data_store["nd_105"].append(item) # Nhóm VIP
+                    elif any(x in fname for x in ["144", "109", "106", "189", "xu phat"]):
                         data_store["xu_phat"].append(item)
-                    elif any(x in fname for x in ["qcvn", "tcvn", "ky thuat"]):
+                    elif any(x in fname for x in ["06", "qc10", "tcvn", "ky thuat"]):
                         data_store["ky_thuat"].append(item)
                     else:
-                        data_store["nghi_dinh"].append(item)
+                        data_store["khac"].append(item)
                         
                     file_count += 1
             except: continue
@@ -140,16 +138,18 @@ def load_data_smart():
     except Exception as e: return None, str(e)
 
 # --- GIAO DIỆN CHÍNH ---
-st.markdown("""<div class="header-banner"><div style="font-size: 40px;">🛡️</div><p style="font-size: 24px; font-weight: bold; margin:0">TRỢ LÝ PCCC (ƯU TIÊN NGHỊ ĐỊNH)</p><p>PHÒNG PC07 - CÔNG AN TỈNH PHÚ THỌ</p></div>""", unsafe_allow_html=True)
+st.markdown("""<div class="header-banner"><div style="font-size: 40px;">🔥</div><p style="font-size: 24px; font-weight: bold; margin:0">TRỢ LÝ PCCC (NĐ 105/2025)</p><p>PHÒNG PC07 - CÔNG AN TỈNH PHÚ THỌ</p></div>""", unsafe_allow_html=True)
 
-with st.spinner('🚀 Đang nạp dữ liệu (Chế độ đọc sâu Nghị định)...'):
+with st.spinner('🚀 Đang nạp dữ liệu (Đã chặn NĐ 136/50)...'):
     data_store, file_count = load_data_smart()
 
 if not data_store: st.error("❌ Lỗi dữ liệu."); st.stop()
 
-with st.expander(f"✅ ĐÃ NẠP {file_count} VĂN BẢN"):
-    st.write(f"- Nghị định (Phân cấp): {len(data_store['nghi_dinh'])} file")
-    st.write(f"- Luật chung: {len(data_store['luat_chung'])} file")
+with st.expander(f"✅ ĐÃ NẠP {file_count} VĂN BẢN HIỆN HÀNH"):
+    if len(data_store['nd_105']) > 0:
+        st.success(f"✅ Đã tìm thấy {len(data_store['nd_105'])} file Nghị định 105/2025.")
+    else:
+        st.warning("⚠️ CẢNH BÁO: Chưa thấy file tên có chữ '105' trong Drive. AI có thể sẽ không trả lời được câu hỏi phân cấp.")
 
 # --- CHAT ENGINE ---
 if "messages" not in st.session_state: st.session_state.messages = []
@@ -162,34 +162,34 @@ if prompt := st.chat_input("Nhập câu hỏi nghiệp vụ..."):
     st.session_state.messages.append({"role": "user", "content": prompt})
     st.chat_message("user", avatar="👤").write(prompt)
     
-    # CHIẾN THUẬT CHỌN TÀI LIỆU (FIX LỖI CỦA ĐẠI ÚY)
+    # CHIẾN THUẬT CHỌN TÀI LIỆU (105 LÀ VUA)
     p = prompt.lower()
     ctx = ""
     label = "Tổng hợp"
     
-    # 1. HỎI "AI QUẢN LÝ / PHÂN CẤP":
-    # -> BỎ QUA LUẬT CHUNG. CHỈ ĐỌC NGHỊ ĐỊNH.
-    if any(x in p for x in ["quản lý", "ai", "thuộc diện", "phân cấp"]):
-        ctx = "\n".join(data_store["nghi_dinh"]) # Chỉ đưa Nghị định vào để tránh bị Luật làm nhiễu
-        label = "Nghị định (Phân cấp)"
+    # 1. HỎI QUẢN LÝ / PHÂN CẤP -> CHỈ ĐƯA NĐ 105 VÀO
+    if any(x in p for x in ["quản lý", "ai", "thuộc diện", "phân cấp", "karaoke"]):
+        ctx = "\n".join(data_store["nd_105"]) 
+        if not ctx: ctx = "\n".join(data_store["khac"]) # Fallback nếu chưa up file 105
+        label = "Nghị định 105/2025"
         
-    # 2. HỎI PHẠT:
+    # 2. HỎI PHẠT
     elif any(x in p for x in ["phạt", "tiền", "thẩm quyền"]):
-        ctx = "\n".join(data_store["xu_phat"] + data_store["nghi_dinh"])
-        label = "Xử phạt"
+        ctx = "\n".join(data_store["xu_phat"] + data_store["nd_105"])
+        label = "Xử phạt & NĐ 105"
         
-    # 3. KỸ THUẬT:
+    # 3. KỸ THUẬT
     elif any(x in p for x in ["trang bị", "lắp đặt", "kỹ thuật", "chiều cao"]):
         ctx = "\n".join(data_store["ky_thuat"])
         label = "Kỹ thuật"
         
     else:
-        ctx = "\n".join(data_store["nghi_dinh"] + data_store["luat_chung"])
+        ctx = "\n".join(data_store["nd_105"] + data_store["khac"])
 
     # GỌI AI
     with st.chat_message("assistant", avatar="👮"):
         msg_ph = st.empty()
-        msg_ph.markdown(f"⚡ *Đang tra cứu trong {label} (Bỏ qua Luật chung)...*")
+        msg_ph.markdown(f"⚡ *Đang tra cứu trong {label} (Tuyệt đối không dùng NĐ cũ)...*")
         reply = call_gemini_logic(prompt, ctx)
         msg_ph.markdown(reply)
         st.session_state.messages.append({"role": "assistant", "content": reply})
