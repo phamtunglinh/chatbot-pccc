@@ -12,10 +12,10 @@ import io
 
 # --- 1. CẤU HÌNH GIAO DIỆN ---
 st.set_page_config(
-    page_title="Hệ thống Trợ lý PCCC (All-in-One)",
-    page_icon="🛡️",
+    page_title="Hệ thống Trợ lý PCCC (Master)",
+    page_icon="🔥",
     layout="wide",
-    initial_sidebar_state="collapsed"
+    initial_sidebar_state="expanded"
 )
 
 st.markdown("""
@@ -25,81 +25,70 @@ st.markdown("""
         padding: 1.5rem; border-radius: 0 0 15px 15px;
         color: white; text-align: center; margin-top: -60px; margin-bottom: 20px;
     }
-    .header-title {font-size: 28px; font-weight: 900; text-transform: uppercase; margin: 0; text-shadow: 2px 2px 4px rgba(0,0,0,0.3);}
-    .header-subtitle {font-size: 14px; opacity: 0.9; margin-top: 5px;}
     .stChatInput {border-radius: 20px;}
+    .css-1aumxhk {text-align: left;}
 </style>
 """, unsafe_allow_html=True)
 
-# --- 2. KẾT NỐI HỆ THỐNG ---
+# --- 2. KẾT NỐI KEY & DRIVE ---
 try:
     if "GEMINI_API_KEYS" in st.secrets: keys_string = st.secrets["GEMINI_API_KEYS"]
     else: keys_string = st.secrets["GEMINI_API_KEY"]
     API_KEYS_LIST = [k.strip() for k in keys_string.split(",") if k.strip()]
-    
     DRIVE_FOLDER_ID = st.secrets["DRIVE_FOLDER_ID"]
     GCP_JSON = json.loads(st.secrets["GCP_JSON"])
-except Exception as e:
-    st.error(f"⚠️ Lỗi cấu hình: {str(e)}"); st.stop()
+except: st.error("⚠️ Lỗi cấu hình Secrets."); st.stop()
 
 def get_random_key(): return random.choice(API_KEYS_LIST)
 
-# --- 3. BỘ NÃO TƯ DUY (SYSTEM INSTRUCTION) ---
-# Kết hợp Logic Xử phạt của anh + Logic Karaoke/Trang bị mới
+# --- 3. BỘ NÃO TỔNG HỢP (MASTER INSTRUCTION) ---
+# Kết hợp cả 3 luồng tư duy: Quản lý (105) + Kỹ thuật (QC10) + Xử phạt (106/189)
 ALGORITHMS_INSTRUCTION = """
-VAI TRÒ: Đại úy Phạm Tùng Linh - Chuyên gia Pháp chế & Nghiệp vụ PCCC.
+VAI TRÒ: Đại úy Phạm Tùng Linh - Chuyên gia PCCC & CNCH.
 
-⚡ NGUYÊN TẮC VÀNG:
-1. TUYỆT ĐỐI KHÔNG trả lời chung chung. Mọi thông số phải có trích dẫn (Văn bản, Bảng, Mục).
-2. Dữ liệu QCVN 10 và Phụ lục NĐ 105 nằm trong các BẢNG BIỂU (Table). Hãy đọc kỹ.
+⚡ NGUYÊN TẮC CỐT LÕI:
+1. Dữ liệu quan trọng (Phụ lục, Quy chuẩn) nằm trong các BẢNG BIỂU (Table). Hãy đọc kỹ.
+2. KHÔNG DÙNG văn bản cũ (NĐ 136, NĐ 50, TCVN 3890).
 
------------------------------------------------------
-🟢 1. QUY TRÌNH TRẢ LỜI VỀ QUẢN LÝ / PHÂN CẤP (NĐ 105/2025):
-   - Bước 1: Tìm cơ sở (Karaoke, Bar...) trong **PHỤ LỤC II** (Danh mục cơ sở nguy hiểm cháy nổ).
-   - Bước 2: So sánh quy mô (Số tầng, Khối tích). 
-     + Ví dụ: Karaoke >= 3 tầng HOẶC >= 1.000 m3 -> Thuộc Phụ lục II.
-   - Bước 3: KẾT LUẬN: Do **Phòng Cảnh sát PCCC (PC07)** quản lý. (Không cần xét diện tích nếu đã đủ tầng).
+⚡ QUY TRÌNH XỬ LÝ THEO TỪNG LOẠI CÂU HỎI:
 
------------------------------------------------------
-🔵 2. QUY TRÌNH TRẢ LỜI VỀ TRANG BỊ / KỸ THUẬT (QCVN 10:2025):
-   - Bước 1: Tìm loại hình cơ sở trong các Bảng của QCVN 10.
-   - Bước 2: Liệt kê các hệ thống bắt buộc (Báo cháy, Chữa cháy tự động, Cấp nước...).
-   - Bước 3: Trích dẫn chính xác: "Theo Bảng..., Mục..., QCVN 10:2025/BCA".
+🔵 1. HỎI VỀ "QUẢN LÝ / PHÂN CẤP" (Karaoke, Bar, Khách sạn...):
+   - Căn cứ: **Nghị định 105/2025/NĐ-CP** (Tra cứu Phụ lục I, II).
+   - Logic: 
+     + Tìm cơ sở trong **Phụ lục II** (Cơ sở nguy hiểm cháy nổ).
+     + Ví dụ: Karaoke >= 3 tầng (hoặc >= 1.000 m3) -> Thuộc Phụ lục II -> **Phòng PC07 quản lý**.
+     + Nếu không thuộc Phụ lục II -> Công an Huyện hoặc UBND Xã.
 
------------------------------------------------------
-🔴 3. QUY TRÌNH TRẢ LỜI VỀ XỬ PHẠT (NĐ 144, 109, 106...):
-   Thực hiện nghiêm ngặt 3 bước:
-   
-   BƯỚC 1: XÁC ĐỊNH MỨC PHẠT
-   - Hành vi: ...
-   - Mức phạt Cá nhân: ... -> Căn cứ: Điểm..., Khoản..., Điều...
-   - Mức phạt Tổ chức: ... (Gấp 2 lần cá nhân).
-   - Phạt bổ sung / Khắc phục hậu quả: ...
+🟢 2. HỎI VỀ "TRANG BỊ / KỸ THUẬT" (Lắp hệ thống gì?):
+   - Căn cứ: **QCVN 10:2025/BCA**.
+   - Cách trả lời: Tra cứu Bảng quy định trong QCVN 10. Liệt kê các hệ thống bắt buộc (Báo cháy, Chữa cháy tự động, Cấp nước...).
+   - Tuyệt đối không dùng Thông tư 36 (trang bị cho người) để trả lời cho công trình.
 
-   BƯỚC 2: SÀNG LỌC THẨM QUYỀN (Theo NĐ 189 hoặc Luật XLVPHC)
-   - So sánh mức phạt tối đa của hành vi với quyền hạn của chức danh.
-   - LOẠI BỎ NGAY người không đủ tiền phạt hoặc không đủ quyền phạt bổ sung.
+🔴 3. HỎI VỀ "XỬ PHẠT" (Phạt bao nhiêu? Ai ký?):
+   - Căn cứ Mức phạt: **Nghị định 106**.
+   - Căn cứ Thẩm quyền: **Nghị định 189**.
+   - Quy trình:
+     + B1: Xác định mức phạt tiền (Cá nhân & Tổ chức).
+     + B2: So sánh với thẩm quyền (Chiến sĩ -> Đội trưởng -> Trưởng phòng -> Giám đốc -> Chủ tịch).
+     + B3: Kết luận người có thẩm quyền thấp nhất đủ điều kiện ký quyết định.
 
-   BƯỚC 3: ĐỀ XUẤT
-   - Trình [Chức danh thấp nhất đủ quyền] ra quyết định.
------------------------------------------------------
+YÊU CẦU: Trả lời ngắn gọn, trích dẫn rõ ràng (Văn bản, Bảng, Khoản, Điều).
 """
 
-# --- 4. HÀM GỌI AI (Dùng Requests để ổn định hơn) ---
-def call_gemini_direct(prompt, context):
-    # Cắt bớt nếu quá dài nhưng giữ phần đầu (Mục lục) và phần đuôi (Bảng biểu Phụ lục)
+# --- 4. HÀM GỌI AI (Dùng Requests ổn định) ---
+def call_gemini_master(prompt, context):
+    # Cắt context thông minh: Giữ đầu (Mục lục) và Đuôi (Phụ lục/Bảng biểu)
     if len(context) > 100000: 
-        context = context[:30000] + "\n...[Đoạn giữa]...\n" + context[-70000:]
+        context = context[:30000] + "\n...[Lược bớt phần giữa]...\n" + context[-70000:]
     
     full_prompt = f"""
-    DỮ LIỆU THAM KHẢO (BAO GỒM CẢ BẢNG BIỂU):
+    DỮ LIỆU THAM KHẢO (BAO GỒM CẢ BẢNG BIỂU & PHỤ LỤC):
     {context}
     
     CÂU HỎI: "{prompt}"
     """
     
     models = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
-    
     for attempt in range(3):
         api_key = get_random_key()
         for model in models:
@@ -117,25 +106,32 @@ def call_gemini_direct(prompt, context):
                     except: continue
                 elif response.status_code in [404, 429, 500, 503]: continue
             except: continue
-    return "⚠️ Hệ thống đang bận. Vui lòng thử lại sau giây lát."
+    return "⚠️ Hệ thống đang bận. Vui lòng thử lại."
 
-# --- 5. ĐỌC DỮ LIỆU (NÂNG CẤP: ĐỌC TABLE TRONG DOCX) ---
+# --- 5. ĐỌC DỮ LIỆU (QUÉT SẠCH BẢNG BIỂU & PHÂN LOẠI) ---
 @st.cache_data(ttl=7200, show_spinner=False) 
-def load_data_smart():
+def load_data_master():
     try:
         creds = service_account.Credentials.from_service_account_info(GCP_JSON)
         service = build('drive', 'v3', credentials=creds)
-        results = service.files().list(q=f"'{DRIVE_FOLDER_ID}' in parents and trashed=false", pageSize=80, fields="files(id, name, mimeType)").execute()
+        results = service.files().list(q=f"'{DRIVE_FOLDER_ID}' in parents and trashed=false", pageSize=100, fields="files(id, name, mimeType)").execute()
         files = results.get('files', [])
         
-        data_store = {"nd_105": [], "xu_phat": [], "ky_thuat": [], "khac": []}
-        file_count = 0
+        # 4 NGĂN TỦ DỮ LIỆU RIÊNG BIỆT
+        data_store = {
+            "nd_105": [],    # Quản lý, Hồ sơ (NĐ 105)
+            "nd_106_189": [],# Xử phạt, Thẩm quyền (NĐ 106, 189)
+            "qcvn_10": [],   # Kỹ thuật, Trang bị (QCVN 10)
+            "khac": []       # Các văn bản khác
+        }
+        
+        log_files = [] # Để hiển thị trạng thái
         
         for file in files:
             fname = file['name'].lower()
             if "google-apps" in file['mimeType']: continue 
             
-            # Cấm NĐ 136/50 (Chống nhiễu)
+            # 🛑 CHẶN FILE CŨ (136, 50)
             if "136" in fname or "50" in fname: continue
             
             try:
@@ -146,102 +142,69 @@ def load_data_smart():
                 fh.seek(0)
                 content = ""
                 
-                # --- XỬ LÝ DOCX (QUÉT SẠCH BẢNG BIỂU) ---
+                # --- XỬ LÝ DOCX (QUÉT BẢNG BIỂU - QUAN TRỌNG) ---
                 if file['name'].endswith(".docx"):
                     doc = Document(fh)
-                    paras = [p.text for p in doc.paragraphs if p.text.strip()]
-                    content += "\n".join(paras)
-                    
-                    # ĐỌC BẢNG (QUAN TRỌNG): Lấy dữ liệu Phụ lục & QCVN 10
-                    tables_data = []
+                    # 1. Đọc văn bản thường
+                    content += "\n".join([p.text for p in doc.paragraphs])
+                    # 2. Đọc Bảng biểu (Phụ lục & QCVN)
+                    tables = []
                     for table in doc.tables:
                         for row in table.rows:
-                            row_cells = [cell.text.replace("\n", " ").strip() for cell in row.cells]
-                            tables_data.append(" | ".join(row_cells))
-                    if tables_data:
-                        content += "\n\n=== DỮ LIỆU BẢNG BIỂU ===\n" + "\n".join(tables_data)
+                            row_text = [cell.text.strip().replace("\n", " ") for cell in row.cells]
+                            tables.append(" | ".join(row_text))
+                    if tables:
+                        content += "\n\n=== DỮ LIỆU BẢNG (TABLE) ===\n" + "\n".join(tables)
 
-                # --- XỬ LÝ PDF ---
+                # --- XỬ LÝ PDF (ĐỌC TOÀN BỘ) ---
                 elif file['name'].endswith(".pdf"):
                     reader = PdfReader(fh)
-                    # Đọc toàn bộ (để đảm bảo thấy Phụ lục cuối)
                     content = "\n".join([p.extract_text() for p in reader.pages if p.extract_text()])
 
                 if content:
                     item = f"NGUỒN: {file['name']}\nNỘI DUNG:\n{content}\n---\n"
                     
-                    if "105" in fname: data_store["nd_105"].append(item)
-                    elif any(x in fname for x in ["144", "109", "106", "xu phat"]): data_store["xu_phat"].append(item)
-                    elif any(x in fname for x in ["qc10", "10:2025", "ky thuat", "trang bi"]): data_store["ky_thuat"].append(item)
-                    else: data_store["nd_105"].append(item)
+                    # --- PHÂN LOẠI THÔNG MINH ---
+                    if "105" in fname:
+                        data_store["nd_105"].append(item)
+                        log_files.append(f"🔹 {file['name']} (Quản lý)")
+                    elif any(x in fname for x in ["106", "189", "144", "xu phat"]):
+                        data_store["nd_106_189"].append(item)
+                        log_files.append(f"⚖️ {file['name']} (Xử phạt)")
+                    elif any(x in fname for x in ["qc10", "10:2025", "trang bi", "ky thuat"]):
+                        data_store["qcvn_10"].append(item)
+                        log_files.append(f"🛠️ {file['name']} (Kỹ thuật)")
+                    else:
+                        data_store["khac"].append(item)
                         
-                    file_count += 1
             except: continue
-        return data_store, file_count
-    except Exception as e: return None, str(e)
+        return data_store, log_files
+    except Exception as e: return None, [str(e)]
 
 # --- GIAO DIỆN CHÍNH ---
-st.markdown("""
-<div class="header-banner">
-    <div style="font-size: 40px; margin-bottom: 5px;">🛡️</div>
-    <p class="header-title">TRỢ LÝ AI PCCC & CNCH</p>
-    <p class="header-subtitle">PHÒNG PC07 - CÔNG AN TỈNH PHÚ THỌ</p>
-</div>
-""", unsafe_allow_html=True)
+st.markdown("""<div class="header-banner"><div style="font-size: 40px;">🔥</div><p style="font-size: 24px; font-weight: bold; margin:0">TRỢ LÝ PCCC (MASTER)</p><p>PHÒNG PC07 - CÔNG AN TỈNH PHÚ THỌ</p></div>""", unsafe_allow_html=True)
 
-with st.spinner('🚀 Đang khởi động hệ thống (Đọc Bảng biểu & Phân loại)...'):
-    data_store, file_count = load_data_smart()
+with st.spinner('🚀 Đang khởi động hệ thống tổng hợp (Đọc Bảng + Phân loại)...'):
+    data_store, logs = load_data_master()
 
 if not data_store: st.error("❌ Lỗi dữ liệu."); st.stop()
 
-# KHUNG CHÀO MỪNG
-if "messages" not in st.session_state: st.session_state.messages = []
-if len(st.session_state.messages) == 0:
-    st.markdown("""
-    <div style='background-color: #f8f9fa; padding: 15px; border-radius: 10px; text-align: center; margin-bottom: 15px; border: 1px solid #eee;'>
-        <p style='margin: 0;'>✅ <b>Hệ thống đã sẵn sàng:</b> Đã nạp {file_count} văn bản.</p>
-        <p style='font-size: 13px; color: #666;'>Tích hợp logic: Xử phạt (3 bước) | Phân cấp (NĐ 105) | Trang bị (QCVN 10)</p>
-    </div>
-    """, unsafe_allow_html=True)
+# SIDEBAR: HIỂN THỊ TRẠNG THÁI FILE
+with st.sidebar:
+    st.header("📂 DỮ LIỆU ĐÃ NẠP")
+    if logs:
+        for log in logs: st.text(log)
+    else: st.warning("Chưa có file nào hợp lệ.")
 
-# Hiển thị lịch sử
+# --- CHAT ENGINE ---
+if "messages" not in st.session_state: st.session_state.messages = []
+
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"], avatar="👤" if msg["role"] == "user" else "🚒"):
         st.markdown(msg["content"])
 
-# XỬ LÝ CÂU HỎI
-if prompt := st.chat_input("Nhập câu hỏi..."):
+if prompt := st.chat_input("Nhập câu hỏi nghiệp vụ..."):
     st.session_state.messages.append({"role": "user", "content": prompt})
     st.chat_message("user", avatar="👤").write(prompt)
     
-    # 1. PHÂN LOẠI CÂU HỎI & CHỌN DỮ LIỆU
-    p = prompt.lower()
-    ctx = ""
-    label = "Tổng hợp"
-    
-    # Nhóm Trang bị (QCVN 10)
-    if any(x in p for x in ["trang bị", "lắp đặt", "hệ thống", "báo cháy", "chữa cháy"]):
-        ctx = "\n".join(data_store["ky_thuat"])
-        label = "Kỹ thuật (QCVN 10)"
-    # Nhóm Xử phạt
-    elif any(x in p for x in ["phạt", "tiền", "thẩm quyền"]):
-        ctx = "\n".join(data_store["xu_phat"] + data_store["nd_105"])
-        label = "Xử phạt"
-    # Nhóm Quản lý (NĐ 105)
-    elif any(x in p for x in ["quản lý", "ai", "thuộc diện", "phân cấp", "karaoke"]):
-        ctx = "\n".join(data_store["nd_105"])
-        label = "Nghị định 105"
-    else:
-        ctx = "\n".join(data_store["nd_105"] + data_store["ky_thuat"])
-
-    # 2. GỌI AI
-    with st.chat_message("assistant", avatar="🚒"):
-        msg_ph = st.empty()
-        msg_ph.markdown(f"⏳ *Đang tra cứu ({label})...*")
-        
-        reply = call_gemini_direct(prompt, ctx)
-        
-        # Format lại câu trả lời cho đẹp
-        full_reply = reply + "\n\n---\n*Đại úy cần hỗ trợ thêm gì không?*"
-        msg_ph.markdown(full_reply)
-        st.session_state.messages.append({"role": "assistant", "content": full_reply})
+    # CHIẾN THUẬT CHỌN DỮ LIỆU (SM
