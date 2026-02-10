@@ -1,2 +1,6 @@
 streamlit
 requests
+google-auth
+google-api-python-client
+python-docx
+pypdf
