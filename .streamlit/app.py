@@ -12,7 +12,7 @@ import io
 
 # --- 1. CẤU HÌNH GIAO DIỆN ---
 st.set_page_config(
-    page_title="Trợ lý PCCC (Full Rule + Tìm kiếm)",
+    page_title="Trợ lý PCCC (Ổn định & Thông minh)",
     page_icon="🛡️",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -40,43 +40,24 @@ except: st.error("⚠️ Lỗi cấu hình Secrets."); st.stop()
 
 def get_random_key(): return random.choice(API_KEYS_LIST)
 
-# --- 3. BỘ NÃO TƯ DUY (ĐÃ KHÔI PHỤC ĐẦY ĐỦ RULES CỦA ĐẠI ÚY) ---
+# --- 3. BỘ NÃO TƯ DUY (ĐẦY ĐỦ QUY TRÌNH SUY LUẬN) ---
 ALGORITHMS_INSTRUCTION = """
 VAI TRÒ: Đại úy Phạm Tùng Linh - Chuyên gia Nghiệp vụ PCCC & CNCH.
 
 ⚡ DỮ LIỆU ĐƯỢC CHIA THÀNH 5 GIỎ:
 1. [PHÁP LÝ]: NĐ 105, Luật... (Tra cứu Hồ sơ, Thủ tục).
-2. [XỬ PHẠT]: NĐ 106, 189... (Tra cứu Lỗi, Tiền phạt).
+2. [XỬ PHẠT]: NĐ 106 (Mức phạt), NĐ 189 (Thẩm quyền).
 3. [QUY CHUẨN]: QCVN 10, QCVN 06... (Tra cứu Trang bị).
 4. [CHỮA CHÁY]: Chiến thuật...
 5. [KHÁC]: Văn bản bổ trợ.
 
 🧠 KỸ NĂNG SUY LUẬN LỖI (MAPPING):
-   Người dùng hỏi ngôn ngữ đời thường -> Bạn phải tìm theo ngôn ngữ Luật (NĐ 106):
+   Người dùng hỏi ngôn ngữ đời thường -> Bạn phải tìm theo ngôn ngữ Luật (trong NĐ 106):
    - "Không có..." -> Tìm: "Không lập", "Không trang bị", "Không lắp đặt".
    - "Hồ sơ" -> Tìm: "Vi phạm quy định về hồ sơ quản lý".
    - "Thiếu..." -> Tìm: "Không đầy đủ".
 
-🔴 QUY TRÌNH 1: XÁC ĐỊNH THẨM QUYỀN QUẢN LÝ (NĐ 105)
-    
-    BƯỚC 1: KIỂM TRA DỮ LIỆU ĐẦU VÀO
-    - Cần biết: Diện tích, Số tầng, Khối tích, Công năng.
-    - Nếu thiếu -> HỎI NGƯỢC LẠI.
-    
-    BƯỚC 2: XÁC ĐỊNH CÔNG NĂNG CHÍNH (QUY TẮC 70%)
-    - Công năng nào > 70% diện tích -> Là công năng chính.
-    - Nhà ở > 70% -> Nhà ở kết hợp SXKD.
-    - Không có cái nào > 70% -> NHÀ HỖN HỢP.
-    
-    BƯỚC 3: ĐỐI CHIẾU PHỤ LỤC (Nghị định 105/2025)
-    - So sánh với Phụ lục I và Phụ lục II.
-    
-    BƯỚC 4: KẾT LUẬN (ƯU TIÊN TUYỆT ĐỐI)
-    - Có tên trong Phụ lục II -> PC07 quản lý.
-    - (Lưu ý: Dù diện tích nhỏ nhưng Tầng cao thuộc Phụ lục II -> Vẫn là PC07).
-    - Chỉ thuộc Phụ lục I (không thuộc II) -> Công an Huyện hoặc Xã.
-
-🔴 QUY TRÌNH 2: XỬ PHẠT VI PHẠM HÀNH CHÍNH (NĐ 106 & 189)
+🔴 QUY TRÌNH 1: XỬ PHẠT VI PHẠM HÀNH CHÍNH (NĐ 106 & 189)
     
     BƯỚC 1: XÁC ĐỊNH MỨC PHẠT (NĐ 106)
     - Tìm hành vi (dùng kỹ năng suy luận).
@@ -98,21 +79,32 @@ VAI TRÒ: Đại úy Phạm Tùng Linh - Chuyên gia Nghiệp vụ PCCC & CNCH.
        - [Chức danh B]: Quyền phạt ... -> ĐỦ/KHÔNG.
     5. Đề xuất: Trình [Chức danh thấp nhất đủ quyền] ra quyết định.
 
-🟢 QUY TRÌNH 3: TRANG BỊ KỸ THUẬT (QCVN 10)
-    - Tra cứu Bảng biểu.
-    - Liệt kê hệ thống bắt buộc.
+🔵 QUY TRÌNH 2: XÁC ĐỊNH THẨM QUYỀN QUẢN LÝ (NĐ 105)
+    
+    BƯỚC 1: KIỂM TRA DỮ LIỆU ĐẦU VÀO (Diện tích, Tầng, Khối tích, Công năng).
+    
+    BƯỚC 2: XÁC ĐỊNH CÔNG NĂNG CHÍNH (QUY TẮC 70%)
+    - Công năng > 70% -> Chính.
+    - Nhà ở > 70% -> Nhà ở kết hợp SXKD.
+    - Không có > 70% -> Hỗn hợp.
+    
+    BƯỚC 3: ĐỐI CHIẾU PHỤ LỤC (NĐ 105).
+    
+    BƯỚC 4: KẾT LUẬN (ƯU TIÊN TUYỆT ĐỐI)
+    - Có tên trong Phụ lục II -> PC07 quản lý.
+    - Chỉ thuộc Phụ lục I (không thuộc II) -> Công an Huyện hoặc Xã.
 
-🛑 NGUYÊN TẮC VÀNG:
-   1. KHÔNG trả lời chung chung.
-   2. TRÍCH DẪN CỤ THỂ (Điểm, Khoản, Điều).
-   3. Nếu không tìm thấy -> Nói thẳng "Không tìm thấy trong dữ liệu".
+🟢 QUY TRÌNH 3: TRANG BỊ KỸ THUẬT (QCVN 10)
+    - Tra cứu Bảng biểu -> Liệt kê hệ thống bắt buộc.
+
+🛑 NGUYÊN TẮC VÀNG: KHÔNG trả lời chung chung. TRÍCH DẪN CỤ THỂ.
 """
 
-# --- 4. HÀM GỌI AI ---
+# --- 4. HÀM GỌI AI (ĐÃ TỐI ƯU DUNG LƯỢNG AN TOÀN) ---
 def call_gemini_logic(prompt, context):
-    # Cắt context giữ đầu đuôi, TĂNG DUNG LƯỢNG LÊN 2 TRIỆU KÝ TỰ
-    if len(context) > 2000000: 
-        context = context[:2000000]
+    # GIỚI HẠN AN TOÀN: 500.000 KÝ TỰ (Đủ chứa 106, 189, 105 mà không gây Timeout)
+    if len(context) > 500000: 
+        context = context[:500000]
     
     full_prompt = f"""
     DỮ LIỆU THAM KHẢO (ĐÃ NẠP ƯU TIÊN 106, 189, 105):
@@ -120,10 +112,12 @@ def call_gemini_logic(prompt, context):
     
     CÂU HỎI: "{prompt}"
     
-    YÊU CẦU: Áp dụng Quy trình (Phân cấp/Xử phạt) và Kỹ năng suy luận đã hướng dẫn.
+    YÊU CẦU: Áp dụng Quy trình Suy luận (Xử phạt/Phân cấp) đã hướng dẫn.
     """
     
+    # Ưu tiên model 1.5 Flash (Nhanh và ổn định nhất hiện nay)
     models = ["gemini-1.5-flash", "gemini-2.0-flash"]
+    
     for attempt in range(3):
         api_key = get_random_key()
         for model in models:
@@ -135,17 +129,18 @@ def call_gemini_logic(prompt, context):
                 "safetySettings": [{"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_ONLY_HIGH"}]
             }
             try:
+                # Timeout 90s để xử lý dữ liệu lớn
                 response = requests.post(url, headers=headers, json=payload, timeout=90)
                 if response.status_code == 200:
                     try: return response.json()['candidates'][0]['content']['parts'][0]['text']
                     except: continue
                 elif response.status_code in [404, 429, 500, 503]: continue
             except: continue
-    return "⚠️ Hệ thống đang bận."
+    return "⚠️ Hệ thống đang bận (Quá tải hoặc lỗi mạng). Vui lòng thử lại câu hỏi ngắn hơn."
 
-# --- 5. ĐỌC DỮ LIỆU (CƠ CHẾ SĂN TÌM MỤC TIÊU) ---
+# --- 5. ĐỌC DỮ LIỆU (CƠ CHẾ SĂN TÌM VIP) ---
 @st.cache_data(ttl=7200, show_spinner=False) 
-def load_data_priority_rules():
+def load_data_final_stable():
     try:
         creds = service_account.Credentials.from_service_account_info(GCP_JSON)
         service = build('drive', 'v3', credentials=creds)
@@ -158,22 +153,26 @@ def load_data_priority_rules():
         processed_ids = set() 
 
         # --- PHA 1: SĂN TÌM CÁC FILE VIP ---
-        # Tìm đích danh các file quan trọng để nạp trước
         target_queries = [
             "name contains '189'", # Ưu tiên THẨM QUYỀN
             "name contains '106'", # Ưu tiên MỨC PHẠT
-            "name contains '105'", "name contains '10'", 
-            "name contains 'xu phat'", "name contains 'nghi dinh'"
+            "name contains '105'", 
+            "name contains '10'", 
+            "name contains 'xu phat'"
         ]
         
         vip_files = []
         for q in target_queries:
-            res = service.files().list(q=f"'{DRIVE_FOLDER_ID}' in parents and trashed=false and {q}", fields="files(id, name, mimeType)").execute()
-            vip_files.extend(res.get('files', []))
+            try:
+                res = service.files().list(q=f"'{DRIVE_FOLDER_ID}' in parents and trashed=false and {q}", fields="files(id, name, mimeType)").execute()
+                vip_files.extend(res.get('files', []))
+            except: continue
 
-        # --- PHA 2: LẤY CÁC FILE CÒN LẠI ---
-        res_all = service.files().list(q=f"'{DRIVE_FOLDER_ID}' in parents and trashed=false", pageSize=300, fields="files(id, name, mimeType)").execute()
-        all_files = res_all.get('files', [])
+        # --- PHA 2: LẤY FILE CÒN LẠI (GIỚI HẠN 200 FILE ĐỂ TRÁNH QUÁ TẢI) ---
+        try:
+            res_all = service.files().list(q=f"'{DRIVE_FOLDER_ID}' in parents and trashed=false", pageSize=200, fields="files(id, name, mimeType)").execute()
+            all_files = res_all.get('files', [])
+        except: all_files = []
         
         # Gộp lại (Ưu tiên VIP lên đầu)
         final_file_list = vip_files + all_files
@@ -219,16 +218,15 @@ def load_data_priority_rules():
                 if content:
                     item = f"NGUỒN: {file['name']}\nNỘI DUNG:\n{content}\n---\n"
                     
-                    # PHÂN LOẠI
                     if any(x in fname for x in ["106", "189", "296", "xu phat", "vi pham"]):
                         buckets["xu_phat"].append(item)
-                        log_ok.append(f"⚖️ {file['name']} (Xử phạt)")
+                        log_ok.append(f"⚖️ {file['name']}")
                     elif any(x in fname for x in ["qcvn", "tcvn", "10:2025", "trang bi"]):
                         buckets["quy_chuan"].append(item)
-                        log_ok.append(f"🛠️ {file['name']} (Kỹ thuật)")
+                        log_ok.append(f"🛠️ {file['name']}")
                     elif any(x in fname for x in ["105", "nghi dinh", "luat", "thong tu", "ho so"]):
                         buckets["phap_ly"].append(item)
-                        log_ok.append(f"🔹 {file['name']} (Quản lý)")
+                        log_ok.append(f"🔹 {file['name']}")
                     elif any(x in fname for x in ["chua chay", "cnch"]):
                         buckets["chua_chay"].append(item)
                         log_ok.append(f"🚒 {file['name']}")
@@ -241,10 +239,10 @@ def load_data_priority_rules():
     except Exception as e: return None, [str(e)], []
 
 # --- GIAO DIỆN CHÍNH ---
-st.markdown("""<div class="header-banner"><div style="font-size: 40px;">🛡️</div><p style="font-size: 24px; font-weight: bold; margin:0">TRỢ LÝ PCCC (FULL POWER)</p><p>PHÒNG PC07 - CÔNG AN TỈNH PHÚ THỌ</p></div>""", unsafe_allow_html=True)
+st.markdown("""<div class="header-banner"><div style="font-size: 40px;">🛡️</div><p style="font-size: 24px; font-weight: bold; margin:0">TRỢ LÝ PCCC (STABLE)</p><p>PHÒNG PC07 - CÔNG AN TỈNH PHÚ THỌ</p></div>""", unsafe_allow_html=True)
 
-with st.spinner('🚀 Đang săn tìm NĐ 106 & Kích hoạt Rules...'):
-    data_buckets, log_ok, log_bad = load_data_priority_rules()
+with st.spinner('🚀 Đang săn tìm dữ liệu & Nạp quy trình...'):
+    data_buckets, log_ok, log_bad = load_data_final_stable()
 
 if not data_buckets: st.error("❌ Lỗi dữ liệu."); st.stop()
 
@@ -252,7 +250,6 @@ if not data_buckets: st.error("❌ Lỗi dữ liệu."); st.stop()
 with st.sidebar:
     st.header("🔍 DỮ LIỆU ĐÃ NẠP")
     
-    # Check 189 & 106
     has_189 = any("189" in log for log in log_ok)
     has_106 = any("106" in log for log in log_ok)
     
@@ -262,9 +259,8 @@ with st.sidebar:
     if has_106: st.success("✅ Đã có NĐ 106 (Mức phạt)")
     else: st.warning("⚠️ CHƯA CÓ NĐ 106")
 
-    with st.expander("Chi tiết file đã nạp"):
+    with st.expander("Chi tiết file"):
         for log in log_ok: st.text(log)
-        
     with st.expander("File bị chặn (Cũ)"):
         for log in log_bad: st.error(log)
 
@@ -284,26 +280,28 @@ if prompt := st.chat_input("Nhập câu hỏi..."):
     ctx_list = []
     labels = []
     
-    # XỬ PHẠT (Lấy 106 + 189)
+    # XỬ PHẠT (Lấy 106 + 189 + 105)
     if any(x in p for x in ["phạt", "tiền", "thẩm quyền", "ai ký", "lỗi", "không có", "hồ sơ", "thiếu"]):
-        # ƯU TIÊN 189 (Thẩm quyền) LÊN ĐẦU
-        nd_189_content = [item for item in data_buckets["xu_phat"] if "189" in item]
-        other_xu_phat = [item for item in data_buckets["xu_phat"] if "189" not in item]
+        # ƯU TIÊN 189 (Thẩm quyền) & 106 (Phạt) LÊN ĐẦU
+        nd_189 = [item for item in data_buckets["xu_phat"] if "189" in item]
+        nd_106 = [item for item in data_buckets["xu_phat"] if "106" in item]
+        other_xp = [item for item in data_buckets["xu_phat"] if "189" not in item and "106" not in item]
         
-        ctx_list.extend(nd_189_content) 
-        ctx_list.extend(other_xu_phat)
-        ctx_list.extend(data_buckets["phap_ly"])
-        labels.append("Xử phạt")
+        ctx_list.extend(nd_189)
+        ctx_list.extend(nd_106)
+        ctx_list.extend(other_xp)
+        ctx_list.extend(data_buckets["phap_ly"]) # Lấy 105 để hiểu hồ sơ
+        labels.append("Xử phạt (189+106)")
 
-    # QUẢN LÝ (Lấy 105)
+    # QUẢN LÝ
     elif any(x in p for x in ["quản lý", "phân cấp", "thuộc diện", "karaoke"]):
         ctx_list.extend(data_buckets["phap_ly"])
-        labels.append("Quản lý")
+        labels.append("Quản lý (NĐ 105)")
 
-    # KỸ THUẬT (Lấy QC10)
+    # KỸ THUẬT
     elif any(x in p for x in ["trang bị", "lắp đặt", "hệ thống"]):
         ctx_list.extend(data_buckets["quy_chuan"])
-        labels.append("Kỹ thuật")
+        labels.append("Kỹ thuật (QCVN 10)")
     
     else:
         ctx_list.extend(data_buckets["phap_ly"])
