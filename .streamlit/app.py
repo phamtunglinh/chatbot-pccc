@@ -12,7 +12,7 @@ import io
 
 # --- 1. CẤU HÌNH GIAO DIỆN ---
 st.set_page_config(
-    page_title="Trợ lý PCCC (MASTER FINAL)",
+    page_title="Trợ lý PCCC (Full Rule + Tìm kiếm)",
     page_icon="🛡️",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -40,14 +40,14 @@ except: st.error("⚠️ Lỗi cấu hình Secrets."); st.stop()
 
 def get_random_key(): return random.choice(API_KEYS_LIST)
 
-# --- 3. BỘ NÃO TƯ DUY (ĐẦY ĐỦ MỌI RULE CỦA ĐẠI ÚY) ---
+# --- 3. BỘ NÃO TƯ DUY (ĐÃ KHÔI PHỤC ĐẦY ĐỦ RULES CỦA ĐẠI ÚY) ---
 ALGORITHMS_INSTRUCTION = """
 VAI TRÒ: Đại úy Phạm Tùng Linh - Chuyên gia Nghiệp vụ PCCC & CNCH.
 
 ⚡ DỮ LIỆU ĐƯỢC CHIA THÀNH 5 GIỎ:
-1. [PHÁP LÝ]: NĐ 105, Luật... (Hồ sơ, Thủ tục).
-2. [XỬ PHẠT]: NĐ 106, 189... (Lỗi, Tiền phạt).
-3. [QUY CHUẨN]: QCVN 10, QCVN 06... (Trang bị).
+1. [PHÁP LÝ]: NĐ 105, Luật... (Tra cứu Hồ sơ, Thủ tục).
+2. [XỬ PHẠT]: NĐ 106, 189... (Tra cứu Lỗi, Tiền phạt).
+3. [QUY CHUẨN]: QCVN 10, QCVN 06... (Tra cứu Trang bị).
 4. [CHỮA CHÁY]: Chiến thuật...
 5. [KHÁC]: Văn bản bổ trợ.
 
@@ -110,17 +110,16 @@ VAI TRÒ: Đại úy Phạm Tùng Linh - Chuyên gia Nghiệp vụ PCCC & CNCH.
 
 # --- 4. HÀM GỌI AI ---
 def call_gemini_logic(prompt, context):
-    # Cắt context giữ đầu đuôi
     if len(context) > 100000: 
-        context = context[:30000] + "\n...[Lược bớt]...\n" + context[-70000:]
+        context = context[:30000] + "\n...[Cắt]...\n" + context[-70000:]
     
     full_prompt = f"""
-    DỮ LIỆU THAM KHẢO (ĐÃ LỌC FILE CŨ):
+    DỮ LIỆU THAM KHẢO (ĐÃ NẠP ƯU TIÊN 106, 189, 105):
     {context}
     
     CÂU HỎI: "{prompt}"
     
-    YÊU CẦU: Áp dụng Kỹ năng suy luận lỗi và Quy trình (Phân cấp/Xử phạt) đã hướng dẫn.
+    YÊU CẦU: Áp dụng Quy trình (Phân cấp/Xử phạt) và Kỹ năng suy luận đã hướng dẫn.
     """
     
     models = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
@@ -143,35 +142,52 @@ def call_gemini_logic(prompt, context):
             except: continue
     return "⚠️ Hệ thống đang bận."
 
-# --- 5. ĐỌC DỮ LIỆU (BỘ LỌC THÔNG MINH + 5 GIỎ) ---
+# --- 5. ĐỌC DỮ LIỆU (CƠ CHẾ SĂN TÌM MỤC TIÊU) ---
 @st.cache_data(ttl=7200, show_spinner=False) 
-def load_data_complete():
+def load_data_priority_rules():
     try:
         creds = service_account.Credentials.from_service_account_info(GCP_JSON)
         service = build('drive', 'v3', credentials=creds)
-        results = service.files().list(q=f"'{DRIVE_FOLDER_ID}' in parents and trashed=false", pageSize=500, fields="files(id, name, mimeType)").execute()
-        files = results.get('files', [])
         
         buckets = {
             "phap_ly": [], "xu_phat": [], "quy_chuan": [], "chua_chay": [], "khac": []
         }
-        
         log_ok = []
-        log_bad = [] 
+        log_bad = []
+        processed_ids = set() 
+
+        # --- PHA 1: SĂN TÌM CÁC FILE VIP ---
+        # Tìm đích danh các file quan trọng để nạp trước
+        target_queries = [
+            "name contains '106'", "name contains '189'", 
+            "name contains '105'", "name contains '10'", 
+            "name contains 'xu phat'", "name contains 'nghi dinh'"
+        ]
         
-        for file in files:
+        vip_files = []
+        for q in target_queries:
+            res = service.files().list(q=f"'{DRIVE_FOLDER_ID}' in parents and trashed=false and {q}", fields="files(id, name, mimeType)").execute()
+            vip_files.extend(res.get('files', []))
+
+        # --- PHA 2: LẤY CÁC FILE CÒN LẠI ---
+        res_all = service.files().list(q=f"'{DRIVE_FOLDER_ID}' in parents and trashed=false", pageSize=300, fields="files(id, name, mimeType)").execute()
+        all_files = res_all.get('files', [])
+        
+        # Gộp lại (Ưu tiên VIP lên đầu)
+        final_file_list = vip_files + all_files
+        
+        for file in final_file_list:
+            if file['id'] in processed_ids: continue 
+            processed_ids.add(file['id'])
+            
             fname = file['name'].lower()
             if "google-apps" in file['mimeType']: continue 
             
-            # 🛑 BỘ LỌC THÔNG MINH 🛑
+            # 🛑 CHẶN FILE CŨ
             is_trash = False
-            # Chặn 144 nếu không phải là 106/189 (trường hợp tên file "106 thay 144")
             if "144" in fname and "106" not in fname and "189" not in fname: is_trash = True
-            # Chặn 136 nếu không phải 105
             if "136" in fname and "105" not in fname: is_trash = True
-            # Chặn 50 nếu không phải 105
             if "50" in fname and "105" not in fname: is_trash = True
-
             if is_trash:
                 log_bad.append(f"🚫 {file['name']}")
                 continue 
@@ -184,7 +200,6 @@ def load_data_complete():
                 fh.seek(0)
                 content = ""
                 
-                # ĐỌC DOCX (KÈM BẢNG)
                 if file['name'].endswith(".docx"):
                     doc = Document(fh)
                     content += "\n".join([p.text for p in doc.paragraphs])
@@ -195,7 +210,6 @@ def load_data_complete():
                             tables.append(" | ".join(row_text))
                     if tables: content += "\n\n=== BẢNG BIỂU ===\n" + "\n".join(tables)
 
-                # ĐỌC PDF
                 elif file['name'].endswith(".pdf"):
                     reader = PdfReader(fh)
                     content = "\n".join([p.extract_text() for p in reader.pages if p.extract_text()])
@@ -203,22 +217,19 @@ def load_data_complete():
                 if content:
                     item = f"NGUỒN: {file['name']}\nNỘI DUNG:\n{content}\n---\n"
                     
-                    # PHÂN LOẠI 5 GIỎ
-                    if "105" in fname:
-                        buckets["phap_ly"].append(item)
-                        log_ok.append(f"🔹 {file['name']} (Quản lý)")
-                    elif any(x in fname for x in ["106", "189", "296", "xu phat", "vi pham"]):
+                    # PHÂN LOẠI
+                    if any(x in fname for x in ["106", "189", "296", "xu phat", "vi pham"]):
                         buckets["xu_phat"].append(item)
                         log_ok.append(f"⚖️ {file['name']} (Xử phạt)")
-                    elif any(x in fname for x in ["qcvn", "tcvn", "10:2025", "06:2022", "3890", "trang bi", "ky thuat"]):
+                    elif any(x in fname for x in ["qcvn", "tcvn", "10:2025", "trang bi"]):
                         buckets["quy_chuan"].append(item)
                         log_ok.append(f"🛠️ {file['name']} (Kỹ thuật)")
+                    elif any(x in fname for x in ["105", "nghi dinh", "luat", "thong tu", "ho so"]):
+                        buckets["phap_ly"].append(item)
+                        log_ok.append(f"🔹 {file['name']} (Quản lý)")
                     elif any(x in fname for x in ["chua chay", "cnch"]):
                         buckets["chua_chay"].append(item)
                         log_ok.append(f"🚒 {file['name']}")
-                    elif any(x in fname for x in ["nghi dinh", "luat", "thong tu", "ho so"]):
-                        buckets["phap_ly"].append(item)
-                        log_ok.append(f"📂 {file['name']}")
                     else:
                         buckets["khac"].append(item)
                         log_ok.append(f"📄 {file['name']}")
@@ -228,28 +239,29 @@ def load_data_complete():
     except Exception as e: return None, [str(e)], []
 
 # --- GIAO DIỆN CHÍNH ---
-st.markdown("""<div class="header-banner"><div style="font-size: 40px;">🛡️</div><p style="font-size: 24px; font-weight: bold; margin:0">TRỢ LÝ PCCC (FULL RULE)</p><p>PHÒNG PC07 - CÔNG AN TỈNH PHÚ THỌ</p></div>""", unsafe_allow_html=True)
+st.markdown("""<div class="header-banner"><div style="font-size: 40px;">🛡️</div><p style="font-size: 24px; font-weight: bold; margin:0">TRỢ LÝ PCCC (FULL POWER)</p><p>PHÒNG PC07 - CÔNG AN TỈNH PHÚ THỌ</p></div>""", unsafe_allow_html=True)
 
-with st.spinner('🚀 Đang khởi động hệ thống & Nạp đầy đủ Quy trình...'):
-    data_buckets, log_ok, log_bad = load_data_complete()
+with st.spinner('🚀 Đang săn tìm NĐ 106 & Kích hoạt Rules...'):
+    data_buckets, log_ok, log_bad = load_data_priority_rules()
 
 if not data_buckets: st.error("❌ Lỗi dữ liệu."); st.stop()
 
 # --- SIDEBAR ---
 with st.sidebar:
-    st.header("🔍 DỮ LIỆU")
-    with st.expander("🚫 FILE BỊ CHẶN (CŨ)", expanded=True):
-        if log_bad: 
-            for log in log_bad: st.error(log)
-        else: st.success("Không có file cũ.")
+    st.header("🔍 DỮ LIỆU ĐÃ NẠP")
     
-    st.divider()
-    st.write(f"⚖️ Xử phạt: {len(data_buckets['xu_phat'])} file")
-    st.write(f"🔹 Pháp lý: {len(data_buckets['phap_ly'])} file")
-    st.write(f"🛠️ Quy chuẩn: {len(data_buckets['quy_chuan'])} file")
-    
-    with st.expander("Chi tiết file"):
+    # Check ngay xem có 106 chưa
+    has_106 = any("106" in log for log in log_ok)
+    if has_106:
+        st.success("✅ Đã tìm thấy NĐ 106 (Xử phạt)")
+    else:
+        st.error("❌ VẪN CHƯA THẤY NĐ 106! (Kiểm tra lại tên file)")
+
+    with st.expander("Chi tiết file đã nạp"):
         for log in log_ok: st.text(log)
+        
+    with st.expander("File bị chặn (Cũ)"):
+        for log in log_bad: st.error(log)
 
 # --- CHAT ENGINE ---
 if "messages" not in st.session_state: st.session_state.messages = []
@@ -267,22 +279,22 @@ if prompt := st.chat_input("Nhập câu hỏi..."):
     ctx_list = []
     labels = []
     
-    # 1. XỬ PHẠT (NĐ 106 + 189)
-    if any(x in p for x in ["phạt", "tiền", "thẩm quyền", "ai ký", "lỗi", "không có", "thiếu", "hỏng"]):
+    # XỬ PHẠT (Lấy 106 + 189)
+    if any(x in p for x in ["phạt", "tiền", "thẩm quyền", "ai ký", "lỗi", "không có", "hồ sơ", "thiếu"]):
         ctx_list.extend(data_buckets["xu_phat"])
-        ctx_list.extend(data_buckets["phap_ly"]) # Tham chiếu định nghĩa
-        labels.append("Xử phạt (NĐ 106)")
+        ctx_list.extend(data_buckets["phap_ly"])
+        labels.append("Xử phạt")
 
-    # 2. QUẢN LÝ (NĐ 105)
+    # QUẢN LÝ (Lấy 105)
     elif any(x in p for x in ["quản lý", "phân cấp", "thuộc diện", "karaoke"]):
         ctx_list.extend(data_buckets["phap_ly"])
-        labels.append("NĐ 105")
+        labels.append("Quản lý")
 
-    # 3. KỸ THUẬT (QCVN)
-    elif any(x in p for x in ["trang bị", "lắp đặt", "hệ thống", "báo cháy"]):
+    # KỸ THUẬT (Lấy QC10)
+    elif any(x in p for x in ["trang bị", "lắp đặt", "hệ thống"]):
         ctx_list.extend(data_buckets["quy_chuan"])
-        labels.append("QCVN 10")
-
+        labels.append("Kỹ thuật")
+    
     else:
         ctx_list.extend(data_buckets["phap_ly"])
         ctx_list.extend(data_buckets["khac"])
@@ -292,7 +304,7 @@ if prompt := st.chat_input("Nhập câu hỏi..."):
 
     with st.chat_message("assistant", avatar="🚒"):
         msg_ph = st.empty()
-        msg_ph.markdown(f"⚡ *Đang tra cứu ({' + '.join(labels)})...*")
+        msg_ph.markdown(f"⚡ *Đang suy luận ({' + '.join(labels)})...*")
         reply = call_gemini_logic(prompt, final_ctx)
         msg_ph.markdown(reply)
         st.session_state.messages.append({"role": "assistant", "content": reply})
