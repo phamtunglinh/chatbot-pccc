@@ -12,8 +12,8 @@ import io
 
 # --- 1. CẤU HÌNH GIAO DIỆN ---
 st.set_page_config(
-    page_title="Trợ lý PCCC (AI Suy Luận)",
-    page_icon="🧠",
+    page_title="Trợ lý PCCC (MASTER FINAL)",
+    page_icon="🛡️",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -40,69 +40,87 @@ except: st.error("⚠️ Lỗi cấu hình Secrets."); st.stop()
 
 def get_random_key(): return random.choice(API_KEYS_LIST)
 
-# --- 3. BỘ NÃO TƯ DUY (BỔ SUNG KHẢ NĂNG SUY LUẬN LỖI) ---
+# --- 3. BỘ NÃO TƯ DUY (ĐẦY ĐỦ MỌI RULE CỦA ĐẠI ÚY) ---
 ALGORITHMS_INSTRUCTION = """
 VAI TRÒ: Đại úy Phạm Tùng Linh - Chuyên gia Nghiệp vụ PCCC & CNCH.
 
 ⚡ DỮ LIỆU ĐƯỢC CHIA THÀNH 5 GIỎ:
-1. [PHÁP LÝ]: NĐ 105, Luật... (Tra cứu Hồ sơ, Thủ tục).
-2. [XỬ PHẠT]: NĐ 106, 189... (Tra cứu Lỗi, Tiền phạt).
-3. [QUY CHUẨN]: QCVN 10, QCVN 06... (Tra cứu Trang bị).
+1. [PHÁP LÝ]: NĐ 105, Luật... (Hồ sơ, Thủ tục).
+2. [XỬ PHẠT]: NĐ 106, 189... (Lỗi, Tiền phạt).
+3. [QUY CHUẨN]: QCVN 10, QCVN 06... (Trang bị).
 4. [CHỮA CHÁY]: Chiến thuật...
 5. [KHÁC]: Văn bản bổ trợ.
 
-🧠 KỸ NĂNG SUY LUẬN LỖI (QUAN TRỌNG KHI TRA CỨU XỬ PHẠT):
-   Người dùng thường hỏi bằng ngôn ngữ đời thường. Bạn phải "DỊCH" sang ngôn ngữ Luật trong NĐ 106:
-   - "Không có..." -> Tìm từ khóa: "Không lập", "Không trang bị", "Không lắp đặt", "Không lưu trữ".
-   - "Hồ sơ" -> Tìm điều khoản: "Vi phạm quy định về hồ sơ quản lý".
-   - "Thiếu..." -> Tìm từ khóa: "Không đầy đủ", "Không đảm bảo số lượng".
-   - "Hỏng..." -> Tìm từ khóa: "Không hoạt động", "Hư hỏng", "Không bảo dưỡng".
+🧠 KỸ NĂNG SUY LUẬN LỖI (MAPPING):
+   Người dùng hỏi ngôn ngữ đời thường -> Bạn phải tìm theo ngôn ngữ Luật (NĐ 106):
+   - "Không có..." -> Tìm: "Không lập", "Không trang bị", "Không lắp đặt".
+   - "Hồ sơ" -> Tìm: "Vi phạm quy định về hồ sơ quản lý".
+   - "Thiếu..." -> Tìm: "Không đầy đủ".
 
-🔴 QUY TRÌNH 1: XỬ PHẠT VI PHẠM HÀNH CHÍNH (3 BƯỚC)
+🔴 QUY TRÌNH 1: XÁC ĐỊNH THẨM QUYỀN QUẢN LÝ (NĐ 105)
     
-    BƯỚC 1: TRA CỨU HÀNH VI (Trong Giỏ XỬ PHẠT - NĐ 106)
-    - Dùng kỹ năng suy luận ở trên để tìm hành vi tương ứng.
+    BƯỚC 1: KIỂM TRA DỮ LIỆU ĐẦU VÀO
+    - Cần biết: Diện tích, Số tầng, Khối tích, Công năng.
+    - Nếu thiếu -> HỎI NGƯỢC LẠI.
+    
+    BƯỚC 2: XÁC ĐỊNH CÔNG NĂNG CHÍNH (QUY TẮC 70%)
+    - Công năng nào > 70% diện tích -> Là công năng chính.
+    - Nhà ở > 70% -> Nhà ở kết hợp SXKD.
+    - Không có cái nào > 70% -> NHÀ HỖN HỢP.
+    
+    BƯỚC 3: ĐỐI CHIẾU PHỤ LỤC (Nghị định 105/2025)
+    - So sánh với Phụ lục I và Phụ lục II.
+    
+    BƯỚC 4: KẾT LUẬN (ƯU TIÊN TUYỆT ĐỐI)
+    - Có tên trong Phụ lục II -> PC07 quản lý.
+    - (Lưu ý: Dù diện tích nhỏ nhưng Tầng cao thuộc Phụ lục II -> Vẫn là PC07).
+    - Chỉ thuộc Phụ lục I (không thuộc II) -> Công an Huyện hoặc Xã.
+
+🔴 QUY TRÌNH 2: XỬ PHẠT VI PHẠM HÀNH CHÍNH (NĐ 106 & 189)
+    
+    BƯỚC 1: XÁC ĐỊNH MỨC PHẠT (NĐ 106)
+    - Tìm hành vi (dùng kỹ năng suy luận).
     - Xác định Mức phạt tiền (Cá nhân & Tổ chức).
+    - Xác định Phạt bổ sung / Khắc phục hậu quả.
     
-    BƯỚC 2: SÀNG LỌC THẨM QUYỀN (Trong Giỏ XỬ PHẠT - NĐ 189)
-    - So sánh mức phạt tối đa của hành vi với thẩm quyền của các chức danh (Xã -> Huyện -> PC07 -> Giám đốc/Chủ tịch).
-    - LOẠI BỎ người không đủ quyền.
+    BƯỚC 2: SÀNG LỌC THẨM QUYỀN (NĐ 189)
+    - So sánh mức phạt tối đa với quyền hạn của các chức danh.
+    - LOẠI BỎ NGAY chức danh không đủ tiền hoặc không đủ quyền phạt bổ sung.
     
-    BƯỚC 3: TRÌNH BÀY
-    - Hành vi: [Tên chính xác trong NĐ 106]
-    - Phạt tiền: ... (Căn cứ: Điểm..., Khoản..., Điều..., NĐ 106).
-    - Biện pháp khắc phục (nếu có): ...
-    - Thẩm quyền: [Chức danh thấp nhất đủ quyền ký].
-
-🔵 QUY TRÌNH 2: PHÂN CẤP QUẢN LÝ (4 BƯỚC - NĐ 105)
-    B1: Kiểm tra thông tin (Diện tích, Tầng, Khối tích). Nếu thiếu -> Hỏi lại.
-    B2: Xác định công năng chính (Quy tắc 70%).
-    B3: Đối chiếu Phụ lục I và II của NĐ 105.
-    B4: KẾT LUẬN:
-      - Có trong Phụ lục II -> PC07 quản lý.
-      - Có trong Phụ lục I (nhưng ko có trong II) -> Công an Huyện hoặc Xã.
+    BƯỚC 3: TRÌNH BÀY (FORM MẪU):
+    1. Hành vi: [Tên pháp lý]
+    2. Mức phạt: 
+       - Cá nhân: ... (Căn cứ NĐ 106).
+       - Tổ chức: ...
+    3. Biện pháp bổ sung/KPHQ: ...
+    4. Phân tích thẩm quyền:
+       - [Chức danh A]: Quyền phạt ... -> ĐỦ/KHÔNG.
+       - [Chức danh B]: Quyền phạt ... -> ĐỦ/KHÔNG.
+    5. Đề xuất: Trình [Chức danh thấp nhất đủ quyền] ra quyết định.
 
 🟢 QUY TRÌNH 3: TRANG BỊ KỸ THUẬT (QCVN 10)
-    - Tra cứu Bảng biểu trong QCVN 10.
+    - Tra cứu Bảng biểu.
     - Liệt kê hệ thống bắt buộc.
 
-YÊU CẦU: Trả lời ngắn gọn, nghiệp vụ, trích dẫn rõ ràng.
+🛑 NGUYÊN TẮC VÀNG:
+   1. KHÔNG trả lời chung chung.
+   2. TRÍCH DẪN CỤ THỂ (Điểm, Khoản, Điều).
+   3. Nếu không tìm thấy -> Nói thẳng "Không tìm thấy trong dữ liệu".
 """
 
 # --- 4. HÀM GỌI AI ---
 def call_gemini_logic(prompt, context):
+    # Cắt context giữ đầu đuôi
     if len(context) > 100000: 
         context = context[:30000] + "\n...[Lược bớt]...\n" + context[-70000:]
     
     full_prompt = f"""
-    DỮ LIỆU THAM KHẢO (ĐÃ LỌC SẠCH FILE CŨ):
+    DỮ LIỆU THAM KHẢO (ĐÃ LỌC FILE CŨ):
     {context}
     
     CÂU HỎI: "{prompt}"
     
-    YÊU CẦU: 
-    1. Nếu hỏi lỗi/phạt -> Dùng Kỹ năng suy luận để tìm trong NĐ 106.
-    2. Nếu hỏi quản lý -> Dùng NĐ 105.
+    YÊU CẦU: Áp dụng Kỹ năng suy luận lỗi và Quy trình (Phân cấp/Xử phạt) đã hướng dẫn.
     """
     
     models = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
@@ -125,9 +143,9 @@ def call_gemini_logic(prompt, context):
             except: continue
     return "⚠️ Hệ thống đang bận."
 
-# --- 5. ĐỌC DỮ LIỆU (5 GIỎ + LỌC 136/144) ---
+# --- 5. ĐỌC DỮ LIỆU (BỘ LỌC THÔNG MINH + 5 GIỎ) ---
 @st.cache_data(ttl=7200, show_spinner=False) 
-def load_data_smart_v2():
+def load_data_complete():
     try:
         creds = service_account.Credentials.from_service_account_info(GCP_JSON)
         service = build('drive', 'v3', credentials=creds)
@@ -145,8 +163,16 @@ def load_data_smart_v2():
             fname = file['name'].lower()
             if "google-apps" in file['mimeType']: continue 
             
-            # 🛑 CHẶN FILE CŨ
-            if "136" in fname or "144" in fname or "50" in fname:
+            # 🛑 BỘ LỌC THÔNG MINH 🛑
+            is_trash = False
+            # Chặn 144 nếu không phải là 106/189 (trường hợp tên file "106 thay 144")
+            if "144" in fname and "106" not in fname and "189" not in fname: is_trash = True
+            # Chặn 136 nếu không phải 105
+            if "136" in fname and "105" not in fname: is_trash = True
+            # Chặn 50 nếu không phải 105
+            if "50" in fname and "105" not in fname: is_trash = True
+
+            if is_trash:
                 log_bad.append(f"🚫 {file['name']}")
                 continue 
             
@@ -158,7 +184,7 @@ def load_data_smart_v2():
                 fh.seek(0)
                 content = ""
                 
-                # DOCX + TABLE
+                # ĐỌC DOCX (KÈM BẢNG)
                 if file['name'].endswith(".docx"):
                     doc = Document(fh)
                     content += "\n".join([p.text for p in doc.paragraphs])
@@ -169,7 +195,7 @@ def load_data_smart_v2():
                             tables.append(" | ".join(row_text))
                     if tables: content += "\n\n=== BẢNG BIỂU ===\n" + "\n".join(tables)
 
-                # PDF
+                # ĐỌC PDF
                 elif file['name'].endswith(".pdf"):
                     reader = PdfReader(fh)
                     content = "\n".join([p.extract_text() for p in reader.pages if p.extract_text()])
@@ -177,13 +203,14 @@ def load_data_smart_v2():
                 if content:
                     item = f"NGUỒN: {file['name']}\nNỘI DUNG:\n{content}\n---\n"
                     
+                    # PHÂN LOẠI 5 GIỎ
                     if "105" in fname:
                         buckets["phap_ly"].append(item)
                         log_ok.append(f"🔹 {file['name']} (Quản lý)")
                     elif any(x in fname for x in ["106", "189", "296", "xu phat", "vi pham"]):
                         buckets["xu_phat"].append(item)
                         log_ok.append(f"⚖️ {file['name']} (Xử phạt)")
-                    elif any(x in fname for x in ["qcvn", "tcvn", "10:2025", "06:2022", "trang bi", "ky thuat"]):
+                    elif any(x in fname for x in ["qcvn", "tcvn", "10:2025", "06:2022", "3890", "trang bi", "ky thuat"]):
                         buckets["quy_chuan"].append(item)
                         log_ok.append(f"🛠️ {file['name']} (Kỹ thuật)")
                     elif any(x in fname for x in ["chua chay", "cnch"]):
@@ -201,10 +228,10 @@ def load_data_smart_v2():
     except Exception as e: return None, [str(e)], []
 
 # --- GIAO DIỆN CHÍNH ---
-st.markdown("""<div class="header-banner"><div style="font-size: 40px;">🧠</div><p style="font-size: 24px; font-weight: bold; margin:0">TRỢ LÝ PCCC (AI SUY LUẬN)</p><p>PHÒNG PC07 - CÔNG AN TỈNH PHÚ THỌ</p></div>""", unsafe_allow_html=True)
+st.markdown("""<div class="header-banner"><div style="font-size: 40px;">🛡️</div><p style="font-size: 24px; font-weight: bold; margin:0">TRỢ LÝ PCCC (FULL RULE)</p><p>PHÒNG PC07 - CÔNG AN TỈNH PHÚ THỌ</p></div>""", unsafe_allow_html=True)
 
-with st.spinner('🚀 Đang kích hoạt bộ não suy luận...'):
-    data_buckets, log_ok, log_bad = load_data_smart_v2()
+with st.spinner('🚀 Đang khởi động hệ thống & Nạp đầy đủ Quy trình...'):
+    data_buckets, log_ok, log_bad = load_data_complete()
 
 if not data_buckets: st.error("❌ Lỗi dữ liệu."); st.stop()
 
@@ -214,16 +241,15 @@ with st.sidebar:
     with st.expander("🚫 FILE BỊ CHẶN (CŨ)", expanded=True):
         if log_bad: 
             for log in log_bad: st.error(log)
-        else: st.success("Sạch sẽ.")
-            
-    with st.expander("1. 📂 Văn bản Pháp lý"): st.write(f"SL: {len(data_buckets['phap_ly'])}")
-    with st.expander("2. ⚖️ Văn bản Xử phạt"): st.write(f"SL: {len(data_buckets['xu_phat'])}")
-    with st.expander("3. 🛠️ Quy chuẩn Kỹ thuật"): st.write(f"SL: {len(data_buckets['quy_chuan'])}")
-    with st.expander("4. 🚒 Quy trình Chữa cháy"): st.write(f"SL: {len(data_buckets['chua_chay'])}")
-    with st.expander("5. 📄 Văn bản Khác"): st.write(f"SL: {len(data_buckets['khac'])}")
+        else: st.success("Không có file cũ.")
     
     st.divider()
-    for log in log_ok: st.text(log)
+    st.write(f"⚖️ Xử phạt: {len(data_buckets['xu_phat'])} file")
+    st.write(f"🔹 Pháp lý: {len(data_buckets['phap_ly'])} file")
+    st.write(f"🛠️ Quy chuẩn: {len(data_buckets['quy_chuan'])} file")
+    
+    with st.expander("Chi tiết file"):
+        for log in log_ok: st.text(log)
 
 # --- CHAT ENGINE ---
 if "messages" not in st.session_state: st.session_state.messages = []
@@ -241,38 +267,32 @@ if prompt := st.chat_input("Nhập câu hỏi..."):
     ctx_list = []
     labels = []
     
-    # 1. XỬ PHẠT (Ưu tiên số 1 khi có từ 'phạt', 'hồ sơ' + 'không có')
-    if any(x in p for x in ["phạt", "tiền", "thẩm quyền", "ai ký", "lỗi", "không có hồ sơ"]):
-        ctx_list.extend(data_buckets["xu_phat"]) # Lấy NĐ 106
-        ctx_list.extend(data_buckets["phap_ly"]) # Lấy NĐ 105 để hiểu hồ sơ là gì
+    # 1. XỬ PHẠT (NĐ 106 + 189)
+    if any(x in p for x in ["phạt", "tiền", "thẩm quyền", "ai ký", "lỗi", "không có", "thiếu", "hỏng"]):
+        ctx_list.extend(data_buckets["xu_phat"])
+        ctx_list.extend(data_buckets["phap_ly"]) # Tham chiếu định nghĩa
         labels.append("Xử phạt (NĐ 106)")
-        
-    # 2. QUẢN LÝ
-    elif any(x in p for x in ["quản lý", "phân cấp", "thuộc diện"]):
+
+    # 2. QUẢN LÝ (NĐ 105)
+    elif any(x in p for x in ["quản lý", "phân cấp", "thuộc diện", "karaoke"]):
         ctx_list.extend(data_buckets["phap_ly"])
         labels.append("NĐ 105")
-        
-    # 3. KỸ THUẬT
-    elif any(x in p for x in ["trang bị", "lắp đặt", "hệ thống"]):
+
+    # 3. KỸ THUẬT (QCVN)
+    elif any(x in p for x in ["trang bị", "lắp đặt", "hệ thống", "báo cháy"]):
         ctx_list.extend(data_buckets["quy_chuan"])
         labels.append("QCVN 10")
 
-    # 4. CHỮA CHÁY
-    elif any(x in p for x in ["chiến thuật", "đội hình"]):
-        ctx_list.extend(data_buckets["chua_chay"])
-        labels.append("Chữa cháy")
-        
     else:
         ctx_list.extend(data_buckets["phap_ly"])
         ctx_list.extend(data_buckets["khac"])
         labels.append("Tổng hợp")
 
     final_ctx = "\n".join(ctx_list)
-    label_str = " + ".join(labels)
 
     with st.chat_message("assistant", avatar="🚒"):
         msg_ph = st.empty()
-        msg_ph.markdown(f"⚡ *Đang suy luận từ {label_str}...*")
+        msg_ph.markdown(f"⚡ *Đang tra cứu ({' + '.join(labels)})...*")
         reply = call_gemini_logic(prompt, final_ctx)
         msg_ph.markdown(reply)
         st.session_state.messages.append({"role": "assistant", "content": reply})
