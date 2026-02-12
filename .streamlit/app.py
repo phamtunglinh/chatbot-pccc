@@ -110,8 +110,9 @@ VAI TRÒ: Đại úy Phạm Tùng Linh - Chuyên gia Nghiệp vụ PCCC & CNCH.
 
 # --- 4. HÀM GỌI AI ---
 def call_gemini_logic(prompt, context):
+    # Cắt context giữ đầu đuôi
     if len(context) > 100000: 
-        context = context[:30000] + "\n...[Cắt]...\n" + context[-70000:]
+        context = context[:30000] + "\n...[Lược bớt]...\n" + context[-70000:]
     
     full_prompt = f"""
     DỮ LIỆU THAM KHẢO (ĐÃ NẠP ƯU TIÊN 106, 189, 105):
