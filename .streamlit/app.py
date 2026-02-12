@@ -40,7 +40,7 @@ except: st.error("⚠️ Lỗi cấu hình Secrets."); st.stop()
 
 def get_random_key(): return random.choice(API_KEYS_LIST)
 
-# --- 3. BỘ NÃO TƯ DUY (ĐÃ CẬP NHẬT QUY TRÌNH SUY LUẬN MỚI) ---
+# --- 3. BỘ NÃO TƯ DUY (ĐÃ KHÔI PHỤC NGUYÊN VĂN QUY TẮC CỦA ĐẠI ÚY) ---
 ALGORITHMS_INSTRUCTION = """
 VAI TRÒ: Đại úy Phạm Tùng Linh - Chuyên gia Nghiệp vụ PCCC & CNCH.
 
@@ -51,37 +51,37 @@ VAI TRÒ: Đại úy Phạm Tùng Linh - Chuyên gia Nghiệp vụ PCCC & CNCH.
 4. [CHỮA CHÁY]: Chiến thuật, Đội hình...
 5. [KHÁC]: Văn bản bổ trợ.
 
-🛑 QUY TRÌNH SUY LUẬN (BẮT BUỘC TUÂN THỦ KHI XÁC ĐỊNH THẨM QUYỀN QUẢN LÝ):
-
-    BƯỚC 1: KIỂM TRA DỮ LIỆU ĐẦU VÀO
+🔴 QUY TRÌNH SUY LUẬN (BẮT BUỘC TUÂN THỦ KHI XÁC ĐỊNH THẨM QUYỀN QUẢN LÝ):
+    
+    BƯỚC 1: KIỂM TRA DỮ LIỆU
     - Để xác định ai quản lý, bạn CẦN BIẾT: Tổng diện tích sàn, Số tầng, Chiều cao, Khối tích, Công năng chi tiết.
     - Nếu người dùng KHÔNG cung cấp đủ -> HÃY HỎI NGƯỢC LẠI NGƯỜI DÙNG để lấy thông tin. Đừng trả lời chung chung.
-
+    
     BƯỚC 2: XÁC ĐỊNH CÔNG NĂNG CHÍNH (QUY TẮC 70%)
     - Nếu một công năng chiếm > 70% tổng diện tích -> Đó là công năng chính.
     - Nếu Công năng nhà ở > 70% -> Nhà ở kết hợp SXKD.
     - Nếu KHÔNG CÓ công năng nào vượt 70% -> Kết luận là: NHÀ HỖN HỢP.
-
-    BƯỚC 3: ĐỐI CHIẾU PHỤ LỤC (Căn cứ Nghị định 105/2025/NĐ-CP hoặc NĐ 50/136 trong dữ liệu)
+    
+    BƯỚC 3: ĐỐI CHIẾU PHỤ LỤC (Nghị định 105/2025 hoặc văn bản tương đương trong dữ liệu)
     - So sánh số tầng, khối tích, diện tích với Phụ lục I và Phụ lục II.
-
+    
     BƯỚC 4: KẾT LUẬN (QUY TẮC ƯU TIÊN TUYỆT ĐỐI)
     - Nếu cơ sở đạt tiêu chí Phụ lục II -> PHÒNG CẢNH SÁT PCCC & CNCH (PC07) quản lý.
     - Lưu ý: Dù diện tích nhỏ (thuộc Phụ lục I) nhưng Số tầng cao (thuộc Phụ lục II) -> Vẫn là PC07 quản lý.
-    - Chỉ khi nào KHÔNG đạt Phụ lục II mà chỉ đạt Phụ lục I -> Mới do UBND CẤP XÃ hoặc CÔNG AN HUYỆN quản lý (theo phân cấp cụ thể).
+    - Chỉ khi nào KHÔNG đạt Phụ lục II mà chỉ đạt Phụ lục I -> Mới do UBND CẤP XÃ hoặc CÔNG AN HUYỆN quản lý.
 
-🔴 QUY TRÌNH 2: ĐỐI VỚI CÂU HỎI VỀ XỬ PHẠT VI PHẠM HÀNH CHÍNH (NĐ 106, 189)
+🔴 QUY TRÌNH 2: ĐỐI VỚI CÂU HỎI VỀ XỬ PHẠT VI PHẠM HÀNH CHÍNH
     Thực hiện nghiêm ngặt 3 bước:
-
-    BƯỚC 1: XÁC ĐỊNH MỨC PHẠT & HÌNH THỨC BỔ SUNG
+    
+    BƯỚC 1: XÁC ĐỊNH MỨC PHẠT & HÌNH THỨC BỔ SUNG (NĐ 106)
     - Tìm mức phạt Cá nhân & Tổ chức.
     - Tìm Hình thức phạt bổ sung & Khắc phục hậu quả.
     -> Ghi rõ căn cứ từng mục.
-
+    
     BƯỚC 2: SÀNG LỌC THẨM QUYỀN (Theo NĐ 189/2025)
     - So sánh mức phạt trung bình với quyền hạn tiền tối đa của các chức danh.
     - LOẠI BỎ NGAY các chức danh không đủ tiền phạt hoặc không đủ quyền phạt bổ sung.
-
+    
     BƯỚC 3: TRÌNH BÀY (FORM MẪU):
     1. Về hành vi và mức tiền phạt:
        - Hành vi: ...
@@ -102,11 +102,6 @@ VAI TRÒ: Đại úy Phạm Tùng Linh - Chuyên gia Nghiệp vụ PCCC & CNCH.
        - [Chức danh B]: ... (Tương tự)
        
     4. Đề xuất: Trình [Chức danh thấp nhất đủ quyền] quyết định.
-
-🟢 QUY TRÌNH 3: ĐỐI VỚI CÂU HỎI VỀ KỸ THUẬT / TRANG BỊ (QCVN 10, QCVN 06)
-    - Tra cứu Bảng biểu trong QCVN 10.
-    - Trả lời nội dung kỹ thuật (chiều cao, khoảng cách, lưu lượng...).
-    - Ngay sau thông số phải mở ngoặc ghi nguồn gốc văn bản (Ví dụ: QCVN 06:2022/BXD, Bảng mấy, Mục mấy).
 
 🛑 NGUYÊN TẮC VÀNG (BẮT BUỘC):
    1. TUYỆT ĐỐI KHÔNG trả lời chung chung (kiểu "theo quy định pháp luật...").
@@ -205,16 +200,19 @@ def load_data_final():
                     item = f"NGUỒN: {file['name']}\nNỘI DUNG:\n{content}\n---\n"
                     
                     # --- PHÂN LOẠI 5 GIỎ ---
-                    if any(x in fname for x in ["106", "189", "296", "xu phat", "vi pham"]):
+                    if "105" in fname:
+                        buckets["phap_ly"].append(item) # NĐ 105 vào pháp lý
+                        log_accepted.append(f"🔹 {file['name']} (Quản lý)")
+                    elif any(x in fname for x in ["106", "189", "296", "xu phat", "vi pham"]):
                         buckets["xu_phat"].append(item)
-                        log_accepted.append(f"⚖️ {file['name']}")
+                        log_accepted.append(f"⚖️ {file['name']} (Xử phạt)")
                     elif any(x in fname for x in ["qcvn", "tcvn", "10:2025", "06:2022", "3890", "trang bi", "ky thuat"]):
                         buckets["quy_chuan"].append(item)
-                        log_accepted.append(f"🛠️ {file['name']}")
+                        log_accepted.append(f"🛠️ {file['name']} (Kỹ thuật)")
                     elif any(x in fname for x in ["chua chay", "cnch", "chien thuat", "doi hinh"]):
                         buckets["chua_chay"].append(item)
-                        log_accepted.append(f"🚒 {file['name']}")
-                    elif any(x in fname for x in ["105", "nghi dinh", "luat", "thong tu", "ho so"]):
+                        log_accepted.append(f"🚒 {file['name']} (Chữa cháy)")
+                    elif any(x in fname for x in ["nghi dinh", "luat", "thong tu", "ho so"]):
                         buckets["phap_ly"].append(item)
                         log_accepted.append(f"📂 {file['name']}")
                     else:
