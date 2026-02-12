@@ -110,9 +110,9 @@ VAI TRÒ: Đại úy Phạm Tùng Linh - Chuyên gia Nghiệp vụ PCCC & CNCH.
 
 # --- 4. HÀM GỌI AI ---
 def call_gemini_logic(prompt, context):
-    # Cắt context giữ đầu đuôi
-    if len(context) > 100000: 
-        context = context[:30000] + "\n...[Lược bớt]...\n" + context[-70000:]
+    # Cắt context giữ đầu đuôi, TĂNG DUNG LƯỢNG LÊN 2 TRIỆU KÝ TỰ
+    if len(context) > 2000000: 
+        context = context[:2000000]
     
     full_prompt = f"""
     DỮ LIỆU THAM KHẢO (ĐÃ NẠP ƯU TIÊN 106, 189, 105):
@@ -123,7 +123,7 @@ def call_gemini_logic(prompt, context):
     YÊU CẦU: Áp dụng Quy trình (Phân cấp/Xử phạt) và Kỹ năng suy luận đã hướng dẫn.
     """
     
-    models = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
+    models = ["gemini-1.5-flash", "gemini-2.0-flash"]
     for attempt in range(3):
         api_key = get_random_key()
         for model in models:
@@ -135,7 +135,7 @@ def call_gemini_logic(prompt, context):
                 "safetySettings": [{"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_ONLY_HIGH"}]
             }
             try:
-                response = requests.post(url, headers=headers, json=payload, timeout=60)
+                response = requests.post(url, headers=headers, json=payload, timeout=90)
                 if response.status_code == 200:
                     try: return response.json()['candidates'][0]['content']['parts'][0]['text']
                     except: continue
@@ -160,7 +160,8 @@ def load_data_priority_rules():
         # --- PHA 1: SĂN TÌM CÁC FILE VIP ---
         # Tìm đích danh các file quan trọng để nạp trước
         target_queries = [
-            "name contains '106'", "name contains '189'", 
+            "name contains '189'", # Ưu tiên THẨM QUYỀN
+            "name contains '106'", # Ưu tiên MỨC PHẠT
             "name contains '105'", "name contains '10'", 
             "name contains 'xu phat'", "name contains 'nghi dinh'"
         ]
@@ -251,12 +252,15 @@ if not data_buckets: st.error("❌ Lỗi dữ liệu."); st.stop()
 with st.sidebar:
     st.header("🔍 DỮ LIỆU ĐÃ NẠP")
     
-    # Check ngay xem có 106 chưa
+    # Check 189 & 106
+    has_189 = any("189" in log for log in log_ok)
     has_106 = any("106" in log for log in log_ok)
-    if has_106:
-        st.success("✅ Đã tìm thấy NĐ 106 (Xử phạt)")
-    else:
-        st.error("❌ VẪN CHƯA THẤY NĐ 106! (Kiểm tra lại tên file)")
+    
+    if has_189: st.success("✅ Đã có NĐ 189 (Thẩm quyền)")
+    else: st.error("❌ CHƯA CÓ NĐ 189!")
+    
+    if has_106: st.success("✅ Đã có NĐ 106 (Mức phạt)")
+    else: st.warning("⚠️ CHƯA CÓ NĐ 106")
 
     with st.expander("Chi tiết file đã nạp"):
         for log in log_ok: st.text(log)
@@ -282,7 +286,12 @@ if prompt := st.chat_input("Nhập câu hỏi..."):
     
     # XỬ PHẠT (Lấy 106 + 189)
     if any(x in p for x in ["phạt", "tiền", "thẩm quyền", "ai ký", "lỗi", "không có", "hồ sơ", "thiếu"]):
-        ctx_list.extend(data_buckets["xu_phat"])
+        # ƯU TIÊN 189 (Thẩm quyền) LÊN ĐẦU
+        nd_189_content = [item for item in data_buckets["xu_phat"] if "189" in item]
+        other_xu_phat = [item for item in data_buckets["xu_phat"] if "189" not in item]
+        
+        ctx_list.extend(nd_189_content) 
+        ctx_list.extend(other_xu_phat)
         ctx_list.extend(data_buckets["phap_ly"])
         labels.append("Xử phạt")
 
