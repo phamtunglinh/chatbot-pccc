@@ -11,13 +11,12 @@ from pypdf import PdfReader
 import io
 
 # --- 1. CẤU HÌNH ---
-st.set_page_config(page_title="PCCC PC07 (Debug Mode)", page_icon="🛠️", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title="PCCC PC07 (Gemini 2.0)", page_icon="🔥", layout="wide", initial_sidebar_state="expanded")
 st.markdown("""<style>.header-banner {background: linear-gradient(90deg, #B71C1C 0%, #D32F2F 100%); padding: 1.5rem; color: white; text-align: center; margin-top: -50px; border-radius: 0 0 15px 15px;} .stChatInput {border-radius: 20px;}</style>""", unsafe_allow_html=True)
 
-# --- 2. KẾT NỐI API (CÓ KIỂM TRA LỖI) ---
+# --- 2. KẾT NỐI API ---
 API_KEYS_LIST = []
 try:
-    # Hỗ trợ cả 2 kiểu khai báo trong secrets
     if "GEMINI_API_KEYS" in st.secrets: 
         keys_string = st.secrets["GEMINI_API_KEYS"]
         API_KEYS_LIST = [k.strip() for k in keys_string.split(",") if k.strip()]
@@ -25,19 +24,18 @@ try:
         API_KEYS_LIST = [st.secrets["GEMINI_API_KEY"]]
     
     if not API_KEYS_LIST:
-        st.error("❌ LỖI: Không tìm thấy API Key trong Secrets!")
+        st.error("❌ LỖI: Không tìm thấy API Key!")
         st.stop()
         
     DRIVE_FOLDER_ID = st.secrets["DRIVE_FOLDER_ID"]
     GCP_JSON = json.loads(st.secrets["GCP_JSON"])
 except Exception as e:
-    st.error(f"⚠️ Lỗi cấu hình Secrets: {str(e)}")
+    st.error(f"⚠️ Lỗi cấu hình: {str(e)}")
     st.stop()
 
 def get_random_key(): return random.choice(API_KEYS_LIST)
 
-# --- 3. BỘ NÃO TƯ DUY (ĐƯA VÀO PROMPT ĐỂ TƯƠNG THÍCH MỌI PHIÊN BẢN) ---
-# Tôi đưa Rules vào đây để đảm bảo thư viện cũ hay mới đều hiểu được
+# --- 3. BỘ NÃO TƯ DUY (RULES) ---
 SYSTEM_PROMPT_CONTENT = """
 VAI TRÒ: Đại úy Phạm Tùng Linh - Chuyên gia Nghiệp vụ PCCC & CNCH.
 
@@ -53,9 +51,9 @@ VAI TRÒ: Đại úy Phạm Tùng Linh - Chuyên gia Nghiệp vụ PCCC & CNCH.
    - "Thiếu..." -> Tìm: "Không đầy đủ".
 
 🔴 QUY TRÌNH 1: XÁC ĐỊNH THẨM QUYỀN QUẢN LÝ (NĐ 105)
-    BƯỚC 1: KIỂM TRA DỮ LIỆU ĐẦU VÀO (Diện tích, Tầng, Khối tích, Công năng).
+    BƯỚC 1: KIỂM TRA DỮ LIỆU ĐẦU VÀO.
     BƯỚC 2: XÁC ĐỊNH CÔNG NĂNG CHÍNH (QUY TẮC 70%)
-    - Công năng > 70% diện tích -> Là công năng chính.
+    - > 70% diện tích -> Công năng chính.
     - Nhà ở > 70% -> Nhà ở kết hợp SXKD.
     - Không có cái nào > 70% -> NHÀ HỖN HỢP.
     BƯỚC 3: ĐỐI CHIẾU PHỤ LỤC (Nghị định 105/2025).
@@ -68,7 +66,7 @@ VAI TRÒ: Đại úy Phạm Tùng Linh - Chuyên gia Nghiệp vụ PCCC & CNCH.
     - Tìm hành vi (dùng kỹ năng suy luận).
     - Xác định Mức phạt tiền (Cá nhân & Tổ chức).
     BƯỚC 2: SÀNG LỌC THẨM QUYỀN (NĐ 189)
-    - So sánh mức phạt tối đa với quyền hạn của các chức danh.
+    - So sánh mức phạt tối đa với quyền hạn các chức danh.
     - LOẠI BỎ NGAY chức danh không đủ tiền hoặc không đủ quyền phạt bổ sung.
     BƯỚC 3: TRÌNH BÀY (FORM MẪU):
     1. Hành vi: [Tên pháp lý]
@@ -84,50 +82,60 @@ VAI TRÒ: Đại úy Phạm Tùng Linh - Chuyên gia Nghiệp vụ PCCC & CNCH.
 🛑 NGUYÊN TẮC VÀNG: TRẢ LỜI NGẮN GỌN, TRÍCH DẪN CỤ THỂ.
 """
 
-# --- 4. HÀM GỌI AI (HIỆN LỖI THẬT) ---
-def call_gemini_debug(prompt, context):
-    # Nếu câu hỏi quá ngắn (Chào hỏi), bỏ qua context để trả lời nhanh
+# --- 4. HÀM GỌI AI (AUTO-SWITCH MODEL: 2.0 -> 1.5) ---
+def call_gemini_2_0(prompt, context):
+    # DANH SÁCH ƯU TIÊN (Mới nhất lên đầu)
+    MODELS_TO_TRY = [
+        "gemini-2.0-flash",       # Bản mới nhất (Tương đương 2.5 về tốc độ)
+        "gemini-2.0-flash-exp",   # Bản thử nghiệm mới
+        "gemini-1.5-pro",         # Bản Pro mạnh mẽ
+        "gemini-1.5-flash"        # Bản ổn định (Backup cuối cùng)
+    ]
+
+    # Xử lý Prompt
     if len(prompt) < 10 and "chào" in prompt.lower():
         full_prompt = f"Người dùng nói: '{prompt}'. Hãy trả lời chào hỏi lịch sự với tư cách Đại úy Phạm Tùng Linh."
     else:
-        # Cắt context an toàn 150k
-        if len(context) > 150000: context = context[:150000]
-        
-        # Đưa Rules vào thẳng Prompt (Cách cũ nhưng an toàn nhất)
+        # Cắt context an toàn
+        if len(context) > 200000: context = context[:200000]
         full_prompt = f"""
         {SYSTEM_PROMPT_CONTENT}
-        
         ----------------------------------
         DỮ LIỆU THAM KHẢO (ĐÃ ƯU TIÊN 189, 106):
         {context}
         ----------------------------------
-        
         CÂU HỎI: "{prompt}"
         """
     
     last_error = ""
-    for attempt in range(3):
+    
+    # Vòng lặp thử từng Model
+    for model_name in MODELS_TO_TRY:
         try:
             api_key = get_random_key()
             genai.configure(api_key=api_key)
             
-            # Dùng model cơ bản, không system_instruction riêng để tránh lỗi version
-            model = genai.GenerativeModel('gemini-1.5-flash') 
+            # Khởi tạo model
+            model = genai.GenerativeModel(model_name)
             
+            # Gửi lệnh
             response = model.generate_content(full_prompt)
-            return response.text
+            return response.text # Thành công -> Trả về ngay
             
         except Exception as e:
             last_error = str(e)
+            # Nếu lỗi 404 (Không tìm thấy model) -> Thử cái tiếp theo
+            if "404" in last_error or "not found" in last_error.lower():
+                continue
             time.sleep(1)
             continue
             
-    # NẾU VẪN LỖI -> IN RA LỖI THẬT ĐỂ BIẾT ĐƯỜNG SỬA
-    return f"⚠️ Lỗi hệ thống: {last_error}. (Hãy chụp màn hình lỗi này gửi kỹ thuật)"
+    # Nếu tất cả đều chết -> Báo lỗi thật
+    return f"⚠️ Lỗi kết nối API: {last_error}. (Đại úy vui lòng kiểm tra lại API Key hoặc Quota)"
 
 # --- 5. NẠP DỮ LIỆU ---
 @st.cache_data(ttl=7200, show_spinner=False)
-def load_data_simple():
+def load_data_v5():
     try:
         creds = service_account.Credentials.from_service_account_info(GCP_JSON)
         service = build('drive', 'v3', credentials=creds)
@@ -184,10 +192,10 @@ def load_data_simple():
     except Exception as e: return None, [str(e)]
 
 # --- 6. GIAO DIỆN ---
-st.markdown("""<div class="header-banner"><p style="font-size: 26px; margin:0">TRỢ LÝ PCCC (DEBUG)</p></div>""", unsafe_allow_html=True)
+st.markdown("""<div class="header-banner"><p style="font-size: 26px; margin:0">TRỢ LÝ PCCC (GEMINI 2.0)</p></div>""", unsafe_allow_html=True)
 
-with st.spinner('🚀 Đang khởi động...'):
-    data_store, file_logs = load_data_simple()
+with st.spinner('🚀 Đang kích hoạt Gemini 2.0...'):
+    data_store, file_logs = load_data_v5()
 
 if not data_store:
     st.error(f"❌ Lỗi dữ liệu: {file_logs[0] if file_logs else 'Unknown'}")
@@ -195,10 +203,6 @@ if not data_store:
 
 # SIDEBAR DEBUG
 with st.sidebar:
-    st.header("🔍 TRẠNG THÁI API")
-    if API_KEYS_LIST: st.success(f"Đã nạp {len(API_KEYS_LIST)} API Key")
-    
-    st.divider()
     st.header("🔍 DỮ LIỆU")
     if any("189" in l for l in file_logs): st.success("✅ Có NĐ 189")
     else: st.error("❌ Thiếu NĐ 189")
@@ -232,11 +236,10 @@ if prompt := st.chat_input("Nhập câu hỏi..."):
 
     with st.chat_message("assistant", avatar="🚒"):
         msg_area = st.empty()
-        msg_area.markdown("⚡ *Đang xử lý...*")
+        msg_area.markdown("⚡ *Đang xử lý (Gemini 2.0 Priority)...*")
         
         final_context = "\n".join(ctx)
-        # GỌI HÀM DEBUG
-        response = call_gemini_debug(prompt, final_context)
+        response = call_gemini_2_0(prompt, final_context)
         
         msg_area.markdown(response)
         st.session_state.messages.append({"role": "assistant", "content": response})
