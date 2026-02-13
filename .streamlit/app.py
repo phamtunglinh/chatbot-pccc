@@ -1,5 +1,5 @@
 import streamlit as st
-import google.generativeai as genai # Dùng thư viện chính hãng
+import google.generativeai as genai
 import json
 import time
 import random
@@ -11,22 +11,34 @@ from pypdf import PdfReader
 import io
 
 # --- 1. CẤU HÌNH ---
-st.set_page_config(page_title="PCCC PC07 (SDK Stable)", page_icon="🛡️", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title="PCCC PC07 (Debug Mode)", page_icon="🛠️", layout="wide", initial_sidebar_state="expanded")
 st.markdown("""<style>.header-banner {background: linear-gradient(90deg, #B71C1C 0%, #D32F2F 100%); padding: 1.5rem; color: white; text-align: center; margin-top: -50px; border-radius: 0 0 15px 15px;} .stChatInput {border-radius: 20px;}</style>""", unsafe_allow_html=True)
 
-# --- 2. KẾT NỐI ---
+# --- 2. KẾT NỐI API (CÓ KIỂM TRA LỖI) ---
+API_KEYS_LIST = []
 try:
-    if "GEMINI_API_KEYS" in st.secrets: keys_string = st.secrets["GEMINI_API_KEYS"]
-    else: keys_string = st.secrets["GEMINI_API_KEY"]
-    API_KEYS_LIST = [k.strip() for k in keys_string.split(",") if k.strip()]
+    # Hỗ trợ cả 2 kiểu khai báo trong secrets
+    if "GEMINI_API_KEYS" in st.secrets: 
+        keys_string = st.secrets["GEMINI_API_KEYS"]
+        API_KEYS_LIST = [k.strip() for k in keys_string.split(",") if k.strip()]
+    elif "GEMINI_API_KEY" in st.secrets:
+        API_KEYS_LIST = [st.secrets["GEMINI_API_KEY"]]
+    
+    if not API_KEYS_LIST:
+        st.error("❌ LỖI: Không tìm thấy API Key trong Secrets!")
+        st.stop()
+        
     DRIVE_FOLDER_ID = st.secrets["DRIVE_FOLDER_ID"]
     GCP_JSON = json.loads(st.secrets["GCP_JSON"])
-except: st.error("⚠️ Lỗi cấu hình Secrets."); st.stop()
+except Exception as e:
+    st.error(f"⚠️ Lỗi cấu hình Secrets: {str(e)}")
+    st.stop()
 
 def get_random_key(): return random.choice(API_KEYS_LIST)
 
-# --- 3. BỘ NÃO TƯ DUY (RULES BẤT DI BẤT DỊCH) ---
-ALGORITHMS_INSTRUCTION = """
+# --- 3. BỘ NÃO TƯ DUY (ĐƯA VÀO PROMPT ĐỂ TƯƠNG THÍCH MỌI PHIÊN BẢN) ---
+# Tôi đưa Rules vào đây để đảm bảo thư viện cũ hay mới đều hiểu được
+SYSTEM_PROMPT_CONTENT = """
 VAI TRÒ: Đại úy Phạm Tùng Linh - Chuyên gia Nghiệp vụ PCCC & CNCH.
 
 ⚡ DỮ LIỆU ĐƯỢC CUNG CẤP:
@@ -43,9 +55,9 @@ VAI TRÒ: Đại úy Phạm Tùng Linh - Chuyên gia Nghiệp vụ PCCC & CNCH.
 🔴 QUY TRÌNH 1: XÁC ĐỊNH THẨM QUYỀN QUẢN LÝ (NĐ 105)
     BƯỚC 1: KIỂM TRA DỮ LIỆU ĐẦU VÀO (Diện tích, Tầng, Khối tích, Công năng).
     BƯỚC 2: XÁC ĐỊNH CÔNG NĂNG CHÍNH (QUY TẮC 70%)
-    - > 70% diện tích -> Công năng chính.
+    - Công năng > 70% diện tích -> Là công năng chính.
     - Nhà ở > 70% -> Nhà ở kết hợp SXKD.
-    - Không có > 70% -> NHÀ HỖN HỢP.
+    - Không có cái nào > 70% -> NHÀ HỖN HỢP.
     BƯỚC 3: ĐỐI CHIẾU PHỤ LỤC (Nghị định 105/2025).
     BƯỚC 4: KẾT LUẬN (ƯU TIÊN TUYỆT ĐỐI)
     - Có tên trong Phụ lục II -> PC07 quản lý.
@@ -56,7 +68,7 @@ VAI TRÒ: Đại úy Phạm Tùng Linh - Chuyên gia Nghiệp vụ PCCC & CNCH.
     - Tìm hành vi (dùng kỹ năng suy luận).
     - Xác định Mức phạt tiền (Cá nhân & Tổ chức).
     BƯỚC 2: SÀNG LỌC THẨM QUYỀN (NĐ 189)
-    - So sánh mức phạt tối đa với quyền hạn các chức danh.
+    - So sánh mức phạt tối đa với quyền hạn của các chức danh.
     - LOẠI BỎ NGAY chức danh không đủ tiền hoặc không đủ quyền phạt bổ sung.
     BƯỚC 3: TRÌNH BÀY (FORM MẪU):
     1. Hành vi: [Tên pháp lý]
@@ -69,49 +81,53 @@ VAI TRÒ: Đại úy Phạm Tùng Linh - Chuyên gia Nghiệp vụ PCCC & CNCH.
        - [Chức danh B]: Quyền phạt ... -> ĐỦ/KHÔNG.
     5. Đề xuất: Trình [Chức danh thấp nhất đủ quyền] ra quyết định.
 
-🟢 QUY TRÌNH 3: TRANG BỊ KỸ THUẬT (QCVN 10)
-    - Tra cứu Bảng biểu -> Liệt kê hệ thống bắt buộc.
-
-🛑 NGUYÊN TẮC VÀNG: KHÔNG trả lời chung chung. TRÍCH DẪN CỤ THỂ.
+🛑 NGUYÊN TẮC VÀNG: TRẢ LỜI NGẮN GỌN, TRÍCH DẪN CỤ THỂ.
 """
 
-# --- 4. HÀM GỌI AI (DÙNG SDK CHÍNH HÃNG - SIÊU ỔN ĐỊNH) ---
-def call_gemini_sdk(prompt, context):
-    # Cắt context an toàn (300k ký tự)
-    if len(context) > 300000: context = context[:300000]
+# --- 4. HÀM GỌI AI (HIỆN LỖI THẬT) ---
+def call_gemini_debug(prompt, context):
+    # Nếu câu hỏi quá ngắn (Chào hỏi), bỏ qua context để trả lời nhanh
+    if len(prompt) < 10 and "chào" in prompt.lower():
+        full_prompt = f"Người dùng nói: '{prompt}'. Hãy trả lời chào hỏi lịch sự với tư cách Đại úy Phạm Tùng Linh."
+    else:
+        # Cắt context an toàn 150k
+        if len(context) > 150000: context = context[:150000]
+        
+        # Đưa Rules vào thẳng Prompt (Cách cũ nhưng an toàn nhất)
+        full_prompt = f"""
+        {SYSTEM_PROMPT_CONTENT}
+        
+        ----------------------------------
+        DỮ LIỆU THAM KHẢO (ĐÃ ƯU TIÊN 189, 106):
+        {context}
+        ----------------------------------
+        
+        CÂU HỎI: "{prompt}"
+        """
     
-    full_prompt = f"""
-    DỮ LIỆU THAM KHẢO (ĐÃ ƯU TIÊN 189, 106):
-    {context}
-    
-    CÂU HỎI: "{prompt}"
-    """
-    
-    # Thử tối đa 3 lần đổi key nếu lỗi
+    last_error = ""
     for attempt in range(3):
         try:
             api_key = get_random_key()
             genai.configure(api_key=api_key)
             
-            # Cấu hình model
-            model = genai.GenerativeModel(
-                model_name='gemini-1.5-flash',
-                system_instruction=ALGORITHMS_INSTRUCTION # Nạp Rule vào não
-            )
+            # Dùng model cơ bản, không system_instruction riêng để tránh lỗi version
+            model = genai.GenerativeModel('gemini-1.5-flash') 
             
-            # Gửi lệnh
             response = model.generate_content(full_prompt)
             return response.text
             
         except Exception as e:
-            time.sleep(1) # Nghỉ 1s rồi thử key khác
+            last_error = str(e)
+            time.sleep(1)
             continue
             
-    return "⚠️ Hệ thống đang bảo trì kết nối. Vui lòng thử lại sau giây lát."
+    # NẾU VẪN LỖI -> IN RA LỖI THẬT ĐỂ BIẾT ĐƯỜNG SỬA
+    return f"⚠️ Lỗi hệ thống: {last_error}. (Hãy chụp màn hình lỗi này gửi kỹ thuật)"
 
-# --- 5. NẠP DỮ LIỆU (CƠ CHẾ SĂN TÌM VIP) ---
+# --- 5. NẠP DỮ LIỆU ---
 @st.cache_data(ttl=7200, show_spinner=False)
-def load_data_sdk():
+def load_data_simple():
     try:
         creds = service_account.Credentials.from_service_account_info(GCP_JSON)
         service = build('drive', 'v3', credentials=creds)
@@ -136,7 +152,6 @@ def load_data_sdk():
             processed.add(f['id'])
             name = f['name'].lower()
 
-            # Lọc rác (144, 136)
             if "144" in name and "106" not in name and "189" not in name: continue
             if "136" in name and "105" not in name: continue
 
@@ -166,22 +181,29 @@ def load_data_sdk():
                     logs.append(f"✅ {f['name']}")
             except: continue
         return buckets, logs
-    except: return None, []
+    except Exception as e: return None, [str(e)]
 
 # --- 6. GIAO DIỆN ---
-st.markdown("""<div class="header-banner"><p style="font-size: 26px; margin:0">TRỢ LÝ PCCC (CÔNG NGHỆ SDK)</p></div>""", unsafe_allow_html=True)
+st.markdown("""<div class="header-banner"><p style="font-size: 26px; margin:0">TRỢ LÝ PCCC (DEBUG)</p></div>""", unsafe_allow_html=True)
 
-with st.spinner('🚀 Đang kết nối SDK & Nạp Rules...'):
-    data_store, file_logs = load_data_sdk()
+with st.spinner('🚀 Đang khởi động...'):
+    data_store, file_logs = load_data_simple()
 
-if not data_store: st.error("❌ Lỗi dữ liệu."); st.stop()
+if not data_store:
+    st.error(f"❌ Lỗi dữ liệu: {file_logs[0] if file_logs else 'Unknown'}")
+    st.stop()
 
-# SIDEBAR CHECK
+# SIDEBAR DEBUG
 with st.sidebar:
-    st.header("TRẠNG THÁI")
-    if any("189" in l for l in file_logs): st.success("✅ Đã nạp NĐ 189")
+    st.header("🔍 TRẠNG THÁI API")
+    if API_KEYS_LIST: st.success(f"Đã nạp {len(API_KEYS_LIST)} API Key")
+    
+    st.divider()
+    st.header("🔍 DỮ LIỆU")
+    if any("189" in l for l in file_logs): st.success("✅ Có NĐ 189")
     else: st.error("❌ Thiếu NĐ 189")
-    with st.expander("File đã nạp"):
+    
+    with st.expander("File chi tiết"):
         for l in file_logs: st.text(l)
 
 # CHAT
@@ -193,37 +215,28 @@ if prompt := st.chat_input("Nhập câu hỏi..."):
     st.session_state.messages.append({"role": "user", "content": prompt})
     st.chat_message("user", avatar="👤").write(prompt)
     
-    # ROUTER (ĐỊNH TUYẾN)
+    # ROUTER
     p_lower = prompt.lower()
     ctx = []
     
-    # XỬ PHẠT
     if any(x in p_lower for x in ["phạt", "tiền", "thẩm quyền", "ai ký", "lỗi", "hồ sơ", "thiếu"]):
-        ctx.extend([x for x in data_store["xp"] if "189" in x]) # Ưu tiên 189
+        ctx.extend([x for x in data_store["xp"] if "189" in x]) 
         ctx.extend([x for x in data_store["xp"] if "106" in x])
-        ctx.extend(data_store["ql"])
-        
-    # QUẢN LÝ
+        ctx.extend(data_store["ql"]) 
     elif any(x in p_lower for x in ["quản lý", "phân cấp", "karaoke"]):
         ctx.extend(data_store["ql"])
-        
-    # KỸ THUẬT
     elif any(x in p_lower for x in ["trang bị", "lắp đặt"]):
         ctx.extend(data_store["kt"])
-        
-    # MẶC ĐỊNH (Cho câu Xin chào...)
     else:
-        ctx.extend(data_store["ql"]) 
-
-    # Nếu ctx vẫn rỗng (trường hợp lạ), lấy hết
-    if not ctx: ctx = data_store["ql"] + data_store["xp"]
+        ctx.extend(data_store["ql"] + data_store["xp"])
 
     with st.chat_message("assistant", avatar="🚒"):
         msg_area = st.empty()
         msg_area.markdown("⚡ *Đang xử lý...*")
         
         final_context = "\n".join(ctx)
-        response = call_gemini_sdk(prompt, final_context)
+        # GỌI HÀM DEBUG
+        response = call_gemini_debug(prompt, final_context)
         
         msg_area.markdown(response)
         st.session_state.messages.append({"role": "assistant", "content": response})
