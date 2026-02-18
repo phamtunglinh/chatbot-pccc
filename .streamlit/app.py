@@ -11,7 +11,7 @@ from pypdf import PdfReader
 import io
 
 # --- 1. CẤU HÌNH GIAO DIỆN ---
-st.set_page_config(page_title="PCCC PC07 (Multi-Key Scan)", page_icon="🛡️", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title="PCCC PC07 (Legacy Support)", page_icon="🛡️", layout="wide", initial_sidebar_state="expanded")
 st.markdown("""
 <style>
     .header-banner {background: linear-gradient(90deg, #B71C1C 0%, #D32F2F 100%); padding: 1.5rem; color: white; text-align: center; margin-top: -50px; border-radius: 0 0 15px 15px;}
@@ -21,10 +21,9 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- 2. KẾT NỐI API (XỬ LÝ ĐA KEY) ---
+# --- 2. KẾT NỐI API (ĐA KEY) ---
 API_KEYS_LIST = []
 if "GEMINI_API_KEYS" in st.secrets: 
-    # Tự động tách dấu phẩy, xóa khoảng trắng thừa
     keys_string = st.secrets["GEMINI_API_KEYS"]
     API_KEYS_LIST = [k.strip() for k in keys_string.split(",") if k.strip()]
 elif "GEMINI_API_KEY" in st.secrets:
@@ -33,7 +32,7 @@ elif "GEMINI_API_KEY" in st.secrets:
 if not API_KEYS_LIST:
     with st.sidebar:
         st.warning("⚠️ Chưa có API Key.")
-        manual_key = st.text_input("Nhập API Key (phân cách bằng dấu phẩy):", type="password")
+        manual_key = st.text_input("Nhập API Key:", type="password")
         if manual_key: 
             API_KEYS_LIST = [k.strip() for k in manual_key.split(",") if k.strip()]
 
@@ -46,7 +45,7 @@ try:
     GCP_JSON = json.loads(st.secrets["GCP_JSON"])
 except: pass
 
-# --- 4. BỘ NÃO THAM MƯU (SMART ROUTER) ---
+# --- 4. BỘ NÃO THAM MƯU (ROUTER - CÓ FALLBACK CŨ) ---
 ROUTER_INSTRUCTION = """
 Bạn là Tham mưu trưởng PCCC. Nhiệm vụ: PHÂN TÍCH CÂU HỎI để chọn tài liệu CHÍNH XÁC.
 
@@ -67,18 +66,24 @@ OUTPUT: Chỉ trả về danh sách tên file, ngăn cách bằng dấu phẩy.
 """
 
 def smart_router(user_query, available_files):
-    # Router dùng 1.5 Flash và lấy Key ngẫu nhiên cho nhanh
     file_list_str = ", ".join(available_files)
     prompt = f"""{ROUTER_INSTRUCTION}\n\nDANH SÁCH FILE: {file_list_str}\n\nCÂU HỎI: "{user_query}"\n\nCHỌN TÀI LIỆU:"""
-    try:
-        api_key = random.choice(API_KEYS_LIST)
-        genai.configure(api_key=api_key)
-        model = genai.GenerativeModel('gemini-1.5-flash')
-        response = model.generate_content(prompt)
-        return response.text.strip()
-    except: return ""
+    
+    # Danh sách model để Router thử (Thử cái mới, không được thì dùng cái cũ)
+    ROUTER_MODELS = ['gemini-1.5-flash', 'gemini-pro']
+    
+    for model_name in ROUTER_MODELS:
+        try:
+            api_key = random.choice(API_KEYS_LIST)
+            genai.configure(api_key=api_key)
+            model = genai.GenerativeModel(model_name)
+            response = model.generate_content(prompt)
+            return response.text.strip()
+        except: continue # Nếu lỗi model này thì thử model kia
+            
+    return ""
 
-# --- 5. BỘ NÃO CHUYÊN GIA (EXPERT - QUÉT CẠN KIỆT KEY & MODEL) ---
+# --- 5. BỘ NÃO CHUYÊN GIA (EXPERT - THÊM MODEL CŨ) ---
 SYSTEM_PROMPT_EXPERT = """
 VAI TRÒ: Đại úy Phạm Tùng Linh - Chuyên gia Pháp chế PCCC PC07 Phú Thọ.
 
@@ -95,12 +100,12 @@ VAI TRÒ: Đại úy Phạm Tùng Linh - Chuyên gia Pháp chế PCCC PC07 Phú 
 """
 
 def call_gemini_expert_exhaustive(prompt, context):
-    # DANH SÁCH MODEL MỤC TIÊU (Ưu tiên từ cao xuống thấp)
+    # DANH SÁCH MỤC TIÊU (Thêm 'gemini-pro' vào cuối để chống lỗi 404)
     TARGET_MODELS = [
-        "gemini-2.0-flash",       # Mục tiêu số 1
-        "gemini-2.0-flash-exp",   # Mục tiêu số 2
-        "gemini-1.5-pro",         # Mục tiêu số 3
-        "gemini-1.5-flash"        # Mục tiêu số 4 (Chống cháy)
+        "gemini-2.0-flash",       # Mục tiêu 1: Siêu cấp
+        "gemini-1.5-pro",         # Mục tiêu 2: Thông minh
+        "gemini-1.5-flash",       # Mục tiêu 3: Ổn định
+        "gemini-pro"              # Mục tiêu 4: LEGACY (Bản cũ - Chắc chắn chạy được)
     ]
     
     if not context: 
@@ -109,33 +114,29 @@ def call_gemini_expert_exhaustive(prompt, context):
         full_prompt = f"{SYSTEM_PROMPT_EXPERT}\n\n=== TÀI LIỆU ===\n{context}\n\n=== CÂU HỎI ===\n{prompt}"
 
     last_error = ""
-    status_placeholder = st.empty() # Để hiện trạng thái đang thử
+    status_placeholder = st.empty()
     
-    # VÒNG LẶP KÉP: DUYỆT TỪNG MODEL -> DUYỆT TỪNG KEY
+    # VÒNG LẶP KÉP
     for model_name in TARGET_MODELS:
         for index, key in enumerate(API_KEYS_LIST):
             try:
-                # Thông báo nhỏ cho người dùng biết đang làm gì
                 status_placeholder.text(f"🔄 Đang thử {model_name} với Key số {index + 1}...")
                 
-                # Cấu hình Key này
                 genai.configure(api_key=key)
                 model = genai.GenerativeModel(model_name)
                 
-                # Gửi lệnh (Timeout 60s)
+                # Timeout 60s
                 response = model.generate_content(full_prompt, request_options={'timeout': 60})
                 
-                # Nếu thành công -> Xóa dòng thông báo trạng thái và trả về ngay
                 status_placeholder.empty()
                 return response.text, model_name, index + 1
                 
             except Exception as e:
-                # Nếu lỗi -> Ghi nhận và thử Key tiếp theo
                 last_error = str(e)
                 continue
     
     status_placeholder.empty()
-    return f"⚠️ Đã thử tất cả {len(API_KEYS_LIST)} Key với {len(TARGET_MODELS)} Model nhưng đều thất bại. Lỗi cuối: {last_error}", "None", 0
+    return f"⚠️ Đã thử hết {len(TARGET_MODELS)} loại Model với {len(API_KEYS_LIST)} Key nhưng đều thất bại. Lỗi cuối: {last_error}", "None", 0
 
 # --- 6. NẠP DỮ LIỆU ---
 @st.cache_data(ttl=7200, show_spinner=False)
@@ -186,7 +187,7 @@ def load_database_final():
     except Exception as e: return None, [str(e)]
 
 # --- 7. GIAO DIỆN CHÍNH ---
-st.markdown("""<div class="header-banner"><p style="font-size: 26px; margin:0">TRỢ LÝ PCCC (MULTI-KEY SCAN)</p></div>""", unsafe_allow_html=True)
+st.markdown("""<div class="header-banner"><p style="font-size: 26px; margin:0">TRỢ LÝ PCCC (LEGACY SUPPORT)</p></div>""", unsafe_allow_html=True)
 
 with st.spinner('🚀 Đang khởi động...'):
     database, logs = load_database_final()
@@ -197,7 +198,7 @@ if not database: st.error(f"❌ Lỗi dữ liệu: {logs[0]}"); st.stop()
 with st.sidebar:
     st.header("⚙️ CẤU HÌNH")
     st.success(f"🔑 Đã nạp: **{len(API_KEYS_LIST)} API Key**")
-    st.info("💡 Hệ thống sẽ tự động thử từng Key với từng Model (2.0 -> 1.5) cho đến khi thành công.")
+    st.info("💡 Hệ thống hỗ trợ cả thư viện cũ (Gemini 1.0) và mới (Gemini 2.0).")
     
     st.divider()
     st.header("KHO DỮ LIỆU")
@@ -244,18 +245,17 @@ if prompt := st.chat_input("Nhập câu hỏi..."):
             router_box.empty()
         else: router_box.empty()
             
-        # BƯỚC 3: TRẢ LỜI (EXHAUSTIVE SCAN)
+        # BƯỚC 3: TRẢ LỜI
         response_text, used_model, used_key_idx = call_gemini_expert_exhaustive(prompt, relevant_context)
         
         st.markdown(response_text)
         
-        # Hiển thị thông tin kỹ thuật đã dùng
         if used_model != "None":
             st.markdown(f"""
             <div class="success-box">
             ✅ Kết nối thành công!<br>
             - Model: <b>{used_model}</b><br>
-            - API Key: <b>Số {used_key_idx}</b> (trong danh sách {len(API_KEYS_LIST)} key)
+            - API Key: <b>Số {used_key_idx}</b>
             </div>
             """, unsafe_allow_html=True)
         
