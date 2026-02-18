@@ -10,127 +10,137 @@ from docx import Document
 from pypdf import PdfReader
 import io
 
-# --- 1. CẤU HÌNH ---
-st.set_page_config(page_title="PCCC PC07 (Ultimate Intelligence)", page_icon="🛡️", layout="wide", initial_sidebar_state="expanded")
-st.markdown("""<style>.header-banner {background: linear-gradient(90deg, #B71C1C 0%, #D32F2F 100%); padding: 1.5rem; color: white; text-align: center; margin-top: -50px; border-radius: 0 0 15px 15px;} .stChatInput {border-radius: 20px;} .citation-box {background-color: #f0f2f6; padding: 10px; border-radius: 5px; border-left: 5px solid #d32f2f; margin-top: 10px; font-size: 0.9em;}</style>""", unsafe_allow_html=True)
+# --- 1. CẤU HÌNH GIAO DIỆN ---
+st.set_page_config(page_title="PCCC PC07 (Multi-Key Scan)", page_icon="🛡️", layout="wide", initial_sidebar_state="expanded")
+st.markdown("""
+<style>
+    .header-banner {background: linear-gradient(90deg, #B71C1C 0%, #D32F2F 100%); padding: 1.5rem; color: white; text-align: center; margin-top: -50px; border-radius: 0 0 15px 15px;}
+    .stChatInput {border-radius: 20px;}
+    .router-box {background-color: #e3f2fd; padding: 10px; border-radius: 5px; border-left: 5px solid #2196f3; margin-bottom: 10px; font-size: 0.9em;}
+    .success-box {background-color: #e8f5e9; padding: 5px; border-radius: 5px; font-size: 0.8em; color: #2e7d32; margin-top: 5px;}
+</style>
+""", unsafe_allow_html=True)
 
-# --- 2. KẾT NỐI API ---
+# --- 2. KẾT NỐI API (XỬ LÝ ĐA KEY) ---
 API_KEYS_LIST = []
+if "GEMINI_API_KEYS" in st.secrets: 
+    # Tự động tách dấu phẩy, xóa khoảng trắng thừa
+    keys_string = st.secrets["GEMINI_API_KEYS"]
+    API_KEYS_LIST = [k.strip() for k in keys_string.split(",") if k.strip()]
+elif "GEMINI_API_KEY" in st.secrets:
+    API_KEYS_LIST = [st.secrets["GEMINI_API_KEY"]]
+
+if not API_KEYS_LIST:
+    with st.sidebar:
+        st.warning("⚠️ Chưa có API Key.")
+        manual_key = st.text_input("Nhập API Key (phân cách bằng dấu phẩy):", type="password")
+        if manual_key: 
+            API_KEYS_LIST = [k.strip() for k in manual_key.split(",") if k.strip()]
+
+if not API_KEYS_LIST: st.error("❌ Vui lòng nhập API Key."); st.stop()
+
+# --- 3. CẤU HÌNH DRIVE ---
+DRIVE_FOLDER_ID = ""; GCP_JSON = {}
 try:
-    if "GEMINI_API_KEYS" in st.secrets: 
-        keys_string = st.secrets["GEMINI_API_KEYS"]
-        API_KEYS_LIST = [k.strip() for k in keys_string.split(",") if k.strip()]
-    elif "GEMINI_API_KEY" in st.secrets:
-        API_KEYS_LIST = [st.secrets["GEMINI_API_KEY"]]
-    
-    if not API_KEYS_LIST: st.error("❌ LỖI: Không tìm thấy API Key!"); st.stop()
     DRIVE_FOLDER_ID = st.secrets["DRIVE_FOLDER_ID"]
     GCP_JSON = json.loads(st.secrets["GCP_JSON"])
-except Exception as e: st.error(f"⚠️ Lỗi cấu hình: {str(e)}"); st.stop()
+except: pass
 
-def get_random_key(): return random.choice(API_KEYS_LIST)
-
-# --- 3. BỘ NÃO THAM MƯU (SMART ROUTER - ĐẦY ĐỦ QUY TẮC CHỌN SÁCH) ---
+# --- 4. BỘ NÃO THAM MƯU (SMART ROUTER) ---
 ROUTER_INSTRUCTION = """
-Bạn là Tham mưu trưởng PCCC. Nhiệm vụ: PHÂN TÍCH CÂU HỎI để chọn tài liệu TIẾT KIỆM nhưng CHÍNH XÁC NHẤT:
+Bạn là Tham mưu trưởng PCCC. Nhiệm vụ: PHÂN TÍCH CÂU HỎI để chọn tài liệu CHÍNH XÁC.
 
-1. GIỎ PHÁP LÝ & QUẢN LÝ:
-   - Tài liệu: Luật PCCC, NĐ 105, TT 36.
-   - Dấu hiệu: Thẩm duyệt, nghiệm thu, hồ sơ quản lý, phân cấp quản lý.
+1. GIỎ PHÁP LÝ & QUẢN LÝ: [Luật PCCC], [Nghị định 105], [Thông tư 36].
+   - Quy tắc: Hỏi "Trách nhiệm" hoặc "Hồ sơ" -> BẮT BUỘC CHỌN CẢ 3.
 
-2. GIỎ XỬ PHẠT (QUY TẮC TÁCH BIỆT):
-   - Tài liệu cốt lõi: Nghị định 106 (Mức phạt).
-   - Tài liệu bổ sung: Nghị định 189 (Thẩm quyền).
-   - QUY TẮC CHỌN:
-     + Nếu chỉ hỏi "Phạt bao nhiêu", "Lỗi này bị sao" -> CHỈ CHỌN [NĐ 106]. (Không cần 189).
-     + Nếu hỏi "Ai phạt", "Ai ký", "Thẩm quyền", "Công an xã phạt được không" -> CHỌN CẢ [NĐ 106] VÀ [NĐ 189].
+2. GIỎ XỬ PHẠT: [Nghị định 106], [Nghị định 189].
+   - Quy tắc: Hỏi tiền -> [106]. Hỏi quyền -> [106] + [189].
 
-3. GIỎ LỰC LƯỢNG:
-   - Tài liệu: TT 37, TT 48.
-   - Dấu hiệu: Đội PCCC cơ sở, trang phục, huấn luyện.
+3. GIỎ LỰC LƯỢNG: [Thông tư 37], [Thông tư 48].
 
-4. GIỎ HUY ĐỘNG:
-   - Tài liệu: Công văn huy động lực lượng.
-   - Dấu hiệu: Điều động xe, chi viện.
+4. GIỎ HUY ĐỘNG: [Công văn huy động].
 
-5. GIỎ KỸ THUẬT & TRANG BỊ:
-   - Tài liệu: QCVN 10 (Trang bị), QCVN 06 (Thoát nạn).
-   - Dấu hiệu: Trang bị hệ thống gì, lắp đặt, cầu thang, lối thoát.
-   - QUY TẮC CỨNG: Hỏi về "trang bị phương tiện" -> BẮT BUỘC chọn [QCVN 10].
+5. GIỎ KỸ THUẬT: [QCVN 10], [QCVN 06].
+   - Quy tắc: Hỏi trang bị/lắp đặt -> BẮT BUỘC CHỌN [QCVN 10].
 
-OUTPUT: Chỉ trả về danh sách tên file cần thiết có trong kho, ngăn cách bằng dấu phẩy.
+OUTPUT: Chỉ trả về danh sách tên file, ngăn cách bằng dấu phẩy.
 """
 
 def smart_router(user_query, available_files):
+    # Router dùng 1.5 Flash và lấy Key ngẫu nhiên cho nhanh
     file_list_str = ", ".join(available_files)
-    prompt = f"""{ROUTER_INSTRUCTION}\n\nDANH SÁCH FILE HIỆN CÓ: {file_list_str}\n\nCÂU HỎI: "{user_query}"\n\nCHỌN TÀI LIỆU:"""
+    prompt = f"""{ROUTER_INSTRUCTION}\n\nDANH SÁCH FILE: {file_list_str}\n\nCÂU HỎI: "{user_query}"\n\nCHỌN TÀI LIỆU:"""
     try:
-        api_key = get_random_key()
+        api_key = random.choice(API_KEYS_LIST)
         genai.configure(api_key=api_key)
         model = genai.GenerativeModel('gemini-1.5-flash')
         response = model.generate_content(prompt)
         return response.text.strip()
     except: return ""
 
-# --- 4. BỘ NÃO CHUYÊN GIA (EXPERT - ĐẦY ĐỦ RULE NGHIỆP VỤ) ---
+# --- 5. BỘ NÃO CHUYÊN GIA (EXPERT - QUÉT CẠN KIỆT KEY & MODEL) ---
 SYSTEM_PROMPT_EXPERT = """
 VAI TRÒ: Đại úy Phạm Tùng Linh - Chuyên gia Pháp chế PCCC PC07 Phú Thọ.
 
 🚫 NGUYÊN TẮC CỐT TỬ (GROUNDING):
-1. TUYỆT ĐỐI KHÔNG SÁNG TẠO: Chỉ trả lời dựa trên tài liệu được cung cấp. Nếu không có -> Nói "Không có thông tin".
+1. TUYỆT ĐỐI KHÔNG SÁNG TẠO: Chỉ trả lời dựa trên tài liệu được cung cấp.
 2. TRÍCH DẪN CHÍNH XÁC: Phải ghi rõ nguồn (Điểm, Khoản, Điều, Văn bản).
 
-⚡ QUY TRÌNH NGHIỆP VỤ (LOGIC BẮT BUỘC):
-
-1️⃣ KỸ NĂNG MAPPING (DỊCH LỖI):
-   - Dân nói: "Không có/thiếu" -> Dịch sang luật: "Không lập/Không trang bị đầy đủ".
-   - Dân nói: "Hồ sơ" -> Dịch sang luật: "Vi phạm quy định về hồ sơ quản lý".
-
-2️⃣ QUY TRÌNH XỬ PHẠT (NĐ 106 & 189):
-   - B1: Tìm hành vi trong NĐ 106 -> Lấy mức phạt tiền (Cá nhân & Tổ chức).
-   - B2 (QUAN TRỌNG - CHỈ KHI CÓ NĐ 189): So sánh mức phạt tối đa của khung tiền với thẩm quyền:
-     + Trưởng CA Xã: Phạt đến ...
-     + Trưởng CA Huyện: Phạt đến ...
-     + Trưởng Phòng PC07: Phạt đến ...
-     + Giám đốc CA Tỉnh: Phạt đến ...
-   - B3: Kết luận "Ai là chức danh thấp nhất có đủ quyền ký phạt?".
-
-3️⃣ QUY TRÌNH QUẢN LÝ (NĐ 105):
-   - B1: Kiểm tra số liệu (Diện tích, Tầng, Khối tích).
-   - B2: Áp dụng QUY TẮC 70%: Công năng chính > 70% diện tích (Nếu không có -> Hỗn hợp).
-   - B3: Đối chiếu Phụ lục I & II NĐ 105.
-   - B4: Kết luận: Có trong Phụ lục II -> PC07 quản lý. Còn lại -> Huyện/Xã.
-
-4️⃣ QUY TRÌNH TRANG BỊ KỸ THUẬT (QCVN 10):
-   - B1: Xác định loại hình cơ sở (Kho, Xưởng, Karaoke...).
-   - B2: Tra cứu Bảng quy định trong QCVN 10.
-   - B3: Liệt kê hệ thống bắt buộc.
-   - B4: Trích dẫn cụ thể (Ví dụ: "Theo Bảng 1, Mục 5, QCVN 10:2025").
-
-5️⃣ CÁC CÂU HỎI KHÁC: Trả lời ngắn gọn theo văn bản (TT 37, TT 48...).
+⚡ QUY TRÌNH NGHIỆP VỤ (FULL):
+1. Dịch lỗi dân gian sang luật.
+2. Hỏi Trách nhiệm/Hồ sơ: Tổng hợp Luật -> NĐ 105 -> TT 36.
+3. Hỏi Phạt: Tra tiền (NĐ 106) -> Tra quyền (NĐ 189, nếu có) -> Kết luận.
+4. Hỏi Quản lý: Quy tắc 70% -> Phụ lục NĐ 105.
+5. Hỏi Kỹ thuật: Tra Bảng QCVN 10 -> Liệt kê hệ thống.
 """
 
-def call_gemini_expert(prompt, context):
-    models = ["gemini-2.0-flash", "gemini-1.5-pro", "gemini-1.5-flash"]
+def call_gemini_expert_exhaustive(prompt, context):
+    # DANH SÁCH MODEL MỤC TIÊU (Ưu tiên từ cao xuống thấp)
+    TARGET_MODELS = [
+        "gemini-2.0-flash",       # Mục tiêu số 1
+        "gemini-2.0-flash-exp",   # Mục tiêu số 2
+        "gemini-1.5-pro",         # Mục tiêu số 3
+        "gemini-1.5-flash"        # Mục tiêu số 4 (Chống cháy)
+    ]
     
     if not context: 
-        full_prompt = f"Người dùng chào: '{prompt}'. Hãy trả lời xã giao lịch sự, giới thiệu mình là Trợ lý PCCC PC07."
+        full_prompt = f"Người dùng chào: '{prompt}'. Hãy trả lời xã giao lịch sự."
     else: 
-        full_prompt = f"{SYSTEM_PROMPT_EXPERT}\n\n=== TÀI LIỆU ĐƯỢC CHỌN LỌC ===\n{context}\n\n=== CÂU HỎI CỦA ĐẠI ÚY ===\n{prompt}"
+        full_prompt = f"{SYSTEM_PROMPT_EXPERT}\n\n=== TÀI LIỆU ===\n{context}\n\n=== CÂU HỎI ===\n{prompt}"
 
-    for model_name in models:
-        try:
-            api_key = get_random_key()
-            genai.configure(api_key=api_key)
-            model = genai.GenerativeModel(model_name)
-            response = model.generate_content(full_prompt)
-            return response.text
-        except: time.sleep(1); continue
-    return "⚠️ Hệ thống đang bảo trì kết nối. Vui lòng thử lại."
+    last_error = ""
+    status_placeholder = st.empty() # Để hiện trạng thái đang thử
+    
+    # VÒNG LẶP KÉP: DUYỆT TỪNG MODEL -> DUYỆT TỪNG KEY
+    for model_name in TARGET_MODELS:
+        for index, key in enumerate(API_KEYS_LIST):
+            try:
+                # Thông báo nhỏ cho người dùng biết đang làm gì
+                status_placeholder.text(f"🔄 Đang thử {model_name} với Key số {index + 1}...")
+                
+                # Cấu hình Key này
+                genai.configure(api_key=key)
+                model = genai.GenerativeModel(model_name)
+                
+                # Gửi lệnh (Timeout 60s)
+                response = model.generate_content(full_prompt, request_options={'timeout': 60})
+                
+                # Nếu thành công -> Xóa dòng thông báo trạng thái và trả về ngay
+                status_placeholder.empty()
+                return response.text, model_name, index + 1
+                
+            except Exception as e:
+                # Nếu lỗi -> Ghi nhận và thử Key tiếp theo
+                last_error = str(e)
+                continue
+    
+    status_placeholder.empty()
+    return f"⚠️ Đã thử tất cả {len(API_KEYS_LIST)} Key với {len(TARGET_MODELS)} Model nhưng đều thất bại. Lỗi cuối: {last_error}", "None", 0
 
-# --- 5. NẠP DỮ LIỆU (QUÉT TOÀN BỘ 5 GIỎ) ---
+# --- 6. NẠP DỮ LIỆU ---
 @st.cache_data(ttl=7200, show_spinner=False)
 def load_database_final():
+    if not GCP_JSON or not DRIVE_FOLDER_ID: return {}, ["⚠️ Chưa cấu hình Drive"]
     try:
         creds = service_account.Credentials.from_service_account_info(GCP_JSON)
         service = build('drive', 'v3', credentials=creds)
@@ -138,15 +148,7 @@ def load_database_final():
         logs = []
         processed = set()
         
-        # Từ khóa quét đủ 5 giỏ
-        keywords = [
-            "189", "106", "105",       # Giỏ Phạt & Quản lý
-            "36", "37", "48",          # Giỏ Pháp lý & Lực lượng
-            "luat", "huy dong",        # Giỏ Luật & Huy động
-            "qcvn", "10:2025", "06",   # Giỏ Kỹ thuật
-            "10"                       # Bắt QCVN 10 nếu tên file ngắn
-        ]
-        
+        keywords = ["189", "106", "105", "36", "37", "48", "luat", "huy dong", "qcvn", "10:2025", "06", "10"]
         files = []
         for k in keywords:
             try: files.extend(service.files().list(q=f"'{DRIVE_FOLDER_ID}' in parents and trashed=false and name contains '{k}'", fields="files(id, name)").execute().get('files', []))
@@ -157,8 +159,6 @@ def load_database_final():
         for f in files:
             if f['id'] in processed: continue
             processed.add(f['id'])
-            
-            # Lọc file rác (tránh nhầm lẫn 106 cũ)
             if "144" in f['name'] and "106" not in f['name']: continue
 
             try:
@@ -185,34 +185,30 @@ def load_database_final():
         return db, logs
     except Exception as e: return None, [str(e)]
 
-# --- 6. GIAO DIỆN ---
-st.markdown("""<div class="header-banner"><p style="font-size: 26px; margin:0">TRỢ LÝ PCCC (FULL INTELLIGENCE)</p></div>""", unsafe_allow_html=True)
+# --- 7. GIAO DIỆN CHÍNH ---
+st.markdown("""<div class="header-banner"><p style="font-size: 26px; margin:0">TRỢ LÝ PCCC (MULTI-KEY SCAN)</p></div>""", unsafe_allow_html=True)
 
-with st.spinner('🚀 Đang kích hoạt toàn bộ quy trình nghiệp vụ...'):
+with st.spinner('🚀 Đang khởi động...'):
     database, logs = load_database_final()
 
 if not database: st.error(f"❌ Lỗi dữ liệu: {logs[0]}"); st.stop()
 
-# Sidebar
+# --- SIDEBAR ---
 with st.sidebar:
-    st.header("TRẠNG THÁI")
+    st.header("⚙️ CẤU HÌNH")
+    st.success(f"🔑 Đã nạp: **{len(API_KEYS_LIST)} API Key**")
+    st.info("💡 Hệ thống sẽ tự động thử từng Key với từng Model (2.0 -> 1.5) cho đến khi thành công.")
     
-    # Kiểm tra nhanh các file "Trụ cột"
-    has_106 = any("106" in k for k in database.keys())
-    has_189 = any("189" in k for k in database.keys())
-    has_qcvn10 = any("10" in k or "qc" in k for k in database.keys())
-    
-    if has_106: st.success("✅ NĐ 106 (Xử phạt)")
-    if has_189: st.success("✅ NĐ 189 (Thẩm quyền)")
-    if has_qcvn10: st.success("✅ QCVN 10 (Trang bị)")
-    
-    with st.expander("Danh sách file"):
+    st.divider()
+    st.header("KHO DỮ LIỆU")
+    with st.expander("Chi tiết file"):
         for l in logs: st.text(l)
 
 # Chat
 if "messages" not in st.session_state: st.session_state.messages = []
 for m in st.session_state.messages:
-    with st.chat_message(m["role"], avatar="👤" if m["role"] == "user" else "🚒"): st.markdown(m["content"])
+    with st.chat_message(m["role"], avatar="👤" if m["role"] == "user" else "🚒"): 
+        st.markdown(m["content"])
 
 if prompt := st.chat_input("Nhập câu hỏi..."):
     st.session_state.messages.append({"role": "user", "content": prompt})
@@ -221,48 +217,46 @@ if prompt := st.chat_input("Nhập câu hỏi..."):
     with st.chat_message("assistant", avatar="🚒"):
         router_box = st.empty()
         
-        # BƯỚC 1: ROUTER (THAM MƯU THÔNG MINH)
-        router_box.markdown("🧠 *Đang phân tích câu hỏi để chọn tài liệu tối ưu...*")
+        # BƯỚC 1: ROUTER
+        router_box.markdown("🧠 *Đang phân tích...*")
         all_files = list(database.keys())
         selected_files_str = smart_router(prompt, all_files)
         
-        # BƯỚC 2: TRÍCH XUẤT (LẤY DỮ LIỆU)
+        # BƯỚC 2: TRÍCH XUẤT
         relevant_context = ""
         used_files = []
-        
         if selected_files_str:
             for fname in all_files:
                 if fname in selected_files_str:
                     relevant_context += f"--- VĂN BẢN: {fname} ---\n{database[fname]}\n"
                     used_files.append(fname)
         
-        # BACKUP LOGIC (Phòng trường hợp AI Router gặp trục trặc)
+        # BACKUP LOGIC
         if not relevant_context:
             for fname, content in database.items():
-                # Logic Xử phạt
-                if "106" in fname and ("phạt" in prompt or "lỗi" in prompt): 
-                    relevant_context += content; used_files.append(fname)
-                if "189" in fname and ("ai" in prompt or "thẩm quyền" in prompt or "ký" in prompt): 
-                    relevant_context += content; used_files.append(fname)
-                # Logic Quản lý
-                if "105" in fname and "quản lý" in prompt: 
-                    relevant_context += content; used_files.append(fname)
-                # Logic Kỹ thuật
-                if ("10" in fname or "qc" in fname) and ("trang bị" in prompt or "lắp" in prompt): 
-                    relevant_context += content; used_files.append(fname)
-                # Logic Lực lượng
-                if "37" in fname and "đội" in prompt: 
-                    relevant_context += content; used_files.append(fname)
+                if "189" in fname and ("ai" in prompt or "thẩm quyền" in prompt or "ký" in prompt): relevant_context += content; used_files.append(fname)
+                if "106" in fname and ("phạt" in prompt or "lỗi" in prompt): relevant_context += content; used_files.append(fname)
+                if ("trách nhiệm" in prompt or "hồ sơ" in prompt) and any(x in fname for x in ["luat", "105", "36"]): relevant_context += content; used_files.append(fname)
+                if ("10" in fname or "qc" in fname) and ("trang bị" in prompt or "lắp" in prompt): relevant_context += content; used_files.append(fname)
 
         if used_files:
-            router_box.info(f"📚 Căn cứ pháp lý: {', '.join(used_files)}")
-        else:
+            st.markdown(f'<div class="router-box">📚 <b>AI Tham mưu đã chọn:</b><br>{", ".join(used_files)}</div>', unsafe_allow_html=True)
             router_box.empty()
+        else: router_box.empty()
             
-        # BƯỚC 3: TRẢ LỜI (CHUYÊN GIA FULL RULES)
-        response = call_gemini_expert(prompt, relevant_context)
+        # BƯỚC 3: TRẢ LỜI (EXHAUSTIVE SCAN)
+        response_text, used_model, used_key_idx = call_gemini_expert_exhaustive(prompt, relevant_context)
         
-        if not used_files: router_box.empty()
+        st.markdown(response_text)
         
-        st.markdown(response)
-        st.session_state.messages.append({"role": "assistant", "content": response})
+        # Hiển thị thông tin kỹ thuật đã dùng
+        if used_model != "None":
+            st.markdown(f"""
+            <div class="success-box">
+            ✅ Kết nối thành công!<br>
+            - Model: <b>{used_model}</b><br>
+            - API Key: <b>Số {used_key_idx}</b> (trong danh sách {len(API_KEYS_LIST)} key)
+            </div>
+            """, unsafe_allow_html=True)
+        
+        st.session_state.messages.append({"role": "assistant", "content": response_text})
