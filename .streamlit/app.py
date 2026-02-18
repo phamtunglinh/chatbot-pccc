@@ -13,7 +13,7 @@ import io
 # --- 1. CẤU HÌNH HỆ THỐNG ---
 st.set_page_config(
     page_title="TRỢ LÝ PCCC CHUYÊN DỤNG",
-    page_icon="🛡️",
+    page_icon="🔥",
     layout="centered", 
     initial_sidebar_state="collapsed", 
     menu_items={
@@ -184,7 +184,7 @@ def smart_router(user_query, available_files):
 
 # --- 7. BỘ NÃO CHUYÊN GIA (EXPERT) ---
 SYSTEM_PROMPT_EXPERT = """
-VAI TRÒ: Đại úy Phạm Tùng Linh - Chuyên gia Pháp chế PCCC PC07 Phú Thọ.
+VAI TRÒ: Trợ lý AI về PCCC và CNCH - Phòng PC07 Phú Thọ.
 
 🛑 NGUYÊN TẮC CỐT TỬ:
 1. Trả lời ngắn gọn, đúng trọng tâm, văn phong hành chính chuyên nghiệp.
@@ -200,13 +200,21 @@ VAI TRÒ: Đại úy Phạm Tùng Linh - Chuyên gia Pháp chế PCCC PC07 Phú 
      + Chỉ khi nào KHÔNG đạt Phụ lục II mà CHỈ đạt Phụ lục I -> Mới do UBND CẤP XÃ quản lý.
 
 🔴 RULE 2: XỬ LÝ / XỬ PHẠT VI PHẠM (NĐ 106 + 189):
-   - Khi người dùng hỏi "Xử lý thế nào", "Bị sao không" -> Hiểu là "XỬ PHẠT".
-   - Áp dụng cơ chế "LỌC ẨN":
-     + Chỉ hiển thị những chức danh có thẩm quyền phạt tiền >= Mức phạt cá nhân của hành vi.
-     + Ẩn hoàn toàn các chức danh không đủ tiền.
-   - Sau đó xét tiếp quyền phạt bổ sung/KPHQ.
-   - Đề xuất người thấp nhất đủ quyền.
-
+   - KHI NGƯỜI DÙNG HỎI: "Xử lý như nào", "Bị sao", "Phạt bao nhiêu", "Lỗi này thế nào"... -> HIỂU NGAY LÀ HỎI VỀ XỬ PHẠT HÀNH CHÍNH.
+   - BẮT BUỘC trả lời theo form sau:
+      1. HÀNH VI & MỨC PHẠT TIỀN:
+      - Cá nhân: X đồng (Căn cứ NĐ 106).
+      - Tổ chức: 2 * X đồng.
+        2. HÌNH THỨC PHẠT BỔ SUNG & KHẮC PHỤC HẬU QUẢ:
+      - Phạt bổ sung: [Có/Không] -> Chi tiết.
+      - Biện pháp KPHQ: [Có/Không] -> Chi tiết.
+       3. THẨM QUYỀN XỬ PHẠT (LỌC ẨN THÔNG MINH):
+      *Chỉ xét 6 chức danh: Chiến sĩ CA, Đội trưởng, Trưởng CA Xã, Trưởng Phòng PC07, Giám đốc CA Tỉnh, Chủ tịch Tỉnh.*
+      *Logic:* So sánh Mức phạt tiền Cá nhân (X) với thẩm quyền của các chức danh.
+      *Hiển thị:* CHỈ LIỆT KÊ những người có thẩm quyền >= X. (Người không đủ tiền -> Ẩn hoàn toàn).
+      *Kết luận:* "Đủ thẩm quyền ký quyết định".
+       4. KIẾN NGHỊ: Trình người có chức vụ thấp nhất trong danh sách đủ đi
+  
 🔴 RULE 3: CƯỠNG CHẾ / KHÔNG NỘP PHẠT (NĐ 296/2025):
    - Khi hỏi về việc không nộp tiền, nộp chậm, chây ỳ -> Dùng NĐ 296/2025/NĐ-CP.
    - Trả lời các biện pháp: Khấu trừ lương/thu nhập, Khấu trừ tiền từ tài khoản, Kê biên tài sản...
@@ -314,7 +322,7 @@ if prompt := st.chat_input("Nhập nội dung cần tra cứu..."):
     st.chat_message("user", avatar="👮‍♂️").write(prompt)
     
     with st.chat_message("assistant", avatar="🔥"):
-        with st.spinner("🧠 Đang phân tích và tra cứu văn bản pháp luật..."):
+        with st.spinner("🧠 Đang suy nghĩ, bạn chờ chút, mình trả lời ngay đây..."):
             
             # Router
             all_files = list(database.keys())
