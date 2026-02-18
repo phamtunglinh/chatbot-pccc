@@ -14,19 +14,19 @@ import io
 st.set_page_config(
     page_title="TRỢ LÝ PCCC CHUYÊN DỤNG",
     page_icon="🛡️",
-    layout="centered", # Chuyển về centered để chat giống tin nhắn điện thoại/ứng dụng chuyên nghiệp
-    initial_sidebar_state="collapsed", # Ẩn sidebar ngay lập tức
+    layout="centered", 
+    initial_sidebar_state="collapsed", 
     menu_items={
         'Get Help': None,
         'Report a bug': None,
-        'About': "Hệ thống hỗ trợ nghiệp vụ PCCC PC07"
+        'About': "Hệ thống hỗ trợ nghiệp vụ PCCC PC07 - Phát triển bởi Đại úy Phạm Tùng Linh"
     }
 )
 
 # --- 2. CSS "CLEAN & BEAUTIFUL" ---
 st.markdown("""
 <style>
-    /* Ẩn hoàn toàn Sidebar và Menu */
+    /* Ẩn hoàn toàn Sidebar và Menu mặc định */
     [data-testid="stSidebar"] {display: none;}
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
@@ -49,17 +49,41 @@ st.markdown("""
         color: white;
     }
     .main-header h1 {
-        font-size: 1.8rem;
+        font-size: 1.4rem; /* Giảm size chút để vừa tên đơn vị dài */
         font-weight: 700;
         margin: 0;
         letter-spacing: 1px;
         text-transform: uppercase;
+        line-height: 1.4;
     }
     .main-header p {
-        font-size: 0.9rem;
-        opacity: 0.9;
-        margin-top: 5px;
-        font-weight: 300;
+        font-size: 0.95rem;
+        opacity: 0.95;
+        margin-top: 8px;
+        font-weight: 400;
+        border-top: 1px solid rgba(255,255,255,0.3);
+        padding-top: 8px;
+        display: inline-block;
+    }
+
+    /* Footer Bản Quyền */
+    .custom-footer {
+        position: fixed;
+        left: 0;
+        bottom: 0;
+        width: 100%;
+        background-color: #f8f9fa;
+        color: #555;
+        text-align: center;
+        padding: 10px;
+        font-size: 0.8rem;
+        border-top: 1px solid #e0e0e0;
+        z-index: 999;
+    }
+    
+    /* Đẩy nội dung lên để không bị footer che */
+    .block-container {
+        padding-bottom: 60px;
     }
 
     /* Tinh chỉnh Chat Input */
@@ -94,20 +118,27 @@ st.markdown("""
         font-size: 1rem;
     }
     .response-content strong {
-        color: #ce181e; /* Highlight key points with Red */
+        color: #ce181e; 
     }
 </style>
 """, unsafe_allow_html=True)
 
-# --- 3. HEADER GIAO DIỆN ---
+# --- 3. HEADER GIAO DIỆN (ĐÃ CẬP NHẬT) ---
 st.markdown("""
 <div class="main-header">
-    <h1>🛡️ TRỢ LÝ NGHIỆP VỤ PCCC & CNCH</h1>
-    <p>PHÒNG CẢNH SÁT PCCC VÀ CNCH - CÔNG AN TỈNH PHÚ THỌ</p>
+    <h1>🛡️ PHÒNG CẢNH SÁT PCCC VÀ CNCH - CÔNG AN TỈNH PHÚ THỌ</h1>
+    <p>TRỢ LÝ NGHIỆP VỤ PCCC & CNCH được phát triển bởi Đại úy Phạm Tùng Linh</p>
 </div>
 """, unsafe_allow_html=True)
 
-# --- 4. KẾT NỐI API (FAILOVER) ---
+# --- 4. FOOTER BẢN QUYỀN ---
+st.markdown("""
+<div class="custom-footer">
+    © 2025 Bản quyền thuộc về Đại úy Phạm Tùng Linh - PC07 Công an tỉnh Phú Thọ
+</div>
+""", unsafe_allow_html=True)
+
+# --- 5. KẾT NỐI API (FAILOVER) ---
 API_KEYS_LIST = []
 try:
     if "GEMINI_API_KEYS" in st.secrets: 
@@ -121,7 +152,7 @@ try:
     GCP_JSON = json.loads(st.secrets["GCP_JSON"])
 except Exception as e: st.error(f"⚠️ Lỗi cấu hình: {str(e)}"); st.stop()
 
-# --- 5. BỘ NÃO THAM MƯU (ROUTER) ---
+# --- 6. BỘ NÃO THAM MƯU (ROUTER) ---
 ROUTER_INSTRUCTION = """
 Bạn là Tham mưu trưởng PCCC. Nhiệm vụ: Chọn tài liệu chính xác.
 
@@ -162,9 +193,9 @@ def smart_router(user_query, available_files):
         except: continue
     return ""
 
-# --- 6. BỘ NÃO CHUYÊN GIA (EXPERT - STRICT CITATION) ---
+# --- 7. BỘ NÃO CHUYÊN GIA (EXPERT - STRICT CITATION) ---
 SYSTEM_PROMPT_EXPERT = """
-VAI TRÒ: Đại úy Phạm Tùng Linh - Chuyên gia Pháp chế PCCC PC07 Phú Thọ.
+VAI TRÒ: AI chuyên gia về PCCC và CNCH Công an tỉnh PC07 Phú Thọ.
 
 🛑 NGUYÊN TẮC CỐT TỬ:
 1. Trả lời ngắn gọn, đúng trọng tâm, văn phong hành chính chuyên nghiệp.
@@ -214,7 +245,7 @@ def call_gemini_expert_exhaustive(prompt, context):
                 continue 
     return f"⚠️ Hệ thống đang bận. Vui lòng thử lại. (Error: {last_error})"
 
-# --- 7. NẠP DỮ LIỆU ---
+# --- 8. NẠP DỮ LIỆU ---
 @st.cache_data(ttl=7200, show_spinner=False)
 def load_database_final():
     if not GCP_JSON or not DRIVE_FOLDER_ID: return {}, []
@@ -266,13 +297,13 @@ def load_database_final():
         return db, logs
     except Exception as e: return None, []
 
-# --- 8. KHỞI ĐỘNG ---
+# --- 9. KHỞI ĐỘNG ---
 with st.spinner('🔄 Đang khởi tạo hệ thống nghiệp vụ...'):
     database, logs = load_database_final()
 
 if not database: st.error("❌ Không thể kết nối Kho dữ liệu. Vui lòng kiểm tra lại cấu hình."); st.stop()
 
-# --- 9. CHAT LOGIC ---
+# --- 10. CHAT LOGIC ---
 if "messages" not in st.session_state: st.session_state.messages = []
 for m in st.session_state.messages:
     with st.chat_message(m["role"], avatar="👮‍♂️" if m["role"] == "user" else "🔥"): 
