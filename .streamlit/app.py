@@ -40,7 +40,7 @@ st.markdown("""
 
     /* Header Banner Chuyên nghiệp */
     .main-header {
-        background: linear-gradient(135deg, #ce181e 0%, #003b8e 100%); /* Đỏ PCCC sang Xanh CA */
+        background: linear-gradient(90deg, #ce181e 0%, #003b8e 100%); /* Đỏ PCCC sang Xanh CA */
         padding: 2rem 1rem;
         border-radius: 15px;
         box-shadow: 0 4px 15px rgba(0,0,0,0.15);
@@ -137,7 +137,7 @@ try:
     GCP_JSON = json.loads(st.secrets["GCP_JSON"])
 except Exception as e: st.error(f"⚠️ Lỗi cấu hình: {str(e)}"); st.stop()
 
-# --- 6. BỘ NÃO THAM MƯU (ROUTER - BỔ SUNG CƯỠNG CHẾ) ---
+# --- 6. BỘ NÃO THAM MƯU (ROUTER) ---
 ROUTER_INSTRUCTION = """
 Bạn là Tham mưu trưởng PCCC. Nhiệm vụ: Chọn tài liệu chính xác.
 
@@ -182,7 +182,7 @@ def smart_router(user_query, available_files):
         except: continue
     return ""
 
-# --- 7. BỘ NÃO CHUYÊN GIA (EXPERT - THÊM RULE CƯỠNG CHẾ) ---
+# --- 7. BỘ NÃO CHUYÊN GIA (EXPERT) ---
 SYSTEM_PROMPT_EXPERT = """
 VAI TRÒ: Đại úy Phạm Tùng Linh - Chuyên gia Pháp chế PCCC PC07 Phú Thọ.
 
@@ -208,7 +208,7 @@ VAI TRÒ: Đại úy Phạm Tùng Linh - Chuyên gia Pháp chế PCCC PC07 Phú 
    - Đề xuất người thấp nhất đủ quyền.
 
 🔴 RULE 3: CƯỠNG CHẾ / KHÔNG NỘP PHẠT (NĐ 296/2025):
-   - Khi hỏi về việc không nộp tiền, nộp chậm, chây ỳ -> Dùng NĐ 296/2025/NĐ-CP (Nghị định về cưỡng chế thi hành quyết định xử phạt VPHC).
+   - Khi hỏi về việc không nộp tiền, nộp chậm, chây ỳ -> Dùng NĐ 296/2025/NĐ-CP.
    - Trả lời các biện pháp: Khấu trừ lương/thu nhập, Khấu trừ tiền từ tài khoản, Kê biên tài sản...
 
 🔴 RULE 4: TRÁCH NHIỆM / ĐIỀU KIỆN / HỒ SƠ:
@@ -298,7 +298,13 @@ with st.spinner('🔄 Đang khởi tạo hệ thống nghiệp vụ...'):
 if not database: st.error("❌ Không thể kết nối Kho dữ liệu. Vui lòng kiểm tra lại cấu hình."); st.stop()
 
 # --- 10. CHAT LOGIC ---
-if "messages" not in st.session_state: st.session_state.messages = []
+if "messages" not in st.session_state: 
+    # KHỞI TẠO LỜI CHÀO BAN ĐẦU
+    st.session_state.messages = [{
+        "role": "assistant", 
+        "content": "Xin chào! Tôi là trợ lý AI về PCCC và CNCH do Đại úy Phạm Tùng Linh - Phòng PC07 phát triển. Hãy đặt câu hỏi để tôi trả lời."
+    }]
+
 for m in st.session_state.messages:
     with st.chat_message(m["role"], avatar="👮‍♂️" if m["role"] == "user" else "🔥"): 
         st.markdown(f'<div class="response-content">{m["content"]}</div>', unsafe_allow_html=True)
