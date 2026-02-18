@@ -23,16 +23,25 @@ st.set_page_config(
     }
 )
 
-# --- 2. CSS "CLEAN & BEAUTIFUL" ---
+# --- 2. CSS "CLEAN & BEAUTIFUL" (ẨN TOÀN BỘ RÁC) ---
 st.markdown("""
 <style>
-    /* Ẩn hoàn toàn Sidebar và Menu mặc định */
-    [data-testid="stSidebar"] {display: none;}
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    .stDeployButton {display:none;}
+    /* 1. ẨN CÁC THÀNH PHẦN MẶC ĐỊNH CỦA STREAMLIT */
+    #MainMenu {visibility: hidden;} /* Ẩn menu 3 gạch góc phải */
+    footer {visibility: hidden;} /* Ẩn footer 'Made with Streamlit' */
+    header {visibility: hidden;} /* Ẩn thanh header rỗng ở trên cùng */
+    .stDeployButton {display:none;} /* Ẩn nút Deploy */
+    [data-testid="stToolbar"] {visibility: hidden;} /* Ẩn toolbar hệ thống */
+    [data-testid="stSidebar"] {display: none;} /* Ẩn sidebar */
+    
+    /* 2. CĂN CHỈNH LẠI BỐ CỤC CHO ĐẸP */
+    /* Đẩy nội dung lên trên cùng vì đã ẩn header */
+    .block-container {
+        padding-top: 2rem !important; 
+        padding-bottom: 60px !important;
+    }
 
-    /* Nền tổng thể sạch sẽ */
+    /* 3. GIAO DIỆN CHUNG */
     .stApp {
         background-color: #ffffff;
         font-family: 'Segoe UI', Helvetica, Arial, sans-serif;
@@ -49,7 +58,7 @@ st.markdown("""
         color: white;
     }
     
-    /* Footer Bản Quyền */
+    /* Footer Bản Quyền Riêng */
     .custom-footer {
         position: fixed;
         left: 0;
@@ -61,12 +70,7 @@ st.markdown("""
         padding: 10px;
         font-size: 0.8rem;
         border-top: 1px solid #e0e0e0;
-        z-index: 999;
-    }
-    
-    /* Đẩy nội dung lên để không bị footer che */
-    .block-container {
-        padding-bottom: 60px;
+        z-index: 9999;
     }
 
     /* Tinh chỉnh Chat Input */
