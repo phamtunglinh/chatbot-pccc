@@ -11,7 +11,7 @@ from pypdf import PdfReader
 import io
 
 # --- 1. CẤU HÌNH GIAO DIỆN ---
-st.set_page_config(page_title="PCCC PC07 (Expert Logic)", page_icon="🔥", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title="PCCC PC07 (Failover Strategy)", page_icon="🔥", layout="wide", initial_sidebar_state="expanded")
 st.markdown("""
 <style>
     .header-banner {background: linear-gradient(90deg, #B71C1C 0%, #D32F2F 100%); padding: 1.5rem; color: white; text-align: center; margin-top: -50px; border-radius: 0 0 15px 15px;}
@@ -21,7 +21,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- 2. KẾT NỐI API (ĐA KEY - QUAY VÒNG) ---
+# --- 2. KẾT NỐI API (ĐA KEY - DỰ PHÒNG) ---
 API_KEYS_LIST = []
 if "GEMINI_API_KEYS" in st.secrets: 
     keys_string = st.secrets["GEMINI_API_KEYS"]
@@ -45,7 +45,7 @@ try:
     GCP_JSON = json.loads(st.secrets["GCP_JSON"])
 except: pass
 
-# --- 4. BỘ NÃO THAM MƯU (ROUTER - CẬP NHẬT RULE MỚI) ---
+# --- 4. BỘ NÃO THAM MƯU (ROUTER) ---
 ROUTER_INSTRUCTION = """
 Bạn là Tham mưu trưởng PCCC. Nhiệm vụ: Chọn tài liệu "TỐI GIẢN NHƯNG ĐÚNG TRỌNG TÂM".
 
@@ -74,64 +74,54 @@ def smart_router(user_query, available_files):
     file_list_str = ", ".join(available_files)
     prompt = f"""{ROUTER_INSTRUCTION}\n\nDANH SÁCH FILE HIỆN CÓ: {file_list_str}\n\nCÂU HỎI: "{user_query}"\n\nCHỌN TÀI LIỆU:"""
     
-    # Router dùng 1 key ngẫu nhiên và model nhẹ (1.5 Flash) để phản hồi nhanh
-    try:
-        api_key = random.choice(API_KEYS_LIST)
-        genai.configure(api_key=api_key)
-        model = genai.GenerativeModel('gemini-1.5-flash')
-        response = model.generate_content(prompt)
-        return response.text.strip()
-    except: return ""
+    # Router thử lần lượt từ Key 1 -> Key n (Ưu tiên Key đầu)
+    for key in API_KEYS_LIST:
+        try:
+            genai.configure(api_key=key)
+            model = genai.GenerativeModel('gemini-1.5-flash')
+            response = model.generate_content(prompt)
+            return response.text.strip()
+        except: continue # Nếu Key 1 lỗi -> Thử Key 2
+            
+    return ""
 
-# --- 5. BỘ NÃO CHUYÊN GIA (EXPERT - CẬP NHẬT FULL RULE SUY LUẬN) ---
+# --- 5. BỘ NÃO CHUYÊN GIA (EXPERT - ƯU TIÊN KEY 1) ---
 SYSTEM_PROMPT_EXPERT = """
 VAI TRÒ: Đại úy Phạm Tùng Linh - Chuyên gia Pháp chế PCCC PC07 Phú Thọ.
 
-🛑 NGUYÊN TẮC VÀNG (BẮT BUỘC ÁP DỤNG):
+🛑 NGUYÊN TẮC VÀNG:
 1. TUYỆT ĐỐI KHÔNG trả lời chung chung.
 2. MỌI con số, nhận định ĐỀU PHẢI CÓ TRÍCH DẪN: "...(Căn cứ: Điểm..., Khoản..., Điều..., Văn bản...)".
-3. Nếu thiếu dữ liệu (Diện tích, Tầng, Khối tích) -> HỎI NGƯỢC LẠI NGƯỜI DÙNG.
+3. Nếu thiếu dữ liệu -> HỎI NGƯỢC LẠI NGƯỜI DÙNG.
 
-🔴 QUY TRÌNH SUY LUẬN (KHI XÁC ĐỊNH THẨM QUYỀN QUẢN LÝ):
-   - BƯỚC 1: KIỂM TRA DỮ LIỆU (Diện tích sàn, Số tầng, Khối tích, Công năng). Nếu thiếu -> HỎI LẠI.
-   - BƯỚC 2: XÁC ĐỊNH CÔNG NĂNG CHÍNH (QUY TẮC 70%):
-     + Nếu 1 công năng > 70% diện tích -> Là công năng chính.
-     + Nếu nhà ở > 70% -> Nhà ở kết hợp SXKD.
-     + Nếu KHÔNG CÓ cái nào > 70% -> NHÀ HỖN HỢP.
-   - BƯỚC 3: ĐỐI CHIẾU PHỤ LỤC (NĐ 105 hoặc NĐ 50 tùy dữ liệu có):
-     + So sánh Tầng, Khối tích, Diện tích với Phụ lục I và II.
-   - BƯỚC 4: KẾT LUẬN:
-     + Đạt Phụ lục II (hoặc Diện tích nhỏ nhưng Tầng cao thuộc PL II) -> PC07 quản lý. 
-     + Không đạt Phụ lục II, chỉ đạt Phụ lục I -> UBND CẤP XÃ quản lý.
+🔴 SUY LUẬN XÁC ĐỊNH THẨM QUYỀN QUẢN LÝ (NĐ 105/NĐ 50):
+   - B1: Kiểm tra dữ liệu.
+   - B2: Quy tắc 70% công năng.
+   - B3: Đối chiếu Phụ lục.
+   - B4: Kết luận (PL II -> PC07; PL I -> Xã).
 
-🟢 QUY TRÌNH 1: ĐỐI VỚI CÂU HỎI KỸ THUẬT (TRANG BỊ):
-   - Chỉ căn cứ QCVN 10.
-   - Trả lời thông số kỹ thuật + Nguồn (Ví dụ: QCVN 10:2025, Bảng 1, Mục 5). 
+🟢 SUY LUẬN KỸ THUẬT (QCVN 10):
+   - Chỉ căn cứ QCVN 10. Trả lời thông số + Nguồn.
 
-🔴 QUY TRÌNH 2: ĐỐI VỚI CÂU HỎI XỬ PHẠT (NĐ 106 + 189):
-   BẮT BUỘC TRÌNH BÀY THEO FORM SAU:
-   1. Về hành vi và mức tiền phạt:
-      - Hành vi: ...
-      - Mức phạt Cá nhân: ... -> Căn cứ: Điểm..., Khoản..., Điều... NĐ 106.
-      - Mức phạt Tổ chức: ...
-   2. Hình thức phạt bổ sung & KPHQ:
-      - Phạt bổ sung: [Có/Không] -> Căn cứ...
-      - KPHQ: [Có/Không] -> Căn cứ...
-   3. Phân tích thẩm quyền xử phạt (Theo NĐ 189):
-      *Chỉ xét các chức danh ĐỦ ĐIỀU KIỆN (Tiền + Bổ sung/KPHQ)*
-      - [Chức danh A (VD: Trưởng CA Xã)]:
-        + Thẩm quyền tiền: ... (Căn cứ NĐ 189).
+🔴 SUY LUẬN XỬ PHẠT (NĐ 106 + 189) - LOGIC MỚI:
+   BẮT BUỘC TRÌNH BÀY THEO FORM:
+   1. Hành vi & Mức phạt tiền:
+      - Cá nhân: X đồng (Căn cứ NĐ 106).
+      - Tổ chức: 2 * X đồng.
+   2. Bổ sung & KPHQ: [Có/Không].
+   3. Phân tích thẩm quyền (QUAN TRỌNG: CĂN CỨ MỨC CÁ NHÂN X):
+      - Xét [Chức danh A]: 
+        + Thẩm quyền tiền: ... (So với X).
         + Thẩm quyền bổ sung: ...
-        => KẾT LUẬN: [Đủ/Không đủ] quyền ký.
-      - [Chức danh B (VD: Trưởng Phòng PC07)]: ...
-   4. Đề xuất: Trình [Chức danh thấp nhất đủ quyền] quyết định.
+        => Kết luận: Đủ/Không đủ.
+   4. Đề xuất: Người thấp nhất đủ quyền.
 
-🔵 ĐỐI VỚI CÂU HỎI HUY ĐỘNG QUÂN ĐỘI:
+🔵 SUY LUẬN HUY ĐỘNG QUÂN ĐỘI:
    - Căn cứ: CV HD CÔNG TÁC CC&CNCH PHỐI HỢP QUÂN ĐỘI.
 """
 
 def call_gemini_expert_exhaustive(prompt, context):
-    # DANH SÁCH MODEL MỤC TIÊU (Ưu tiên 2.5 Flash như yêu cầu)
+    # DANH SÁCH MODEL (Ưu tiên 2.5 Flash)
     TARGET_MODELS = [
         "gemini-2.5-flash",       # Ưu tiên 1
         "gemini-2.0-flash",       # Ưu tiên 2
@@ -148,11 +138,15 @@ def call_gemini_expert_exhaustive(prompt, context):
     last_error = ""
     status_placeholder = st.empty()
     
-    # VÒNG LẶP KÉP: DUYỆT TỪNG MODEL -> DUYỆT TỪNG KEY
+    # --- LOGIC FAILOVER (KHÔNG XÁO TRỘN) ---
+    # Luôn giữ nguyên thứ tự: Key 1, Key 2, Key 3...
+    indexed_keys = list(enumerate(API_KEYS_LIST))
+    
+    # VÒNG LẶP KÉP: Ưu tiên Model xịn trước, thử với từng Key theo thứ tự
     for model_name in TARGET_MODELS:
-        for index, key in enumerate(API_KEYS_LIST):
+        for original_index, key in indexed_keys:
             try:
-                # status_placeholder.text(f"🔄 Đang thử {model_name} (Key {index + 1})...")
+                # status_placeholder.text(f"🔄 Đang thử {model_name} (Key số {original_index + 1})...")
                 
                 genai.configure(api_key=key)
                 model = genai.GenerativeModel(model_name)
@@ -161,9 +155,10 @@ def call_gemini_expert_exhaustive(prompt, context):
                 response = model.generate_content(full_prompt, request_options={'timeout': 60})
                 
                 status_placeholder.empty()
-                return response.text, model_name, index + 1
+                return response.text, model_name, original_index + 1
                 
             except Exception as e:
+                # Nếu Key 1 lỗi, vòng lặp for sẽ tự nhảy sang Key 2
                 last_error = str(e)
                 continue 
     
@@ -181,12 +176,11 @@ def load_database_final():
         logs = []
         processed = set()
         
-        # Bổ sung từ khóa để bắt file Quân đội và các file mới
         keywords = [
             "189", "106", "105", "50", # Phạt & Quản lý
             "36", "37", "48",          # Pháp lý & Lực lượng
             "luat", "huy dong",        # Luật & Huy động
-            "quan doi", "du thao",     # QUÂN ĐỘI (MỚI)
+            "quan doi", "du thao",     # QUÂN ĐỘI
             "qcvn", "10:2025", "06",   # Kỹ thuật
             "10"
         ]
@@ -227,7 +221,7 @@ def load_database_final():
     except Exception as e: return None, [str(e)]
 
 # --- 7. GIAO DIỆN CHÍNH ---
-st.markdown("""<div class="header-banner"><p style="font-size: 26px; margin:0">TRỢ LÝ PCCC (EXPERT RULES)</p></div>""", unsafe_allow_html=True)
+st.markdown("""<div class="header-banner"><p style="font-size: 26px; margin:0">TRỢ LÝ PCCC (FAILOVER STRATEGY)</p></div>""", unsafe_allow_html=True)
 
 with st.spinner('🚀 Đang khởi động...'):
     database, logs = load_database_final()
@@ -238,7 +232,7 @@ if not database: st.error(f"❌ Lỗi dữ liệu: {logs[0]}"); st.stop()
 with st.sidebar:
     st.header("⚙️ CẤU HÌNH")
     st.success(f"🔑 Đã nạp: **{len(API_KEYS_LIST)} API Key**")
-    st.info("💡 Model ưu tiên: **2.5 Flash**")
+    st.info("💡 Cơ chế dự phòng: Luôn dùng Key 1. Chỉ dùng Key 2, 3... khi Key 1 lỗi.")
     
     st.divider()
     st.header("KHO DỮ LIỆU")
@@ -263,7 +257,7 @@ if prompt := st.chat_input("Nhập câu hỏi..."):
         all_files = list(database.keys())
         selected_files_str = smart_router(prompt, all_files)
         
-        # BƯỚC 2: TRÍCH XUẤT (CÓ KIỂM SOÁT)
+        # BƯỚC 2: TRÍCH XUẤT
         relevant_context = ""
         used_files = []
         if selected_files_str:
@@ -279,19 +273,12 @@ if prompt := st.chat_input("Nhập câu hỏi..."):
                 is_military = ("quân đội" in prompt or "chi viện" in prompt)
                 is_tech = ("trang bị" in prompt or "lắp" in prompt)
                 
-                # Logic Quân đội
                 if is_military and any(x in fname for x in ["quan doi", "du thao", "phoi hop"]):
                      relevant_context += content; used_files.append(fname)
-
-                # Logic Xử phạt: Chỉ lấy 106, 189
                 elif is_penalty and any(x in fname for x in ["106", "189"]):
                      relevant_context += content; used_files.append(fname)
-                
-                # Logic Kỹ thuật: Chỉ QC 10, 06
                 elif is_tech and any(x in fname for x in ["10", "qc", "06"]) and not is_penalty: 
                     relevant_context += content; used_files.append(fname)
-                
-                # Logic Pháp lý
                 elif not is_penalty and not is_tech and not is_military and any(x in fname for x in ["luat", "105", "36"]):
                     relevant_context += content; used_files.append(fname)
 
@@ -310,7 +297,7 @@ if prompt := st.chat_input("Nhập câu hỏi..."):
             <div class="success-box">
             ✅ Kết nối thành công!<br>
             - Model: <b>{used_model}</b><br>
-            - API Key: <b>Số {used_key_idx}</b>
+            - API Key: <b>Số {used_key_idx}</b> (Key chính/Dự phòng)
             </div>
             """, unsafe_allow_html=True)
         
