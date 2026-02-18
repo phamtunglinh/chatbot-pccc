@@ -40,7 +40,7 @@ st.markdown("""
 
     /* Header Banner Chuyên nghiệp */
     .main-header {
-        background: linear-gradient(90deg, #ce181e 0%, #003b8e 100%); /* Đỏ PCCC sang Xanh CA */
+        background: linear-gradient(135deg, #ce181e 0%, #003b8e 100%); /* Đỏ PCCC sang Xanh CA */
         padding: 2rem 1rem;
         border-radius: 15px;
         box-shadow: 0 4px 15px rgba(0,0,0,0.15);
@@ -137,7 +137,7 @@ try:
     GCP_JSON = json.loads(st.secrets["GCP_JSON"])
 except Exception as e: st.error(f"⚠️ Lỗi cấu hình: {str(e)}"); st.stop()
 
-# --- 6. BỘ NÃO THAM MƯU (ROUTER - ĐÃ CẬP NHẬT TỪ KHÓA XỬ LÝ) ---
+# --- 6. BỘ NÃO THAM MƯU (ROUTER - BỔ SUNG CƯỠNG CHẾ) ---
 ROUTER_INSTRUCTION = """
 Bạn là Tham mưu trưởng PCCC. Nhiệm vụ: Chọn tài liệu chính xác.
 
@@ -153,15 +153,19 @@ Bạn là Tham mưu trưởng PCCC. Nhiệm vụ: Chọn tài liệu chính xác
    - Dấu hiệu: "Lỗi", "Phạt", "Xử lý", "Xử lý vi phạm", "Bị sao".
    - HÀNH ĐỘNG: [Nghị định 106], [Nghị định 189].
 
-4. GIỎ KỸ THUẬT:
+4. GIỎ CƯỠNG CHẾ (KHÔNG NỘP PHẠT):
+   - Dấu hiệu: "Không nộp phạt", "Chây ỳ", "Cưỡng chế", "Quá hạn nộp", "Đóng phạt muộn".
+   - HÀNH ĐỘNG: BẮT BUỘC CHỌN [Nghị định 296].
+
+5. GIỎ KỸ THUẬT:
    - Dấu hiệu: "Trang bị", "Lắp đặt", "Hệ thống", "Khoảng cách".
    - HÀNH ĐỘNG: [QCVN 10], [QCVN 06].
 
-5. GIỎ QUÂN ĐỘI:
+6. GIỎ QUÂN ĐỘI:
    - Dấu hiệu: "Quân đội", "Chi viện".
    - HÀNH ĐỘNG: File chứa "CV HD", "QUÂN ĐỘI", "ĐỘI 3".
 
-6. GIỎ CHỮA CHÁY: [Thông tư 37].
+7. GIỎ CHỮA CHÁY: [Thông tư 37].
 
 OUTPUT: Chỉ trả về danh sách tên file có trong kho.
 """
@@ -178,7 +182,7 @@ def smart_router(user_query, available_files):
         except: continue
     return ""
 
-# --- 7. BỘ NÃO CHUYÊN GIA (EXPERT - CẬP NHẬT LOGIC XỬ LÝ) ---
+# --- 7. BỘ NÃO CHUYÊN GIA (EXPERT - THÊM RULE CƯỠNG CHẾ) ---
 SYSTEM_PROMPT_EXPERT = """
 VAI TRÒ: Đại úy Phạm Tùng Linh - Chuyên gia Pháp chế PCCC PC07 Phú Thọ.
 
@@ -186,15 +190,7 @@ VAI TRÒ: Đại úy Phạm Tùng Linh - Chuyên gia Pháp chế PCCC PC07 Phú 
 1. Trả lời ngắn gọn, đúng trọng tâm, văn phong hành chính chuyên nghiệp.
 2. Tuyệt đối không sáng tạo ngoài văn bản.
 
-🔴 RULE 1: XỬ LÝ / XỬ PHẠT VI PHẠM (NĐ 106 + 189):
-   - KHI NGƯỜI DÙNG HỎI: "Xử lý như nào", "Bị sao", "Lỗi này thế nào"... -> HIỂU NGAY LÀ HỎI VỀ "XỬ PHẠT HÀNH CHÍNH".
-   - Áp dụng cơ chế "LỌC ẨN":
-     + Chỉ hiển thị những chức danh có thẩm quyền phạt tiền >= Mức phạt cá nhân của hành vi.
-     + Ẩn hoàn toàn các chức danh không đủ tiền.
-   - Sau đó xét tiếp quyền phạt bổ sung/KPHQ.
-   - Đề xuất người thấp nhất đủ quyền.
-
-🔴 RULE 2: XÁC ĐỊNH THẨM QUYỀN QUẢN LÝ (QUAN TRỌNG - THEO NĐ 105/2025):
+🔴 RULE 1: XÁC ĐỊNH THẨM QUYỀN QUẢN LÝ (QUAN TRỌNG - THEO NĐ 105/2025):
    BẮT BUỘC thực hiện đúng 2 BƯỚC sau:
    - BƯỚC 1: ĐỐI CHIẾU PHỤ LỤC I và PHỤ LỤC II (Nghị định 105/2025/NĐ-CP).
      + So sánh các chỉ số: Số tầng, Khối tích, Diện tích với Phụ lục I và Phụ lục II.
@@ -203,11 +199,23 @@ VAI TRÒ: Đại úy Phạm Tùng Linh - Chuyên gia Pháp chế PCCC PC07 Phú 
      + Lưu ý đặc biệt: Dù diện tích nhỏ (thuộc Phụ lục I) nhưng Số tầng cao (thuộc Phụ lục II) -> Vẫn là PC07 quản lý.
      + Chỉ khi nào KHÔNG đạt Phụ lục II mà CHỈ đạt Phụ lục I -> Mới do UBND CẤP XÃ quản lý.
 
-🔴 RULE 3: TRÁCH NHIỆM / ĐIỀU KIỆN / HỒ SƠ:
-   - BẮT BUỘC trích dẫn căn cứ đầu tiên từ "Luật PCCC và CNCH" (đối với câu hỏi về trách nhiệm, điều kiện chung).
+🔴 RULE 2: XỬ LÝ / XỬ PHẠT VI PHẠM (NĐ 106 + 189):
+   - Khi người dùng hỏi "Xử lý thế nào", "Bị sao không" -> Hiểu là "XỬ PHẠT".
+   - Áp dụng cơ chế "LỌC ẨN":
+     + Chỉ hiển thị những chức danh có thẩm quyền phạt tiền >= Mức phạt cá nhân của hành vi.
+     + Ẩn hoàn toàn các chức danh không đủ tiền.
+   - Sau đó xét tiếp quyền phạt bổ sung/KPHQ.
+   - Đề xuất người thấp nhất đủ quyền.
+
+🔴 RULE 3: CƯỠNG CHẾ / KHÔNG NỘP PHẠT (NĐ 296/2025):
+   - Khi hỏi về việc không nộp tiền, nộp chậm, chây ỳ -> Dùng NĐ 296/2025/NĐ-CP (Nghị định về cưỡng chế thi hành quyết định xử phạt VPHC).
+   - Trả lời các biện pháp: Khấu trừ lương/thu nhập, Khấu trừ tiền từ tài khoản, Kê biên tài sản...
+
+🔴 RULE 4: TRÁCH NHIỆM / ĐIỀU KIỆN / HỒ SƠ:
+   - BẮT BUỘC trích dẫn căn cứ đầu tiên từ "Luật PCCC và CNCH".
    - Sau đó cụ thể hóa bằng Nghị định 105 và Thông tư 36.
 
-🟢 RULE 4: CÁC LĨNH VỰC KHÁC:
+🟢 RULE 5: CÁC LĨNH VỰC KHÁC:
    - Kỹ thuật: Căn cứ QCVN 10, QCVN 06.
    - Chữa cháy: Căn cứ Thông tư 37.
    - Quân đội: Căn cứ CV Hướng dẫn phối hợp.
@@ -242,8 +250,8 @@ def load_database_final():
         logs = []
         processed = set()
         
-        # Keywords bao gồm Nghị định 50, 136, 105...
-        keywords = ["189", "106", "105", "50", "136", "36", "37", "48", "luat", "huy dong", "quan doi", "du thao", "phoi hop", "cv hd", "doi 3", "qcvn", "10:2025", "06", "10"]
+        # Keywords bao gồm Nghị định 50, 136, 105, 296...
+        keywords = ["189", "106", "105", "50", "136", "296", "36", "37", "48", "luat", "huy dong", "quan doi", "du thao", "phoi hop", "cv hd", "doi 3", "qcvn", "10:2025", "06", "10"]
         files = []
         for k in keywords:
             try: files.extend(service.files().list(q=f"'{DRIVE_FOLDER_ID}' in parents and trashed=false and name contains '{k}'", fields="files(id, name)").execute().get('files', []))
@@ -312,17 +320,20 @@ if prompt := st.chat_input("Nhập nội dung cần tra cứu..."):
                 for fname in all_files:
                     if fname in selected_files_str: relevant_context += f"--- VĂN BẢN: {fname} ---\n{database[fname]}\n"
             
-            # Backup Retrieve (BỔ SUNG LOGIC: Xử lý = Xử phạt)
+            # Backup Retrieve (BỔ SUNG LOGIC: Cưỡng chế & Xử lý)
             if not relevant_context:
                 for fname, content in database.items():
-                    # Logic: Nếu hỏi "xử lý" -> Cũng tìm trong Giỏ Xử phạt (106, 189)
+                    # Logic: Từ khóa tìm kiếm dự phòng
+                    is_enforcement = ("cưỡng chế" in prompt or "không nộp" in prompt or "chậm nộp" in prompt or "chây ỳ" in prompt)
                     is_penalty = ("phạt" in prompt or "lỗi" in prompt or "xử lý" in prompt)
                     is_military = ("quân đội" in prompt or "chi viện" in prompt)
                     is_tech = ("trang bị" in prompt or "lắp" in prompt or "hệ thống" in prompt)
                     is_manage = ("trách nhiệm" in prompt or "hồ sơ" in prompt or "quản lý" in prompt or "điều kiện" in prompt)
                     is_force = ("lực lượng" in prompt or "chữa cháy" in prompt)
 
-                    if is_military and any(x in fname.lower() for x in ["quan doi", "du thao", "phoi hop", "cv hd", "doi 3"]):
+                    if is_enforcement and "296" in fname: # Bắt file cưỡng chế 296
+                         relevant_context += content
+                    elif is_military and any(x in fname.lower() for x in ["quan doi", "du thao", "phoi hop", "cv hd", "doi 3"]):
                          relevant_context += content
                     elif is_penalty and any(x in fname for x in ["106", "189"]):
                          relevant_context += content
