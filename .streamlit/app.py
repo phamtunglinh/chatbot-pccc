@@ -11,13 +11,12 @@ from pypdf import PdfReader
 import io
 
 # --- 1. CẤU HÌNH GIAO DIỆN ---
-st.set_page_config(page_title="PCCC PC07 (Gemini 2.0 Ultimate)", page_icon="🛡️", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title="PCCC PC07 (Stable 1.5)", page_icon="🛡️", layout="wide", initial_sidebar_state="expanded")
 st.markdown("""
 <style>
     .header-banner {background: linear-gradient(90deg, #B71C1C 0%, #D32F2F 100%); padding: 1.5rem; color: white; text-align: center; margin-top: -50px; border-radius: 0 0 15px 15px;}
     .stChatInput {border-radius: 20px;}
     .router-box {background-color: #e3f2fd; padding: 10px; border-radius: 5px; border-left: 5px solid #2196f3; margin-bottom: 10px; font-size: 0.9em;}
-    .citation-box {background-color: #f0f2f6; padding: 10px; border-radius: 5px; border-left: 5px solid #d32f2f; margin-top: 10px; font-size: 0.9em;}
 </style>
 """, unsafe_allow_html=True)
 
@@ -74,13 +73,13 @@ def smart_router(user_query, available_files):
     try:
         api_key = get_random_key()
         genai.configure(api_key=api_key)
-        # Dùng model 1.5 Flash cho Router để phản hồi nhanh
+        # SỬ DỤNG GEMINI 1.5 FLASH (Bản ổn định nhất)
         model = genai.GenerativeModel('gemini-1.5-flash')
         response = model.generate_content(prompt)
         return response.text.strip()
     except: return ""
 
-# --- 4. BỘ NÃO CHUYÊN GIA (EXPERT - FULL RULES & MODEL 2.0) ---
+# --- 4. BỘ NÃO CHUYÊN GIA (EXPERT - FULL RULES - BẢN 1.5 FLASH) ---
 SYSTEM_PROMPT_EXPERT = """
 VAI TRÒ: Đại úy Phạm Tùng Linh - Chuyên gia Pháp chế PCCC PC07 Phú Thọ.
 
@@ -122,8 +121,8 @@ VAI TRÒ: Đại úy Phạm Tùng Linh - Chuyên gia Pháp chế PCCC PC07 Phú 
 """
 
 def call_gemini_expert(prompt, context):
-    # Ưu tiên Gemini 2.0 Flash (Bản mới nhất) -> Rồi đến 1.5 Pro
-    models = ["gemini-2.0-flash", "gemini-1.5-pro", "gemini-1.5-flash"]
+    # CHỈ DÙNG GEMINI 1.5 FLASH ĐỂ ĐẢM BẢO KHÔNG BAO GIỜ CHẾT
+    models = ["gemini-1.5-flash"] 
     
     if not context: 
         full_prompt = f"Người dùng chào: '{prompt}'. Hãy trả lời xã giao lịch sự, giới thiệu mình là Trợ lý PCCC PC07."
@@ -135,12 +134,13 @@ def call_gemini_expert(prompt, context):
             api_key = get_random_key()
             genai.configure(api_key=api_key)
             model = genai.GenerativeModel(model_name)
-            # Timeout 120s cho phép suy luận sâu
-            response = model.generate_content(full_prompt, request_options={'timeout': 120})
+            response = model.generate_content(full_prompt)
             return response.text
-        except: time.sleep(1); continue
+        except Exception as e:
+            time.sleep(1)
+            continue
             
-    return "⚠️ Hệ thống đang bảo trì kết nối (API Busy). Vui lòng thử lại."
+    return "⚠️ Lỗi kết nối API. Vui lòng kiểm tra lại Key."
 
 # --- 5. NẠP DỮ LIỆU (QUÉT TOÀN BỘ 5 GIỎ) ---
 @st.cache_data(ttl=7200, show_spinner=False)
@@ -201,9 +201,9 @@ def load_database_final():
     except Exception as e: return None, [str(e)]
 
 # --- 6. GIAO DIỆN ---
-st.markdown("""<div class="header-banner"><p style="font-size: 26px; margin:0">TRỢ LÝ PCCC (GEMINI 2.0)</p></div>""", unsafe_allow_html=True)
+st.markdown("""<div class="header-banner"><p style="font-size: 26px; margin:0">TRỢ LÝ PCCC (BẢN ỔN ĐỊNH)</p></div>""", unsafe_allow_html=True)
 
-with st.spinner('🚀 Đang khởi động hệ thống & Nạp quy trình...'):
+with st.spinner('🚀 Đang khởi động hệ thống...'):
     database, logs = load_database_final()
 
 if not database: st.error(f"❌ Lỗi dữ liệu: {logs[0]}"); st.stop()
