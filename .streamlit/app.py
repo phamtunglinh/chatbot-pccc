@@ -48,24 +48,7 @@ st.markdown("""
         text-align: center;
         color: white;
     }
-    .main-header h1 {
-        font-size: 1.4rem; /* Giảm size chút để vừa tên đơn vị dài */
-        font-weight: 700;
-        margin: 0;
-        letter-spacing: 1px;
-        text-transform: uppercase;
-        line-height: 1.4;
-    }
-    .main-header p {
-        font-size: 0.95rem;
-        opacity: 0.95;
-        margin-top: 8px;
-        font-weight: 400;
-        border-top: 1px solid rgba(255,255,255,0.3);
-        padding-top: 8px;
-        display: inline-block;
-    }
-
+    
     /* Footer Bản Quyền */
     .custom-footer {
         position: fixed;
@@ -123,7 +106,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- 3. HEADER GIAO DIỆN (ĐÚNG YÊU CẦU) ---
+# --- 3. HEADER GIAO DIỆN ---
 st.markdown("""
 <div class="main-header">
     <div style="font-size: 1.1rem; font-weight: 600; margin-bottom: 5px; opacity: 0.95; letter-spacing: 0.5px;">CÔNG AN TỈNH PHÚ THỌ</div>
@@ -154,7 +137,7 @@ try:
     GCP_JSON = json.loads(st.secrets["GCP_JSON"])
 except Exception as e: st.error(f"⚠️ Lỗi cấu hình: {str(e)}"); st.stop()
 
-# --- 6. BỘ NÃO THAM MƯU (ROUTER - CẬP NHẬT TỪ KHÓA XỬ LÝ) ---
+# --- 6. BỘ NÃO THAM MƯU (ROUTER - ĐÃ CẬP NHẬT TỪ KHÓA XỬ LÝ) ---
 ROUTER_INSTRUCTION = """
 Bạn là Tham mưu trưởng PCCC. Nhiệm vụ: Chọn tài liệu chính xác.
 
@@ -195,7 +178,7 @@ def smart_router(user_query, available_files):
         except: continue
     return ""
 
-# --- 7. BỘ NÃO CHUYÊN GIA (EXPERT) ---
+# --- 7. BỘ NÃO CHUYÊN GIA (EXPERT - CẬP NHẬT LOGIC XỬ LÝ) ---
 SYSTEM_PROMPT_EXPERT = """
 VAI TRÒ: Đại úy Phạm Tùng Linh - Chuyên gia Pháp chế PCCC PC07 Phú Thọ.
 
@@ -203,7 +186,15 @@ VAI TRÒ: Đại úy Phạm Tùng Linh - Chuyên gia Pháp chế PCCC PC07 Phú 
 1. Trả lời ngắn gọn, đúng trọng tâm, văn phong hành chính chuyên nghiệp.
 2. Tuyệt đối không sáng tạo ngoài văn bản.
 
-🔴 RULE 1: XÁC ĐỊNH THẨM QUYỀN QUẢN LÝ (QUAN TRỌNG - THEO NĐ 105/2025):
+🔴 RULE 1: XỬ LÝ / XỬ PHẠT VI PHẠM (NĐ 106 + 189):
+   - KHI NGƯỜI DÙNG HỎI: "Xử lý như nào", "Bị sao", "Lỗi này thế nào"... -> HIỂU NGAY LÀ HỎI VỀ "XỬ PHẠT HÀNH CHÍNH".
+   - Áp dụng cơ chế "LỌC ẨN":
+     + Chỉ hiển thị những chức danh có thẩm quyền phạt tiền >= Mức phạt cá nhân của hành vi.
+     + Ẩn hoàn toàn các chức danh không đủ tiền.
+   - Sau đó xét tiếp quyền phạt bổ sung/KPHQ.
+   - Đề xuất người thấp nhất đủ quyền.
+
+🔴 RULE 2: XÁC ĐỊNH THẨM QUYỀN QUẢN LÝ (QUAN TRỌNG - THEO NĐ 105/2025):
    BẮT BUỘC thực hiện đúng 2 BƯỚC sau:
    - BƯỚC 1: ĐỐI CHIẾU PHỤ LỤC I và PHỤ LỤC II (Nghị định 105/2025/NĐ-CP).
      + So sánh các chỉ số: Số tầng, Khối tích, Diện tích với Phụ lục I và Phụ lục II.
@@ -211,14 +202,6 @@ VAI TRÒ: Đại úy Phạm Tùng Linh - Chuyên gia Pháp chế PCCC PC07 Phú 
      + Nếu cơ sở đạt tiêu chí Phụ lục II -> PHÒNG CẢNH SÁT PCCC & CNCH (PC07) quản lý.
      + Lưu ý đặc biệt: Dù diện tích nhỏ (thuộc Phụ lục I) nhưng Số tầng cao (thuộc Phụ lục II) -> Vẫn là PC07 quản lý.
      + Chỉ khi nào KHÔNG đạt Phụ lục II mà CHỈ đạt Phụ lục I -> Mới do UBND CẤP XÃ quản lý.
-
-🔴 RULE 2: XỬ LÝ / XỬ PHẠT VI PHẠM (NĐ 106 + 189):
-   - Khi người dùng hỏi "Xử lý thế nào", "Bị sao không" -> Hiểu là "XỬ PHẠT".
-   - Áp dụng cơ chế "LỌC ẨN":
-     + Chỉ hiển thị những chức danh có thẩm quyền phạt tiền >= Mức phạt cá nhân của hành vi.
-     + Ẩn hoàn toàn các chức danh không đủ tiền.
-   - Sau đó xét tiếp quyền phạt bổ sung/KPHQ.
-   - Đề xuất người thấp nhất đủ quyền.
 
 🔴 RULE 3: TRÁCH NHIỆM / ĐIỀU KIỆN / HỒ SƠ:
    - BẮT BUỘC trích dẫn căn cứ đầu tiên từ "Luật PCCC và CNCH" (đối với câu hỏi về trách nhiệm, điều kiện chung).
