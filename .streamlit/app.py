@@ -11,7 +11,7 @@ from pypdf import PdfReader
 import io
 
 # --- 1. CẤU HÌNH GIAO DIỆN ---
-st.set_page_config(page_title="PCCC PC07 (Final Logic)", page_icon="🔥", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title="PCCC PC07 (Ultimate Logic)", page_icon="🔥", layout="wide", initial_sidebar_state="expanded")
 st.markdown("""
 <style>
     .header-banner {background: linear-gradient(90deg, #B71C1C 0%, #D32F2F 100%); padding: 1.5rem; color: white; text-align: center; margin-top: -50px; border-radius: 0 0 15px 15px;}
@@ -35,7 +35,7 @@ try:
     GCP_JSON = json.loads(st.secrets["GCP_JSON"])
 except Exception as e: st.error(f"⚠️ Lỗi cấu hình: {str(e)}"); st.stop()
 
-# --- 3. BỘ NÃO THAM MƯU (ROUTER - ĐÃ CẬP NHẬT RULE MỚI) ---
+# --- 3. BỘ NÃO THAM MƯU (ROUTER - 5 GIỎ ĐẦY ĐỦ) ---
 ROUTER_INSTRUCTION = """
 Bạn là Tham mưu trưởng PCCC. Nhiệm vụ: Chọn tài liệu "TỐI GIẢN NHƯNG ĐÚNG TRỌNG TÂM".
 
@@ -44,11 +44,11 @@ Bạn là Tham mưu trưởng PCCC. Nhiệm vụ: Chọn tài liệu "TỐI GI�
    - HÀNH ĐỘNG: BẮT BUỘC CHỌN [Luật PCCC và CNCH], [Nghị định 105], [Thông tư 36].
 
 2. GIỎ CÔNG TÁC CHỮA CHÁY (LỰC LƯỢNG):
-   - Dấu hiệu: "Việc chữa cháy", "Nhiệm vụ chữa cháy", "Tổ chức chữa cháy", "Đội PCCC cơ sở".
+   - Dấu hiệu: "Việc chữa cháy", "Nhiệm vụ chữa cháy", "Tổ chức chữa cháy", "Đội PCCC cơ sở", "Chiến thuật".
    - HÀNH ĐỘNG: BẮT BUỘC CHỌN [Thông tư 37] (và [Thông tư 48] nếu hỏi trang phục).
 
 3. GIỎ KỸ THUẬT (TRANG BỊ / HỆ THỐNG):
-   - Dấu hiệu: "Cần trang bị gì?", "Lắp hệ thống nào?", "Bình chữa cháy", "Báo cháy", "Khoảng cách".
+   - Dấu hiệu: "Cần trang bị gì?", "Lắp hệ thống nào?", "Bình chữa cháy", "Báo cháy", "Khoảng cách", "Lối thoát nạn".
    - HÀNH ĐỘNG: CHỈ CHỌN [QCVN 10] (và [QCVN 06] nếu cần).
 
 4. GIỎ HUY ĐỘNG (QUÂN ĐỘI / PHỐI HỢP):
@@ -56,9 +56,9 @@ Bạn là Tham mưu trưởng PCCC. Nhiệm vụ: Chọn tài liệu "TỐI GI�
    - HÀNH ĐỘNG: BẮT BUỘC CHỌN file [CV HD CÔNG TÁC CC&CNCH PHỐI HỢP QUÂN ĐỘI...].
 
 5. GIỎ XỬ PHẠT (LỖI / TIỀN / THẨM QUYỀN):
-   - Dấu hiệu: "Lỗi", "Phạt bao nhiêu", "Xử lý", "Bị sao".
+   - Dấu hiệu: "Lỗi", "Phạt bao nhiêu", "Xử lý", "Bị sao", "Vi phạm".
    - HÀNH ĐỘNG: BẮT BUỘC CHỌN [Nghị định 106] (Tiền) VÀ [Nghị định 189] (Thẩm quyền).
-   - CẤM CHỌN: Luật, NĐ 105, TT 36 (trừ khi hỏi kèm hồ sơ).
+   - CẤM CHỌN: Luật, NĐ 105, TT 36 (để tránh nhiễu, trừ khi hỏi kèm cách khắc phục hồ sơ).
 
 OUTPUT: Chỉ trả về danh sách tên file có trong kho, ngăn cách bằng dấu phẩy.
 """
@@ -67,7 +67,7 @@ def smart_router(user_query, available_files):
     file_list_str = ", ".join(available_files)
     prompt = f"""{ROUTER_INSTRUCTION}\n\nDANH SÁCH FILE HIỆN CÓ: {file_list_str}\n\nCÂU HỎI: "{user_query}"\n\nCHỌN TÀI LIỆU:"""
     
-    # Router dùng Key 1 (hoặc key đầu tiên sống) và model nhẹ để phản hồi nhanh
+    # Router thử lần lượt từ Key 1 -> Key n
     for key in API_KEYS_LIST:
         try:
             genai.configure(api_key=key)
@@ -77,7 +77,7 @@ def smart_router(user_query, available_files):
         except: continue
     return ""
 
-# --- 4. BỘ NÃO CHUYÊN GIA (EXPERT - TÍCH HỢP TOÀN BỘ RULE) ---
+# --- 4. BỘ NÃO CHUYÊN GIA (EXPERT - LOGIC SÀNG LỌC TINH GỌN) ---
 SYSTEM_PROMPT_EXPERT = """
 VAI TRÒ: Đại úy Phạm Tùng Linh - Chuyên gia Pháp chế PCCC PC07 Phú Thọ.
 
@@ -86,44 +86,58 @@ VAI TRÒ: Đại úy Phạm Tùng Linh - Chuyên gia Pháp chế PCCC PC07 Phú 
 2. MỌI con số, nhận định ĐỀU PHẢI CÓ TRÍCH DẪN: "...(Căn cứ: Điểm..., Khoản..., Điều..., Văn bản...)".
 3. Nếu thiếu dữ liệu (Diện tích, Tầng, Khối tích) -> HỎI NGƯỢC LẠI NGƯỜI DÙNG.
 
-🔴 RULE 1: SUY LUẬN VỀ TRÁCH NHIỆM / ĐIỀU KIỆN / HỒ SƠ / KIỂM TRA:
-   - Căn cứ: Tổng hợp từ Luật PCCC và CNCH (Quy định chung) -> Nghị định 105 (Chi tiết điều kiện) -> Thông tư 36 (Biểu mẫu, hồ sơ cụ thể).
-   - Trả lời phải nêu rõ: Đối tượng này cần điều kiện gì (theo NĐ 105) và Hồ sơ cần mẫu nào (theo TT 36).
+🔴 RULE 1: XỬ PHẠT (NĐ 106 + 189) - CƠ CHẾ "LỌC ẨN" (QUAN TRỌNG):
+   Khi trả lời về thẩm quyền, hệ thống chỉ xét 6 chức danh sau:
+   1. Chiến sĩ CA đang thi hành công vụ.
+   2. Đội trưởng Đội Cảnh sát PCCC và CNCH.
+   3. Trưởng Công an cấp xã.
+   4. Trưởng phòng Cảnh sát PCCC và CNCH (PC07).
+   5. Giám đốc Công an cấp tỉnh.
+   6. Chủ tịch UBND cấp tỉnh.
 
-🟢 RULE 2: SUY LUẬN VỀ CÔNG TÁC CHỮA CHÁY:
-   - Căn cứ: Thông tư 37.
-   - Trả lời về: Nhiệm vụ, quyền hạn, tổ chức đội hình, phương án chữa cháy.
-
-🔴 RULE 3: SUY LUẬN XỬ PHẠT (NĐ 106 + 189) - LOGIC CHẶT CHẼ:
    BẮT BUỘC TRÌNH BÀY THEO FORM SAU:
+   
    1. Hành vi và mức tiền phạt:
-      - Mức phạt Cá nhân: X đồng (Căn cứ NĐ 106).
+      - Hành vi: ...
+      - Mức phạt Cá nhân: X đồng -> Căn cứ NĐ 106. (Lưu ý: Mọi so sánh thẩm quyền đều dùng mức X này).
       - Mức phạt Tổ chức: 2 * X đồng.
-   2. Phạt bổ sung & KPHQ: [Có/Không] -> Chi tiết.
-   3. Xét thẩm quyền (QUAN TRỌNG: CHỈ XÉT THEO MỨC CÁ NHÂN X):
-      *Chỉ xét danh sách: Chiến sĩ CA, Đội trưởng, Trưởng CA Xã, Trưởng Phòng PC07, Giám đốc CA Tỉnh, Chủ tịch Tỉnh.*
-      - Xét [Chức danh A]: 
-        + Thẩm quyền tiền: ... (So sánh với X).
-        + Thẩm quyền Bổ sung/KPHQ: ...
-        => Kết luận: Đủ thẩm quyền hay không.
-      - Xét [Chức danh B]: ...
-   4. Đề xuất: Trình người có chức vụ thấp nhất đủ điều kiện.
+      
+   2. Hình thức phạt bổ sung & KPHQ:
+      - Phạt bổ sung: [Có/Không] -> Chi tiết.
+      - Biện pháp KPHQ: [Có/Không] -> Chi tiết.
 
-🟢 RULE 4: SUY LUẬN THẨM QUYỀN QUẢN LÝ (NĐ 105 / NĐ 50):
-   - B1: Kiểm tra dữ liệu.
-   - B2: Xác định công năng chính (Quy tắc 70%).
-   - B3: Đối chiếu Phụ lục (I, II, III...).
-   - B4: Kết luận (Phụ lục II -> PC07; Chỉ Phụ lục I -> Xã).
+   3. Xét thẩm quyền xử phạt (SÀNG LỌC NGHIÊM NGẶT):
+      *Bước A: Sàng lọc Tiền (Ngầm)*
+      - Hãy so sánh mức phạt cá nhân (X) với thẩm quyền phạt tiền tối đa của 6 chức danh trên.
+      - QUY TẮC HIỂN THỊ: CHỈ ĐƯỢC PHÉP LIỆT KÊ những chức danh có thẩm quyền phạt tiền >= X.
+      - CẤM NHẮC ĐẾN những chức danh không đủ tiền (Ẩn hoàn toàn khỏi câu trả lời, không ghi "không đủ").
 
-🔵 RULE 5: SUY LUẬN KỸ THUẬT (TRANG BỊ):
-   - Chỉ căn cứ QCVN 10.
+      *Bước B: Xét Bổ sung/KPHQ (Hiển thị)*
+      - Với những chức danh ĐÃ LỌC ĐƯỢC ở Bước A (những người đủ tiền), xét tiếp xem họ có quyền phạt Bổ sung/KPHQ không.
+      - Kết luận cho từng người: "Đủ thẩm quyền ký" HOẶC "Đủ thẩm quyền phạt tiền nhưng không đủ thẩm quyền [ghi rõ cái thiếu]".
 
-🟣 RULE 6: SUY LUẬN HUY ĐỘNG QUÂN ĐỘI:
-   - Căn cứ: CV HD CÔNG TÁC CC&CNCH PHỐI HỢP QUÂN ĐỘI (Dự thảo).
+   4. Đề xuất: Trình người có chức vụ thấp nhất ĐỦ CẢ 3 YẾU TỐ (Tiền + Bổ sung + KPHQ).
+
+🟢 RULE 2: CÔNG TÁC CHỮA CHÁY (TT 37):
+   - Trả lời về nhiệm vụ, quyền hạn, chỉ huy chữa cháy.
+
+🔴 RULE 3: TRÁCH NHIỆM / HỒ SƠ / ĐIỀU KIỆN (Luật + NĐ 105 + TT 36):
+   - Trả lời chi tiết theo quy định pháp luật và biểu mẫu hồ sơ.
+
+🟢 RULE 4: THẨM QUYỀN QUẢN LÝ (NĐ 105 / NĐ 50):
+   - B1: Quy tắc 70% công năng.
+   - B2: Đối chiếu Phụ lục (I, II, III...).
+   - B3: Kết luận (PC07 hay Xã).
+
+🔵 RULE 5: KỸ THUẬT (QCVN 10):
+   - Chỉ căn cứ QCVN 10. Trả lời thông số + Nguồn.
+
+🟣 RULE 6: HUY ĐỘNG QUÂN ĐỘI:
+   - Căn cứ: CV HD CÔNG TÁC CC&CNCH PHỐI HỢP QUÂN ĐỘI.
 """
 
 def call_gemini_expert_exhaustive(prompt, context):
-    # DANH SÁCH MODEL MỤC TIÊU (Ưu tiên bản mạnh nhất)
+    # DANH SÁCH MODEL (Ưu tiên bản mạnh nhất 2.5)
     TARGET_MODELS = [
         "gemini-2.5-flash",       # Ưu tiên 1
         "gemini-2.0-flash",       # Ưu tiên 2
@@ -139,10 +153,7 @@ def call_gemini_expert_exhaustive(prompt, context):
 
     last_error = ""
     
-    # CHIẾN THUẬT FAILOVER:
-    # Vòng ngoài: Duyệt Model.
-    # Vòng trong: Duyệt Key (Từ Key 1 -> Key n).
-    
+    # FAILOVER: Duyệt Model -> Duyệt Key (Thứ tự Key 1, 2, 3...)
     for model_name in TARGET_MODELS:
         for index, key in enumerate(API_KEYS_LIST):
             try:
@@ -152,10 +163,11 @@ def call_gemini_expert_exhaustive(prompt, context):
                 # Timeout 60s
                 response = model.generate_content(full_prompt, request_options={'timeout': 60})
                 
-                # Nếu chạy được -> Trả về ngay
+                # Trả về ngay khi thành công
                 return response.text, model_name, index + 1
                 
             except Exception as e:
+                # Nếu lỗi -> Thử Key tiếp theo hoặc Model tiếp theo
                 last_error = str(e)
                 continue 
     
@@ -172,7 +184,7 @@ def load_database_final():
         logs = []
         processed = set()
         
-        # KEYWORDS CHO TOÀN BỘ CÁC GIỎ
+        # TỪ KHÓA CHO ĐỦ 5 GIỎ
         keywords = [
             "189", "106", "105", "50", # Phạt & Quản lý
             "36", "37", "48",          # Pháp lý & Lực lượng & Chữa cháy
@@ -218,7 +230,7 @@ def load_database_final():
     except Exception as e: return None, [str(e)]
 
 # --- 6. GIAO DIỆN CHÍNH ---
-st.markdown("""<div class="header-banner"><p style="font-size: 26px; margin:0">TRỢ LÝ PCCC (FINAL LOGIC)</p></div>""", unsafe_allow_html=True)
+st.markdown("""<div class="header-banner"><p style="font-size: 26px; margin:0">TRỢ LÝ PCCC (FINAL ULTIMATE)</p></div>""", unsafe_allow_html=True)
 
 with st.spinner('🚀 Đang khởi động...'):
     database, logs = load_database_final()
@@ -229,7 +241,7 @@ if not database: st.error(f"❌ Lỗi dữ liệu: {logs[0]}"); st.stop()
 with st.sidebar:
     st.header("⚙️ CẤU HÌNH")
     st.success(f"🔑 Đã nạp: **{len(API_KEYS_LIST)} API Key**")
-    st.info("💡 Cơ chế: Failover (Dự phòng).")
+    st.info("💡 Hệ thống Failover (Key 1 -> Key 2).")
     
     st.divider()
     st.header("KHO DỮ LIỆU")
@@ -254,7 +266,7 @@ if prompt := st.chat_input("Nhập câu hỏi..."):
         all_files = list(database.keys())
         selected_files_str = smart_router(prompt, all_files)
         
-        # BƯỚC 2: TRÍCH XUẤT (BACKUP LOGIC)
+        # BƯỚC 2: TRÍCH XUẤT (BACKUP LOGIC ĐẦY ĐỦ)
         relevant_context = ""
         used_files = []
         if selected_files_str:
@@ -281,10 +293,10 @@ if prompt := st.chat_input("Nhập câu hỏi..."):
                 # Logic Kỹ thuật: Chỉ QC 10, 06
                 elif is_tech and any(x in fname for x in ["10", "qc", "06"]) and not is_penalty: 
                     relevant_context += content; used_files.append(fname)
-                # Logic Pháp lý/Quản lý (MỚI): Luật, 105, 36
+                # Logic Pháp lý/Quản lý: Luật, 105, 36
                 elif is_manage and any(x in fname for x in ["luat", "105", "36"]):
                     relevant_context += content; used_files.append(fname)
-                # Logic Chữa cháy (MỚI): TT 37
+                # Logic Chữa cháy: TT 37
                 elif is_force and "37" in fname:
                     relevant_context += content; used_files.append(fname)
 
