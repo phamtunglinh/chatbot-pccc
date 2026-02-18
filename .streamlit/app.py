@@ -48,7 +48,24 @@ st.markdown("""
         text-align: center;
         color: white;
     }
-    
+    .main-header h1 {
+        font-size: 1.4rem; /* Giảm size chút để vừa tên đơn vị dài */
+        font-weight: 700;
+        margin: 0;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        line-height: 1.4;
+    }
+    .main-header p {
+        font-size: 0.95rem;
+        opacity: 0.95;
+        margin-top: 8px;
+        font-weight: 400;
+        border-top: 1px solid rgba(255,255,255,0.3);
+        padding-top: 8px;
+        display: inline-block;
+    }
+
     /* Footer Bản Quyền */
     .custom-footer {
         position: fixed;
@@ -137,7 +154,7 @@ try:
     GCP_JSON = json.loads(st.secrets["GCP_JSON"])
 except Exception as e: st.error(f"⚠️ Lỗi cấu hình: {str(e)}"); st.stop()
 
-# --- 6. BỘ NÃO THAM MƯU (ROUTER - CẬP NHẬT TRỌNG SỐ) ---
+# --- 6. BỘ NÃO THAM MƯU (ROUTER - CẬP NHẬT TỪ KHÓA XỬ LÝ) ---
 ROUTER_INSTRUCTION = """
 Bạn là Tham mưu trưởng PCCC. Nhiệm vụ: Chọn tài liệu chính xác.
 
@@ -149,8 +166,8 @@ Bạn là Tham mưu trưởng PCCC. Nhiệm vụ: Chọn tài liệu chính xác
    - Dấu hiệu: "Hồ sơ", "Thủ tục", "Điều kiện an toàn", "Kiểm tra", "Thẩm duyệt", "Trách nhiệm".
    - HÀNH ĐỘNG: BẮT BUỘC CHỌN [Luật PCCC và CNCH], [Nghị định 105], [Thông tư 36].
 
-3. GIỎ XỬ PHẠT:
-   - Dấu hiệu: "Lỗi", "Phạt", "Xử lý vi phạm".
+3. GIỎ XỬ PHẠT (XỬ LÝ VI PHẠM):
+   - Dấu hiệu: "Lỗi", "Phạt", "Xử lý", "Xử lý vi phạm", "Bị sao".
    - HÀNH ĐỘNG: [Nghị định 106], [Nghị định 189].
 
 4. GIỎ KỸ THUẬT:
@@ -178,7 +195,7 @@ def smart_router(user_query, available_files):
         except: continue
     return ""
 
-# --- 7. BỘ NÃO CHUYÊN GIA (EXPERT - CẬP NHẬT RULE MỚI) ---
+# --- 7. BỘ NÃO CHUYÊN GIA (EXPERT) ---
 SYSTEM_PROMPT_EXPERT = """
 VAI TRÒ: Đại úy Phạm Tùng Linh - Chuyên gia Pháp chế PCCC PC07 Phú Thọ.
 
@@ -195,7 +212,8 @@ VAI TRÒ: Đại úy Phạm Tùng Linh - Chuyên gia Pháp chế PCCC PC07 Phú 
      + Lưu ý đặc biệt: Dù diện tích nhỏ (thuộc Phụ lục I) nhưng Số tầng cao (thuộc Phụ lục II) -> Vẫn là PC07 quản lý.
      + Chỉ khi nào KHÔNG đạt Phụ lục II mà CHỈ đạt Phụ lục I -> Mới do UBND CẤP XÃ quản lý.
 
-🔴 RULE 2: XỬ PHẠT VI PHẠM (NĐ 106 + 189):
+🔴 RULE 2: XỬ LÝ / XỬ PHẠT VI PHẠM (NĐ 106 + 189):
+   - Khi người dùng hỏi "Xử lý thế nào", "Bị sao không" -> Hiểu là "XỬ PHẠT".
    - Áp dụng cơ chế "LỌC ẨN":
      + Chỉ hiển thị những chức danh có thẩm quyền phạt tiền >= Mức phạt cá nhân của hành vi.
      + Ẩn hoàn toàn các chức danh không đủ tiền.
@@ -311,10 +329,11 @@ if prompt := st.chat_input("Nhập nội dung cần tra cứu..."):
                 for fname in all_files:
                     if fname in selected_files_str: relevant_context += f"--- VĂN BẢN: {fname} ---\n{database[fname]}\n"
             
-            # Backup Retrieve
+            # Backup Retrieve (BỔ SUNG LOGIC: Xử lý = Xử phạt)
             if not relevant_context:
                 for fname, content in database.items():
-                    is_penalty = ("phạt" in prompt or "lỗi" in prompt)
+                    # Logic: Nếu hỏi "xử lý" -> Cũng tìm trong Giỏ Xử phạt (106, 189)
+                    is_penalty = ("phạt" in prompt or "lỗi" in prompt or "xử lý" in prompt)
                     is_military = ("quân đội" in prompt or "chi viện" in prompt)
                     is_tech = ("trang bị" in prompt or "lắp" in prompt or "hệ thống" in prompt)
                     is_manage = ("trách nhiệm" in prompt or "hồ sơ" in prompt or "quản lý" in prompt or "điều kiện" in prompt)
