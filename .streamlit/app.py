@@ -143,11 +143,11 @@ except Exception as e: st.error(f"⚠️ Lỗi cấu hình: {str(e)}"); st.stop(
 
 # --- 6. BỘ NÃO THAM MƯU (ROUTER) ---
 ROUTER_INSTRUCTION = """
-Bạn là Tham mưu trưởng PCCC. Nhiệm vụ: Chọn tài liệu chính xác.
+Bạn là Tham mưu trưởng PCCC. Nhiệm vụ: Chọn tài liệu chính xác trong thư mục Drive.
 
 1. GIỎ PHÂN CẤP QUẢN LÝ (AI QUẢN LÝ CƠ SỞ):
    - Dấu hiệu: "Cơ sở này do ai quản lý", "Thuộc danh mục nào", "Xã hay Công an quản lý", "Phụ lục mấy".
-   - HÀNH ĐỘNG: BẮT BUỘC CHỌN [Nghị định 105], [Nghị định 50].
+   - HÀNH ĐỘNG: BẮT BUỘC CHỌN [Nghị định 105].
 
 2. GIỎ PHÁP LÝ (HỒ SƠ/THỦ TỤC/TRÁCH NHIỆM/ĐIỀU KIỆN/ KIỂM TRA / NGHIỆM THU / THẨM ĐỊNH / PHÒNG CHÁY / BẢO VỆ HIỆN TRƯỜNG/ PHƯƠNG ÁN CHỮA CHÁY):
    - Dấu hiệu: "Hồ sơ", "Thủ tục", "Điều kiện an toàn", "Kiểm tra", "Thẩm duyệt", "Trách nhiệm" , "Phương án chữa cháy", "Kiểm tra" , "Thẩm định", "Nghiệm thu", "Bảo vệ hiện trường".
@@ -267,8 +267,8 @@ def load_database_final():
         logs = []
         processed = set()
         
-        # Keywords bao gồm Nghị định 50, 136, 105, 296...
-        keywords = ["189", "106", "105", "50", "136", "296", "36", "37", "48", "luat", "huy dong", "quan doi", "du thao", "phoi hop", "cv hd", "doi 3", "qcvn", "10:2025", "06", "10"]
+        # Keywords bao gồm Nghị định 105, 106, 296...
+        keywords = ["189", "106", "105", "296", "36", "37", "48", "luat", "huy dong", "quan doi", "du thao", "phoi hop", "cv hd", "doi 3", "qcvn", "10:2025", "06", "10"]
         files = []
         for k in keywords:
             try: files.extend(service.files().list(q=f"'{DRIVE_FOLDER_ID}' in parents and trashed=false and name contains '{k}'", fields="files(id, name)").execute().get('files', []))
