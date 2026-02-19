@@ -149,8 +149,8 @@ Bạn là Tham mưu trưởng PCCC. Nhiệm vụ: Chọn tài liệu chính xác
    - Dấu hiệu: "Cơ sở này do ai quản lý", "Thuộc danh mục nào", "Xã hay Công an quản lý", "Phụ lục mấy".
    - HÀNH ĐỘNG: BẮT BUỘC CHỌN [Nghị định 105], [Nghị định 50].
 
-2. GIỎ PHÁP LÝ (HỒ SƠ/THỦ TỤC/TRÁCH NHIỆM/ĐIỀU KIỆN/ KIỂM TRA / NGHIỆM THU / THẨM ĐỊNH / PHÒNG CHÁY / BẢO VỆ HIỆN TRƯỜNG/ PHƯƠNG ÁN):
-   - Dấu hiệu: "Hồ sơ", "Thủ tục", "Điều kiện an toàn", "Kiểm tra", "Thẩm duyệt", "Trách nhiệm" , "Phương án", "Kiểm tra" , "Thẩm định", "Nghiệm thu", "Bảo vệ hiện trường".
+2. GIỎ PHÁP LÝ (HỒ SƠ/THỦ TỤC/TRÁCH NHIỆM/ĐIỀU KIỆN/ KIỂM TRA / NGHIỆM THU / THẨM ĐỊNH / PHÒNG CHÁY / BẢO VỆ HIỆN TRƯỜNG/ PHƯƠNG ÁN CHỮA CHÁY):
+   - Dấu hiệu: "Hồ sơ", "Thủ tục", "Điều kiện an toàn", "Kiểm tra", "Thẩm duyệt", "Trách nhiệm" , "Phương án chữa cháy", "Kiểm tra" , "Thẩm định", "Nghiệm thu", "Bảo vệ hiện trường".
    - HÀNH ĐỘNG: BẮT BUỘC CHỌN [Luật PCCC và CNCH], [Nghị định 105], [Thông tư 36].
 
 3. GIỎ XỬ PHẠT (XỬ LÝ VI PHẠM):
