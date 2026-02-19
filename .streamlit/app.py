@@ -152,6 +152,7 @@ Bạn là Tham mưu trưởng PCCC. Nhiệm vụ: Chọn tài liệu chính xác
 2. GIỎ PHÁP LÝ (HỒ SƠ/THỦ TỤC/TRÁCH NHIỆM/ĐIỀU KIỆN/KIỂM TRA/NGHIỆM THU/THẨM ĐỊNH/PHÒNG CHÁY/BẢO VỆ HIỆN TRƯỜNG/PHƯƠNG ÁN CHỮA CHÁY/MẪU/BIỂU MẪU):
    - Dấu hiệu: "Hồ sơ", "Thủ tục", "Điều kiện an toàn", "Kiểm tra", "Thẩm duyệt", "Trách nhiệm" , "Phương án chữa cháy", "Kiểm tra" , "Thẩm định", "Nghiệm thu", "Bảo vệ hiện trường".
    - HÀNH ĐỘNG: BẮT BUỘC CHỌN [Luật PCCC và CNCH], [Nghị định 105], [Thông tư 36].
+   - LƯU Ý ĐẶC BIỆT: Nếu hỏi "phương án chữa cháy", TUYỆT ĐỐI KHÔNG CHỌN Thông tư 37.
 
 3. GIỎ XỬ PHẠT (XỬ LÝ VI PHẠM):
    - Dấu hiệu: "Lỗi", "Phạt", "Xử lý", "Xử lý vi phạm", "Bị sao".
@@ -169,7 +170,7 @@ Bạn là Tham mưu trưởng PCCC. Nhiệm vụ: Chọn tài liệu chính xác
    - Dấu hiệu: "Quân đội", "Chi viện".
    - HÀNH ĐỘNG: File chứa "CV HD", "QUÂN ĐỘI", "ĐỘI 3".
 
-7. GIỎ CHỮA CHÁY: [Thông tư 37].
+7. GIỎ CHỮA CHÁY: [Thông tư 37] (Chỉ chọn khi hỏi về chiến thuật, tổ chức chữa cháy, quyền hạn chỉ huy, phương tiện chữa cháy cho lực lượng Công an).
 
 OUTPUT: Chỉ trả về danh sách tên file có trong kho.
 """
@@ -194,6 +195,7 @@ VAI TRÒ: Trợ lý AI về PCCC và CNCH - Phòng PC07 Phú Thọ.
 1. Trả lời ngắn gọn, đúng trọng tâm, văn phong hành chính chuyên nghiệp.
 2. Tuyệt đối không sáng tạo ngoài văn bản.
 3. TUYỆT ĐỐI KHÔNG sử dụng kiến thức có sẵn trên mạng (như NĐ 136 cũ hay Luật cũ). CHỈ ĐƯỢC PHÉP lấy thông tin và căn cứ từ văn bản được cung cấp.
+4. TUYỆT ĐỐI KHÔNG để lộ các từ khóa quy trình như "RULE 1", "RULE 2", "BƯỚC 1", "GIỎ"... vào trong câu trả lời. Hệ thống phải suy luận ngầm và chỉ xuất ra kết quả cuối cùng tự nhiên nhất.
 
 🔴 RULE 1: XÁC ĐỊNH THẨM QUYỀN QUẢN LÝ (QUAN TRỌNG - THEO NĐ 105/2025):
    BẮT BUỘC thực hiện đúng 2 BƯỚC sau:
@@ -232,7 +234,7 @@ VAI TRÒ: Trợ lý AI về PCCC và CNCH - Phòng PC07 Phú Thọ.
    - BƯỚC 2 (CHUYỂN TIẾP XUỐNG NGHỊ ĐỊNH): Nếu Luật không quy định chi tiết (đặc biệt là các câu hỏi về Biểu mẫu, Hồ sơ, Thẩm quyền phê duyệt cụ thể) -> TỰ ĐỘNG bỏ qua Luật và quét toàn diện vào Nghị định (VD: Nghị định 105), bao gồm cả phần Phụ lục. Nếu có -> Trích dẫn nguyên văn.
    - BƯỚC 3 (CHUYỂN TIẾP XUỐNG THÔNG TƯ): Nếu Nghị định tiếp tục không có, hoặc có điều khoản ghi "thực hiện theo hướng dẫn của Bộ Công an" -> TỰ ĐỘNG quét tiếp xuống các Thông tư (VD: Thông tư 36, Thông tư 37), bao gồm cả Phụ lục. Nếu có -> Trích dẫn.
    - BƯỚC 4 (CHỐT CHẶN CUỐI CÙNG): Bạn CHỈ ĐƯỢC PHÉP trả lời từ chối (theo nguyên tắc số 7) SAU KHI đã quét cạn kiệt cả 3 cấp độ (Luật -> Nghị định -> Thông tư) từ các Điều khoản đầu tiên cho đến Phụ lục biểu mẫu cuối cùng mà vẫn không có kết quả.
-   - Khi hỏi về "phương án chữa cháy", "mẫu phương án": Bắt buộc lấy căn cứ từ Nghị định 105 và Thông tư 36.
+   
     
 🟢 RULE 5: CÁC LĨNH VỰC KHÁC:
    - Kỹ thuật: Căn cứ QCVN 10, QCVN 06.
@@ -353,8 +355,9 @@ if prompt := st.chat_input("Nhập nội dung cần tra cứu..."):
                     is_penalty = ("phạt" in prompt or "lỗi" in prompt or "xử lý" in prompt)
                     is_military = ("quân đội" in prompt or "chi viện" in prompt)
                     is_tech = ("trang bị" in prompt or "lắp" in prompt or "hệ thống" in prompt)
-                    is_manage = ("trách nhiệm" in prompt or "hồ sơ" in prompt or "quản lý" in prompt or "điều kiện" in prompt)
-                    is_force = ("lực lượng" in prompt or "chữa cháy" in prompt)
+                    is_manage = ("trách nhiệm" in prompt_lower or "hồ sơ" in prompt_lower or "quản lý" in prompt_lower or "điều kiện" in prompt_lower or "kiểm tra" in prompt_lower or "phương án" in prompt_lower or "mẫu" in prompt_lower)
+                    # Nếu hỏi phương án/mẫu thì tuyệt đối KHÔNG phải là TT37
+                    is_force = ("lực lượng" in prompt_lower or "chữa cháy" in prompt_lower) and not ("phương án" in prompt_lower or "mẫu" in prompt_lower)
 
                     if is_enforcement and "296" in fname: # Bắt file cưỡng chế 296
                          relevant_context += content
