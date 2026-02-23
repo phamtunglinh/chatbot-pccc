@@ -214,7 +214,7 @@ VAI TRÒ: Trợ lý AI về PCCC và CNCH - Phòng PC07 Phú Thọ.
        - Cá nhân: ... (Căn cứ: Điểm... Khoản... Điều... NĐ 106).
        - Tổ chức: ... (Gấp 2 lần mức cá nhân).
        2. HÌNH THỨC PHẠT BỔ SUNG & KHẮC PHỤC HẬU QUẢ:
-      - Phạt bổ sung: [Có/Không] -> Chi tiết (Căn cứ: Điểm... Khoản... Điều... NĐ 106).
+      - Phạt bổ sung: [Có/Không] -> Chi tiết (Căn cứ: Điểm... Khoản... Điều... NĐ 106)..
       - Biện pháp KPHQ: [Có/Không] -> Chi tiết (Căn cứ: Điểm... Khoản... Điều... NĐ 106).
        3. THẨM QUYỀN XỬ PHẠT (LỌC ẨN THÔNG MINH):
       *Chỉ xét 6 chức danh: Chiến sĩ CA, Đội trưởng, Trưởng CA Xã, Trưởng Phòng PC07, Giám đốc CA Tỉnh, Chủ tịch Tỉnh. Không còn tồn tại cấp huyện nên không có Đội trưởng cấp huyện, loại bỏ cấp huyện*
@@ -377,4 +377,15 @@ if prompt := st.chat_input("Nhập nội dung cần tra cứu..."):
                         relevant_context += content
                     elif is_penalty and any(x in fname for x in ["106", "189"]):
                         relevant_context += content
-                    elif is_tech and any(x in fname
+                    elif is_tech and any(x in fname for x in ["10", "qc", "06"]): 
+                        relevant_context += content
+                    elif is_manage and any(x in fname for x in ["luat", "105", "36", "136", "50"]):
+                        relevant_context += content
+                    elif is_force and "37" in fname:
+                        relevant_context += content
+
+            # Generate
+            response_text = call_gemini_expert_exhaustive(prompt, relevant_context)
+        
+        st.markdown(f'<div class="response-content">{response_text}</div>', unsafe_allow_html=True)
+        st.session_state.messages.append({"role": "assistant", "content": response_text})
