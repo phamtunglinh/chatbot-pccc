@@ -224,4 +224,158 @@ VAI TRÒ: Trợ lý AI về PCCC và CNCH - Phòng PC07 Phú Thọ.
       *Kết luận:* "Đủ thẩm quyền ký quyết định".
        4. KIẾN NGHỊ: Trình người có chức vụ thấp nhất trong danh sách đủ điều kiện trong 6 chức danh xét chiến sĩ CA, Đội trưởng, Trưởng CA Xã, Trưởng Phòng PC07, Giám đốc CA Tỉnh, Chủ tịch Tỉnh ký; nếu có nhiều người đủ điều kiện thì trình 2 người có chức vụ thấp nhất (01 người cấp xã như Trưởng Công cấp xã hoặc Chủ tịch UBND cấp xã; 01 người cấp tỉnh như Đội trưởng hoặc Trưởng Phòng PC07 hoặc Giám đốc Công an tỉnh hoăc Chủ tịch tỉnh) trong danh sách đủ điều kiện trong 6 chức danh xét chiến sĩ CA, Đội trưởng, Trưởng CA Xã, Trưởng Phòng PC07, Giám đốc CA Tỉnh, Chủ tịch Tỉnh ký  
   
-🔴 RULE 3: CƯỠNG CHẾ / KH
+🔴 RULE 3: CƯỠNG CHẾ / KHÔNG NỘP PHẠT (NĐ 296/2025):
+   - Khi hỏi về việc không nộp tiền, nộp chậm, chây ỳ -> Dùng NĐ 296/2025/NĐ-CP.
+   - Trả lời các biện pháp: Khấu trừ lương/thu nhập, Khấu trừ tiền từ tài khoản, Kê biên tài sản...
+
+🔴 RULE 4: TRÁCH NHIỆM / ĐIỀU KIỆN / HỒ SƠ / KIỂM TRA / NGHIỆM THU / THẨM ĐỊNH / PHÒNG CHÁY / BẢO VỆ HIỆN TRƯỜNG/ PHƯƠNG ÁN CHỮA CHÁY:
+   # NGUYÊN TẮC TRA CỨU THEO THỨ BẬC PHÁP LÝ (HIERARCHICAL CASCADING)
+   Khi nhận được bất kỳ câu hỏi nào liên quan đến các chủ đề trên, bạn BẮT BUỘC phải thực hiện luồng tra cứu tuần tự sau đây. Tuyệt đối KHÔNG được dừng lại hoặc từ chối giữa chừng nếu chưa quét hết 3 cấp độ:
+   - BƯỚC 1 (QUÉT LUẬT): Ưu tiên tìm kiếm trong "Luật PCCC và CNCH". Nếu Luật có quy định -> Trích dẫn ngay. 
+   - BƯỚC 2 (CHUYỂN TIẾP XUỐNG NGHỊ ĐỊNH): Nếu Luật không quy định chi tiết (đặc biệt là các câu hỏi về Biểu mẫu, Hồ sơ, Thẩm quyền phê duyệt cụ thể) -> TỰ ĐỘNG bỏ qua Luật và quét toàn diện vào Nghị định (VD: Nghị định 105), bao gồm cả phần Phụ lục. Nếu có -> Trích dẫn nguyên văn.
+   - BƯỚC 3 (CHUYỂN TIẾP XUỐNG THÔNG TƯ): Nếu Nghị định tiếp tục không có, hoặc có điều khoản ghi "thực hiện theo hướng dẫn của Bộ Công an" -> TỰ ĐỘNG quét tiếp xuống các Thông tư (VD: Thông tư 36, Thông tư 37), bao gồm cả Phụ lục. Nếu có -> Trích dẫn.
+   - BƯỚC 4 (CHỐT CHẶN CUỐI CÙNG): Bạn CHỈ ĐƯỢC PHÉP trả lời từ chối (theo nguyên tắc số 7) SAU KHI đã quét cạn kiệt cả 3 cấp độ (Luật -> Nghị định -> Thông tư) từ các Điều khoản đầu tiên cho đến Phụ lục biểu mẫu cuối cùng mà vẫn không có kết quả.
+   
+    
+🟢 RULE 5: CÁC LĨNH VỰC KHÁC:
+   - Kỹ thuật: 
+   + BẮT BUỘC tra cứu và trích dẫn số liệu cụ thể (chiều rộng, khoảng cách, giới hạn chịu lửa, v.v.) từ QCVN 06:2022/BXD (hoặc sửa đổi) và QCVN 10.
+   + Khi trả lời phải nêu rõ ràng: "Căn cứ Mục... hoặc Bảng... của Quy chuẩn...".
+   + TUYỆT ĐỐI KHÔNG TRẢ LỜI CHUNG CHUNG KHI HỎI VỀ THÔNG SỐ. Phải đọc kỹ bảng biểu trong tài liệu để trả lời.
+   - Chữa cháy, chỉ huy chữa cháy, trừ phương án chữa cháy: Căn cứ Luật PCCC và CNCH, Nghị định 105 và Thông tư 37.
+   - Quân đội: Căn cứ CV Hướng dẫn phối hợp.
+"""
+
+def call_gemini_expert_exhaustive(prompt, context):
+    # CẬP NHẬT TÊN MODEL CHUẨN ĐỂ ĐỌC FILE LỚN (QC06) MÀ KHÔNG BỊ LỖI 404
+    TARGET_MODELS = ["gemini-2.0-flash", "gemini-1.5-pro-latest", "gemini-1.5-flash-latest"]
+    
+    if not context: full_prompt = f"Người dùng chào: '{prompt}'. Hãy trả lời xã giao lịch sự."
+    else: full_prompt = f"{SYSTEM_PROMPT_EXPERT}\n\n=== TÀI LIỆU HỖ TRỢ ===\n{context}\n\n=== CÂU HỎI ===\n{prompt}"
+    
+    last_error = ""
+    for model_name in TARGET_MODELS:
+        for index, key in enumerate(API_KEYS_LIST):
+            try:
+                genai.configure(api_key=key)
+                model = genai.GenerativeModel(model_name)
+                response = model.generate_content(full_prompt, request_options={'timeout': 60})
+                return response.text
+            except Exception as e:
+                last_error = str(e)
+                continue 
+    return f"⚠️ Hệ thống đang bận. Vui lòng thử lại. (Error: {last_error})"
+
+# --- 8. NẠP DỮ LIỆU ---
+@st.cache_data(ttl=7200, show_spinner=False)
+def load_database_final():
+    if not GCP_JSON or not DRIVE_FOLDER_ID: return {}, []
+    try:
+        creds = service_account.Credentials.from_service_account_info(GCP_JSON)
+        service = build('drive', 'v3', credentials=creds)
+        db = {} 
+        logs = []
+        processed = set()
+        
+        # Keywords bao gồm Nghị định 105, 106, 296...
+        keywords = ["189", "106", "105", "296", "36", "37", "48", "luat", "huy dong", "quan doi", "du thao", "phoi hop", "cv hd", "doi 3", "qcvn", "10:2025", "06", "10"]
+        files = []
+        for k in keywords:
+            try: files.extend(service.files().list(q=f"'{DRIVE_FOLDER_ID}' in parents and trashed=false and name contains '{k}'", fields="files(id, name)").execute().get('files', []))
+            except: pass
+        
+        # Fallback lấy thêm file nếu ít
+        if len(files) < 5:
+             try: files.extend(service.files().list(q=f"'{DRIVE_FOLDER_ID}' in parents and trashed=false", pageSize=50, fields="files(id, name)").execute().get('files', []))
+             except: pass
+
+        for f in files:
+            if f['id'] in processed: continue
+            processed.add(f['id'])
+            if "144" in f['name'] and "106" not in f['name']: continue
+
+            try:
+                fh = io.BytesIO()
+                downloader = MediaIoBaseDownload(fh, service.files().get_media(fileId=f['id']))
+                done = False
+                while not done: _, done = downloader.next_chunk()
+                fh.seek(0)
+                
+                text = ""
+                if f['name'].endswith(".docx"):
+                    doc = Document(fh)
+                    text = "\n".join([p.text for p in doc.paragraphs])
+                    for t in doc.tables:
+                        for r in t.rows: text += " | ".join([c.text.strip() for c in r.cells]) + "\n"
+                elif f['name'].endswith(".pdf"):
+                    reader = PdfReader(fh)
+                    text = "\n".join([p.extract_text() for p in reader.pages if p.extract_text()])
+                
+                if text:
+                    db[f['name']] = text
+                    logs.append(f"✅ {f['name']}")
+            except: continue
+        return db, logs
+    except Exception as e: return None, []
+
+# --- 9. KHỞI ĐỘNG ---
+with st.spinner('🔄 Đang khởi tạo hệ thống nghiệp vụ...'):
+    database, logs = load_database_final()
+
+if not database: st.error("❌ Không thể kết nối Kho dữ liệu. Vui lòng kiểm tra lại cấu hình."); st.stop()
+
+# --- 10. CHAT LOGIC ---
+if "messages" not in st.session_state: 
+    # KHỞI TẠO LỜI CHÀO BAN ĐẦU
+    st.session_state.messages = [{
+        "role": "assistant", 
+        "content": "Xin chào! Tôi là trợ lý AI về PCCC và CNCH do Đại úy Phạm Tùng Linh - Phòng PC07 phát triển. Hãy đặt câu hỏi để tôi trả lời."
+    }]
+
+for m in st.session_state.messages:
+    with st.chat_message(m["role"], avatar="👮‍♂️" if m["role"] == "user" else "🔥"): 
+        st.markdown(f'<div class="response-content">{m["content"]}</div>', unsafe_allow_html=True)
+
+if prompt := st.chat_input("Nhập nội dung cần tra cứu..."):
+    # Đã bổ sung khai báo prompt_lower tại đây
+    prompt_lower = prompt.lower()
+    
+    st.session_state.messages.append({"role": "user", "content": prompt})
+    st.chat_message("user", avatar="👮‍♂️").write(prompt)
+    
+    with st.chat_message("assistant", avatar="🔥"):
+        with st.spinner("🧠 Đang suy nghĩ, bạn chờ chút, mình trả lời ngay đây..."):
+            
+            # Router
+            all_files = list(database.keys())
+            selected_files_str = smart_router(prompt, all_files)
+            
+            # Retrieve
+            relevant_context = ""
+            if selected_files_str:
+                for fname in all_files:
+                    if fname in selected_files_str: relevant_context += "--- " + fname + " ---\n" + database[fname] + "\n"
+            
+            # Backup Retrieve (BỔ SUNG LOGIC: Cưỡng chế & Xử lý & Phương án)
+            if not relevant_context:
+                for fname, content in database.items():
+                    is_enforcement = ("cưỡng chế" in prompt_lower or "không nộp" in prompt_lower or "chậm nộp" in prompt_lower or "chây ỳ" in prompt_lower)
+                    is_penalty = ("phạt" in prompt_lower or "lỗi" in prompt_lower or "xử lý" in prompt_lower)
+                    is_military = ("quân đội" in prompt_lower or "chi viện" in prompt_lower)
+                    
+                    is_tech = any(keyword in prompt_lower for keyword in [
+                        "trang bị", "lắp đặt", "hệ thống", "khoảng cách", "ngăn cháy", 
+                        "thông gió", "hút khói", "chống cháy lan", "lối thoát", "thoát nạn",
+                        "kích thước", "an toàn pccc", "bãi đỗ xe", "điểm lấy nước", 
+                        "chiều rộng", "chiều cao", "qcvn", "qc06", "qc 06", "buồng thang", "bậc chịu lửa"
+                    ]) and not is_penalty
+                    
+                    is_manage = ("trách nhiệm" in prompt_lower or "hồ sơ" in prompt_lower or "quản lý" in prompt_lower or "điều kiện" in prompt_lower or "kiểm tra" in prompt_lower or "phương án" in prompt_lower or "mẫu" in prompt_lower)
+                    
+                    # Nếu hỏi phương án/mẫu thì tuyệt đối KHÔNG phải là TT37
+                    is_force = ("lực lượng" in prompt_lower or "chữa cháy" in prompt_lower) and not ("phương án" in prompt_lower or "mẫu" in prompt_lower)
+
+                    # LOGIC CỘNG DỒN NỘI DUNG CHUẨN XÁC, LOẠI BỎ F-STRING
+                    if is_enforcement and "296" in fname: 
+                        relevant_context += "--- " + fname + " ---\n" + content + "\n"
+                    elif is_military and any(x in fname.lower() for x in ["quan doi", "du thao", "phoi hop
