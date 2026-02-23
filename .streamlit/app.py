@@ -368,13 +368,26 @@ if prompt := st.chat_input("Nhập nội dung cần tra cứu..."):
                     ]) and not is_penalty
                     
                     is_manage = ("trách nhiệm" in prompt_lower or "hồ sơ" in prompt_lower or "quản lý" in prompt_lower or "điều kiện" in prompt_lower or "kiểm tra" in prompt_lower or "phương án" in prompt_lower or "mẫu" in prompt_lower)
+                    
                     # Nếu hỏi phương án/mẫu thì tuyệt đối KHÔNG phải là TT37
                     is_force = ("lực lượng" in prompt_lower or "chữa cháy" in prompt_lower) and not ("phương án" in prompt_lower or "mẫu" in prompt_lower)
 
+                    # LOGIC CỘNG DỒN NỘI DUNG CHUẨN XÁC
                     if is_enforcement and "296" in fname: 
-                        relevant_context += content
+                        relevant_context += f"--- {fname} ---\n{content}\n"
                     elif is_military and any(x in fname.lower() for x in ["quan doi", "du thao", "phoi hop", "cv hd", "doi 3"]):
-                        relevant_context += content
+                        relevant_context += f"--- {fname} ---\n{content}\n"
                     elif is_penalty and any(x in fname for x in ["106", "189"]):
-                        relevant_context += content
-                    elif is_tech and any(x in fname
+                        relevant_context += f"--- {fname} ---\n{content}\n"
+                    elif is_tech and any(x in fname for x in ["10", "qc", "06"]): 
+                        relevant_context += f"--- {fname} ---\n{content}\n"
+                    elif is_manage and any(x in fname for x in ["luat", "105", "36", "136", "50"]):
+                        relevant_context += f"--- {fname} ---\n{content}\n"
+                    elif is_force and "37" in fname:
+                        relevant_context += f"--- {fname} ---\n{content}\n"
+
+            # Generate
+            response_text = call_gemini_expert_exhaustive(prompt, relevant_context)
+        
+        st.markdown(f'<div class="response-content">{response_text}</div>', unsafe_allow_html=True)
+        st.session_state.messages.append({"role": "assistant", "content": response_text})
