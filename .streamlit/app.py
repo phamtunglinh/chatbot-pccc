@@ -181,8 +181,8 @@ def smart_router(user_query, available_files):
     for key in API_KEYS_LIST:
         try:
             genai.configure(api_key=key)
-            # DÙNG BẢN 2.0-FLASH ĐỂ TRÁNH LỖI 404
-            model = genai.GenerativeModel('gemini-2.0-flash')
+            # QUAY LẠI DÙNG BẢN CHUẨN ĐỊNH DANH GỐC
+            model = genai.GenerativeModel('gemini-1.5-flash')
             response = model.generate_content(prompt)
             return response.text.strip()
         except: continue
@@ -247,8 +247,8 @@ VAI TRÒ: Trợ lý AI về PCCC và CNCH - Phòng PC07 Phú Thọ.
 """
 
 def call_gemini_expert_exhaustive(prompt, context):
-    # CẬP NHẬT TÊN MODEL CHUẨN ĐỂ ĐỌC FILE LỚN (QC06) MÀ KHÔNG BỊ LỖI 404
-    TARGET_MODELS = ["gemini-2.0-flash", "gemini-1.5-pro-latest", "gemini-1.5-flash-latest"]
+    # QUAY LẠI DÙNG TÊN CHUẨN GỐC, TRÁNH LỖI 404
+    TARGET_MODELS = ["gemini-1.5-pro", "gemini-1.5-flash"]
     
     if not context: full_prompt = f"Người dùng chào: '{prompt}'. Hãy trả lời xã giao lịch sự."
     else: full_prompt = f"{SYSTEM_PROMPT_EXPERT}\n\n=== TÀI LIỆU HỖ TRỢ ===\n{context}\n\n=== CÂU HỎI ===\n{prompt}"
@@ -259,7 +259,8 @@ def call_gemini_expert_exhaustive(prompt, context):
             try:
                 genai.configure(api_key=key)
                 model = genai.GenerativeModel(model_name)
-                response = model.generate_content(full_prompt, request_options={'timeout': 60})
+                # QUAN TRỌNG NHẤT: Tăng thời gian chờ lên 180 giây để nhai nát QC06
+                response = model.generate_content(full_prompt, request_options={'timeout': 180})
                 return response.text
             except Exception as e:
                 last_error = str(e)
