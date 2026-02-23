@@ -181,7 +181,8 @@ def smart_router(user_query, available_files):
     for key in API_KEYS_LIST:
         try:
             genai.configure(api_key=key)
-            model = genai.GenerativeModel('gemini-1.5-flash')
+            # ĐÃ ĐỔI TÊN MODEL Ở ĐÂY THÀNH 2.0-FLASH:
+            model = genai.GenerativeModel('gemini-2.0-flash')
             response = model.generate_content(prompt)
             return response.text.strip()
         except: continue
@@ -246,7 +247,9 @@ VAI TRÒ: Trợ lý AI về PCCC và CNCH - Phòng PC07 Phú Thọ.
 """
 
 def call_gemini_expert_exhaustive(prompt, context):
-    TARGET_MODELS = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-2.0-flash-exp", "gemini-1.5-pro", "gemini-1.5-flash"]
+    # ĐÃ CẬP NHẬT LẠI DANH SÁCH TÊN MODEL MỚI NHẤT CỦA GOOGLE ĐỂ CHỐNG LỖI 404:
+    TARGET_MODELS = ["gemini-2.0-flash", "gemini-1.5-pro-latest", "gemini-1.5-flash-latest"]
+    
     if not context: full_prompt = f"Người dùng chào: '{prompt}'. Hãy trả lời xã giao lịch sự."
     else: full_prompt = f"{SYSTEM_PROMPT_EXPERT}\n\n=== TÀI LIỆU HỖ TRỢ ===\n{context}\n\n=== CÂU HỎI ===\n{prompt}"
     
