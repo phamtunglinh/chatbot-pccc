@@ -1,3 +1,4 @@
+
 import streamlit as st
 import google.generativeai as genai
 import json
@@ -163,7 +164,7 @@ Bạn là Tham mưu trưởng PCCC. Nhiệm vụ: Chọn tài liệu chính xác
    - HÀNH ĐỘNG: BẮT BUỘC CHỌN [Nghị định 296].
 
 5. GIỎ KỸ THUẬT:
-   - Dấu hiệu: "Trang bị", "Lắp đặt", "Hệ thống", "Khoảng cách", "Ngăn cháy", "Thông gió", "Hút khói", "Chống cháy lan", "Lối thoát nạn", "Kích thước", "Khoảng cách an toàn PCCC", "Bãi đỗ xe chữa cháy", "Điểm lấy nước", "Chiều rộng", "Chiều cao".
+   - Dấu hiệu: "Trang bị", "Lắp đặt", "Hệ thống", "Khoảng cách", "Ngăn cháy", "Thông gió", "Hút khói", "Chống cháy lan".
    - HÀNH ĐỘNG: BẮT BUỘC CHỌN [QCVN 10], [QCVN 06].
 
 6. GIỎ QUÂN ĐỘI:
@@ -210,11 +211,11 @@ VAI TRÒ: Trợ lý AI về PCCC và CNCH - Phòng PC07 Phú Thọ.
    - KHI NGƯỜI DÙNG HỎI: "Xử lý như nào", "Bị sao", "Phạt bao nhiêu", "Lỗi này thế nào"... -> HIỂU NGAY LÀ HỎI VỀ XỬ PHẠT HÀNH CHÍNH.
    - BẮT BUỘC trả lời theo form sau:
         1. HÀNH VI: [Tên hành vi chính xác trong NĐ 106]
-        2. MỨC PHẠT TIỀN:
+        2.MỨC PHẠT TIỀN:
        - Cá nhân: ... (Căn cứ: Điểm... Khoản... Điều... NĐ 106).
        - Tổ chức: ... (Gấp 2 lần mức cá nhân).
        2. HÌNH THỨC PHẠT BỔ SUNG & KHẮC PHỤC HẬU QUẢ:
-      - Phạt bổ sung: [Có/Không] -> Chi tiết (Căn cứ: Điểm... Khoản... Điều... NĐ 106).
+      - Phạt bổ sung: [Có/Không] -> Chi tiết (Căn cứ: Điểm... Khoản... Điều... NĐ 106)..
       - Biện pháp KPHQ: [Có/Không] -> Chi tiết (Căn cứ: Điểm... Khoản... Điều... NĐ 106).
        3. THẨM QUYỀN XỬ PHẠT (LỌC ẨN THÔNG MINH):
       *Chỉ xét 6 chức danh: Chiến sĩ CA, Đội trưởng, Trưởng CA Xã, Trưởng Phòng PC07, Giám đốc CA Tỉnh, Chủ tịch Tỉnh. Không còn tồn tại cấp huyện nên không có Đội trưởng cấp huyện, loại bỏ cấp huyện*
@@ -246,9 +247,7 @@ VAI TRÒ: Trợ lý AI về PCCC và CNCH - Phòng PC07 Phú Thọ.
 """
 
 def call_gemini_expert_exhaustive(prompt, context):
-    # GIỮ NGUYÊN DANH SÁCH MODEL NHƯ YÊU CẦU CỦA ĐẠI ÚY
     TARGET_MODELS = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-2.0-flash-exp", "gemini-1.5-pro", "gemini-1.5-flash"]
-    
     if not context: full_prompt = f"Người dùng chào: '{prompt}'. Hãy trả lời xã giao lịch sự."
     else: full_prompt = f"{SYSTEM_PROMPT_EXPERT}\n\n=== TÀI LIỆU HỖ TRỢ ===\n{context}\n\n=== CÂU HỎI ===\n{prompt}"
     
@@ -258,8 +257,7 @@ def call_gemini_expert_exhaustive(prompt, context):
             try:
                 genai.configure(api_key=key)
                 model = genai.GenerativeModel(model_name)
-                # ĐÃ TĂNG THỜI GIAN LÊN 180 GIÂY ĐỂ TRÁNH LỖI TIMEOUT VỚI QC06
-                response = model.generate_content(full_prompt, request_options={'timeout': 180})
+                response = model.generate_content(full_prompt, request_options={'timeout': 60})
                 return response.text
             except Exception as e:
                 last_error = str(e)
@@ -362,26 +360,18 @@ if prompt := st.chat_input("Nhập nội dung cần tra cứu..."):
                     is_enforcement = ("cưỡng chế" in prompt_lower or "không nộp" in prompt_lower or "chậm nộp" in prompt_lower or "chây ỳ" in prompt_lower)
                     is_penalty = ("phạt" in prompt_lower or "lỗi" in prompt_lower or "xử lý" in prompt_lower)
                     is_military = ("quân đội" in prompt_lower or "chi viện" in prompt_lower)
-                    
-                    is_tech = any(keyword in prompt_lower for keyword in [
-                        "trang bị", "lắp đặt", "hệ thống", "khoảng cách", "ngăn cháy", 
-                        "thông gió", "hút khói", "chống cháy lan", "lối thoát", "thoát nạn",
-                        "kích thước", "an toàn pccc", "bãi đỗ xe", "điểm lấy nước", 
-                        "chiều rộng", "chiều cao", "qcvn", "qc06", "qc 06", "buồng thang", "bậc chịu lửa"
-                    ]) and not is_penalty
-                    
+                    is_tech = ("trang bị" in prompt_lower or "lắp" in prompt_lower or "hệ thống" in prompt_lower)
                     is_manage = ("trách nhiệm" in prompt_lower or "hồ sơ" in prompt_lower or "quản lý" in prompt_lower or "điều kiện" in prompt_lower or "kiểm tra" in prompt_lower or "phương án" in prompt_lower or "mẫu" in prompt_lower)
-                    
                     # Nếu hỏi phương án/mẫu thì tuyệt đối KHÔNG phải là TT37
                     is_force = ("lực lượng" in prompt_lower or "chữa cháy" in prompt_lower) and not ("phương án" in prompt_lower or "mẫu" in prompt_lower)
 
                     if is_enforcement and "296" in fname: 
-                        relevant_context += content
+                         relevant_context += content
                     elif is_military and any(x in fname.lower() for x in ["quan doi", "du thao", "phoi hop", "cv hd", "doi 3"]):
-                        relevant_context += content
+                         relevant_context += content
                     elif is_penalty and any(x in fname for x in ["106", "189"]):
-                        relevant_context += content
-                    elif is_tech and any(x in fname for x in ["10", "qc", "06"]): 
+                         relevant_context += content
+                    elif is_tech and any(x in fname for x in ["10", "qc", "06"]) and not is_penalty: 
                         relevant_context += content
                     elif is_manage and any(x in fname for x in ["luat", "105", "36", "136", "50"]):
                         relevant_context += content
