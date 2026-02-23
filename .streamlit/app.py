@@ -378,4 +378,19 @@ if prompt := st.chat_input("Nhập nội dung cần tra cứu..."):
                     # LOGIC CỘNG DỒN NỘI DUNG CHUẨN XÁC, LOẠI BỎ F-STRING
                     if is_enforcement and "296" in fname: 
                         relevant_context += "--- " + fname + " ---\n" + content + "\n"
-                    elif is_military and any(x in fname.lower() for x in ["quan doi", "du thao", "phoi hop
+                    elif is_military and any(x in fname.lower() for x in ["quan doi", "du thao", "phoi hop", "cv hd", "doi 3"]):
+                        relevant_context += "--- " + fname + " ---\n" + content + "\n"
+                    elif is_penalty and any(x in fname for x in ["106", "189"]):
+                        relevant_context += "--- " + fname + " ---\n" + content + "\n"
+                    elif is_tech and any(x in fname for x in ["10", "qc", "06"]): 
+                        relevant_context += "--- " + fname + " ---\n" + content + "\n"
+                    elif is_manage and any(x in fname for x in ["luat", "105", "36", "136", "50"]):
+                        relevant_context += "--- " + fname + " ---\n" + content + "\n"
+                    elif is_force and "37" in fname:
+                        relevant_context += "--- " + fname + " ---\n" + content + "\n"
+
+            # Generate
+            response_text = call_gemini_expert_exhaustive(prompt, relevant_context)
+        
+        st.markdown(f'<div class="response-content">{response_text}</div>', unsafe_allow_html=True)
+        st.session_state.messages.append({"role": "assistant", "content": response_text})
