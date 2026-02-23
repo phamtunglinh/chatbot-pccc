@@ -163,7 +163,7 @@ Bạn là Tham mưu trưởng PCCC. Nhiệm vụ: Chọn tài liệu chính xác
    - HÀNH ĐỘNG: BẮT BUỘC CHỌN [Nghị định 296].
 
 5. GIỎ KỸ THUẬT:
-   - Dấu hiệu: "Trang bị", "Lắp đặt", "Hệ thống", "Khoảng cách", "Ngăn cháy", "Thông gió", "Hút khói", "Chống cháy lan", "Lối thoát nạn", "Kích thước".
+   - Dấu hiệu: "Trang bị", "Lắp đặt", "Hệ thống", "Khoảng cách", "Ngăn cháy", "Thông gió", "Hút khói", "Chống cháy lan", "Lối thoát nạn", "Kích thước", "Khoảng cách an toàn PCCC", "Bãi đỗ xe chữa cháy", "Điểm lấy nước".
    - HÀNH ĐỘNG: BẮT BUỘC CHỌN [QCVN 10], [QCVN 06].
 
 6. GIỎ QUÂN ĐỘI:
