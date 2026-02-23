@@ -356,9 +356,9 @@ if prompt := st.chat_input("Nhập nội dung cần tra cứu..."):
             # Backup Retrieve (BỔ SUNG LOGIC: Cưỡng chế & Xử lý & Phương án)
             if not relevant_context:
                 for fname, content in database.items():
-                    is_enforcement = ("cưỡng chế" in prompt_lower or "không nộp" in prompt_lower or "chậm nộp" in prompt_lower or "chây ỳ" in prompt_lower)
+                   is_enforcement = ("cưỡng chế" in prompt_lower or "không nộp" in prompt_lower or "chậm nộp" in prompt_lower or "chây ỳ" in prompt_lower)
                     is_penalty = ("phạt" in prompt_lower or "lỗi" in prompt_lower or "xử lý" in prompt_lower)
-                   is_military = ("quân đội" in prompt_lower or "chi viện" in prompt_lower)
+                    is_military = ("quân đội" in prompt_lower or "chi viện" in prompt_lower)
                     
                     is_tech = any(keyword in prompt_lower for keyword in [
                         "trang bị", "lắp đặt", "hệ thống", "khoảng cách", "ngăn cháy", 
