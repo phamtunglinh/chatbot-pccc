@@ -358,13 +358,15 @@ if prompt := st.chat_input("Nhập nội dung cần tra cứu..."):
                 for fname, content in database.items():
                     is_enforcement = ("cưỡng chế" in prompt_lower or "không nộp" in prompt_lower or "chậm nộp" in prompt_lower or "chây ỳ" in prompt_lower)
                     is_penalty = ("phạt" in prompt_lower or "lỗi" in prompt_lower or "xử lý" in prompt_lower)
-                    is_military = ("quân đội" in prompt_lower or "chi viện" in prompt_lower)
-                   is_tech = any(keyword in prompt_lower for keyword in [
+                   is_military = ("quân đội" in prompt_lower or "chi viện" in prompt_lower)
+                    
+                    is_tech = any(keyword in prompt_lower for keyword in [
                         "trang bị", "lắp đặt", "hệ thống", "khoảng cách", "ngăn cháy", 
                         "thông gió", "hút khói", "chống cháy lan", "lối thoát", "thoát nạn",
                         "kích thước", "an toàn pccc", "bãi đỗ xe", "điểm lấy nước", 
                         "chiều rộng", "chiều cao", "qcvn", "qc06", "qc 06", "buồng thang", "bậc chịu lửa"
                     ]) and not is_penalty
+                    
                     is_manage = ("trách nhiệm" in prompt_lower or "hồ sơ" in prompt_lower or "quản lý" in prompt_lower or "điều kiện" in prompt_lower or "kiểm tra" in prompt_lower or "phương án" in prompt_lower or "mẫu" in prompt_lower)
                     # Nếu hỏi phương án/mẫu thì tuyệt đối KHÔNG phải là TT37
                     is_force = ("lực lượng" in prompt_lower or "chữa cháy" in prompt_lower) and not ("phương án" in prompt_lower or "mẫu" in prompt_lower)
