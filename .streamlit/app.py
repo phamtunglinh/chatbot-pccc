@@ -210,11 +210,11 @@ VAI TRÒ: Trợ lý AI về PCCC và CNCH - Phòng PC07 Phú Thọ.
    - KHI NGƯỜI DÙNG HỎI: "Xử lý như nào", "Bị sao", "Phạt bao nhiêu", "Lỗi này thế nào"... -> HIỂU NGAY LÀ HỎI VỀ XỬ PHẠT HÀNH CHÍNH.
    - BẮT BUỘC trả lời theo form sau:
         1. HÀNH VI: [Tên hành vi chính xác trong NĐ 106]
-        2.MỨC PHẠT TIỀN:
+        2. MỨC PHẠT TIỀN:
        - Cá nhân: ... (Căn cứ: Điểm... Khoản... Điều... NĐ 106).
        - Tổ chức: ... (Gấp 2 lần mức cá nhân).
        2. HÌNH THỨC PHẠT BỔ SUNG & KHẮC PHỤC HẬU QUẢ:
-      - Phạt bổ sung: [Có/Không] -> Chi tiết (Căn cứ: Điểm... Khoản... Điều... NĐ 106)..
+      - Phạt bổ sung: [Có/Không] -> Chi tiết (Căn cứ: Điểm... Khoản... Điều... NĐ 106).
       - Biện pháp KPHQ: [Có/Không] -> Chi tiết (Căn cứ: Điểm... Khoản... Điều... NĐ 106).
        3. THẨM QUYỀN XỬ PHẠT (LỌC ẨN THÔNG MINH):
       *Chỉ xét 6 chức danh: Chiến sĩ CA, Đội trưởng, Trưởng CA Xã, Trưởng Phòng PC07, Giám đốc CA Tỉnh, Chủ tịch Tỉnh. Không còn tồn tại cấp huyện nên không có Đội trưởng cấp huyện, loại bỏ cấp huyện*
@@ -239,7 +239,7 @@ VAI TRÒ: Trợ lý AI về PCCC và CNCH - Phòng PC07 Phú Thọ.
 🟢 RULE 5: CÁC LĨNH VỰC KHÁC:
    - Kỹ thuật: 
    + BẮT BUỘC tra cứu và trích dẫn số liệu cụ thể (chiều rộng, khoảng cách, giới hạn chịu lửa, v.v.) từ QCVN 06:2022/BXD (hoặc sửa đổi) và QCVN 10.
-   + Khi trả lời phải nêu rõ ràng: "Căn cứ Mục... hoặc Bảng... của Quy chuẩn...".
+   + Khi trả lời phải nêu rõ ràng: "Căn cứ Điểm...., Mục... hoặc Bảng... của Quy chuẩn...".
    + TUYỆT ĐỐI KHÔNG TRẢ LỜI CHUNG CHUNG KHI HỎI VỀ THÔNG SỐ. Phải đọc kỹ bảng biểu trong tài liệu để trả lời.
    - Chữa cháy, chỉ huy chữa cháy, trừ phương án chữa cháy: Căn cứ Luật PCCC và CNCH, Nghị định 105 và Thông tư 37.
    - Quân đội: Căn cứ CV Hướng dẫn phối hợp.
@@ -353,7 +353,7 @@ if prompt := st.chat_input("Nhập nội dung cần tra cứu..."):
                 for fname in all_files:
                     if fname in selected_files_str: relevant_context += f"--- VĂN BẢN: {fname} ---\n{database[fname]}\n"
             
-           # Backup Retrieve (BỔ SUNG LOGIC: Cưỡng chế & Xử lý & Phương án)
+            # Backup Retrieve (BỔ SUNG LOGIC: Cưỡng chế & Xử lý & Phương án)
             if not relevant_context:
                 for fname, content in database.items():
                     is_enforcement = ("cưỡng chế" in prompt_lower or "không nộp" in prompt_lower or "chậm nộp" in prompt_lower or "chây ỳ" in prompt_lower)
@@ -372,15 +372,8 @@ if prompt := st.chat_input("Nhập nội dung cần tra cứu..."):
                     # Nếu hỏi phương án/mẫu thì tuyệt đối KHÔNG phải là TT37
                     is_force = ("lực lượng" in prompt_lower or "chữa cháy" in prompt_lower) and not ("phương án" in prompt_lower or "mẫu" in prompt_lower)
 
+                    # LOGIC CỘNG DỒN NỘI DUNG CHUẨN XÁC
                     if is_enforcement and "296" in fname: 
-                        relevant_context += content
+                        relevant_context += f"--- {fname} ---\n{content}\n"
                     elif is_military and any(x in fname.lower() for x in ["quan doi", "du thao", "phoi hop", "cv hd", "doi 3"]):
-                        relevant_context += content
-                    elif is_penalty and any(x in fname for x in ["106", "189"]):
-                        relevant_context += content
-                    elif is_tech and any(x in fname for x in ["10", "qc", "06"]): 
-                        relevant_context += content
-                    elif is_manage and any(x in fname for x in ["luat", "105", "36", "136", "50"]):
-                        relevant_context += content
-                    elif is_force and "37" in fname:
-                        relevant_context += content
+                        relevant_context += f"--- {fname} ---\
