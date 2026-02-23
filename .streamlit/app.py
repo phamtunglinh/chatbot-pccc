@@ -214,7 +214,7 @@ VAI TRÒ: Trợ lý AI về PCCC và CNCH - Phòng PC07 Phú Thọ.
        - Cá nhân: ... (Căn cứ: Điểm... Khoản... Điều... NĐ 106).
        - Tổ chức: ... (Gấp 2 lần mức cá nhân).
        2. HÌNH THỨC PHẠT BỔ SUNG & KHẮC PHỤC HẬU QUẢ:
-      - Phạt bổ sung: [Có/Không] -> Chi tiết (Căn cứ: Điểm... Khoản... Điều... NĐ 106)..
+      - Phạt bổ sung: [Có/Không] -> Chi tiết (Căn cứ: Điểm... Khoản... Điều... NĐ 106).
       - Biện pháp KPHQ: [Có/Không] -> Chi tiết (Căn cứ: Điểm... Khoản... Điều... NĐ 106).
        3. THẨM QUYỀN XỬ PHẠT (LỌC ẨN THÔNG MINH):
       *Chỉ xét 6 chức danh: Chiến sĩ CA, Đội trưởng, Trưởng CA Xã, Trưởng Phòng PC07, Giám đốc CA Tỉnh, Chủ tịch Tỉnh. Không còn tồn tại cấp huyện nên không có Đội trưởng cấp huyện, loại bỏ cấp huyện*
@@ -246,7 +246,9 @@ VAI TRÒ: Trợ lý AI về PCCC và CNCH - Phòng PC07 Phú Thọ.
 """
 
 def call_gemini_expert_exhaustive(prompt, context):
+    # GIỮ NGUYÊN DANH SÁCH MODEL NHƯ YÊU CẦU CỦA ĐẠI ÚY
     TARGET_MODELS = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-2.0-flash-exp", "gemini-1.5-pro", "gemini-1.5-flash"]
+    
     if not context: full_prompt = f"Người dùng chào: '{prompt}'. Hãy trả lời xã giao lịch sự."
     else: full_prompt = f"{SYSTEM_PROMPT_EXPERT}\n\n=== TÀI LIỆU HỖ TRỢ ===\n{context}\n\n=== CÂU HỎI ===\n{prompt}"
     
@@ -256,7 +258,8 @@ def call_gemini_expert_exhaustive(prompt, context):
             try:
                 genai.configure(api_key=key)
                 model = genai.GenerativeModel(model_name)
-                response = model.generate_content(full_prompt, request_options={'timeout': 60})
+                # ĐÃ TĂNG THỜI GIAN LÊN 180 GIÂY ĐỂ TRÁNH LỖI TIMEOUT VỚI QC06
+                response = model.generate_content(full_prompt, request_options={'timeout': 180})
                 return response.text
             except Exception as e:
                 last_error = str(e)
@@ -368,6 +371,7 @@ if prompt := st.chat_input("Nhập nội dung cần tra cứu..."):
                     ]) and not is_penalty
                     
                     is_manage = ("trách nhiệm" in prompt_lower or "hồ sơ" in prompt_lower or "quản lý" in prompt_lower or "điều kiện" in prompt_lower or "kiểm tra" in prompt_lower or "phương án" in prompt_lower or "mẫu" in prompt_lower)
+                    
                     # Nếu hỏi phương án/mẫu thì tuyệt đối KHÔNG phải là TT37
                     is_force = ("lực lượng" in prompt_lower or "chữa cháy" in prompt_lower) and not ("phương án" in prompt_lower or "mẫu" in prompt_lower)
 
