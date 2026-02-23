@@ -353,7 +353,7 @@ if prompt := st.chat_input("Nhập nội dung cần tra cứu..."):
                 for fname in all_files:
                     if fname in selected_files_str: relevant_context += f"--- VĂN BẢN: {fname} ---\n{database[fname]}\n"
             
-            # Backup Retrieve (BỔ SUNG LOGIC: Cưỡng chế & Xử lý & Phương án)
+           # Backup Retrieve (BỔ SUNG LOGIC: Cưỡng chế & Xử lý & Phương án)
             if not relevant_context:
                 for fname, content in database.items():
                     is_enforcement = ("cưỡng chế" in prompt_lower or "không nộp" in prompt_lower or "chậm nộp" in prompt_lower or "chây ỳ" in prompt_lower)
@@ -372,20 +372,14 @@ if prompt := st.chat_input("Nhập nội dung cần tra cứu..."):
                     is_force = ("lực lượng" in prompt_lower or "chữa cháy" in prompt_lower) and not ("phương án" in prompt_lower or "mẫu" in prompt_lower)
 
                     if is_enforcement and "296" in fname: 
-                         relevant_context += content
+                        relevant_context += content
                     elif is_military and any(x in fname.lower() for x in ["quan doi", "du thao", "phoi hop", "cv hd", "doi 3"]):
-                         relevant_context += content
+                        relevant_context += content
                     elif is_penalty and any(x in fname for x in ["106", "189"]):
-                         relevant_context += content
-                   elif is_tech and any(x in fname for x in ["10", "qc", "06"]): 
+                        relevant_context += content
+                    elif is_tech and any(x in fname for x in ["10", "qc", "06"]): 
                         relevant_context += content
                     elif is_manage and any(x in fname for x in ["luat", "105", "36", "136", "50"]):
                         relevant_context += content
                     elif is_force and "37" in fname:
                         relevant_context += content
-
-            # Generate
-            response_text = call_gemini_expert_exhaustive(prompt, relevant_context)
-        
-        st.markdown(f'<div class="response-content">{response_text}</div>', unsafe_allow_html=True)
-        st.session_state.messages.append({"role": "assistant", "content": response_text})
