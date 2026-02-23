@@ -1,4 +1,3 @@
-
 import streamlit as st
 import google.generativeai as genai
 import json
@@ -163,9 +162,11 @@ Bạn là Tham mưu trưởng PCCC. Nhiệm vụ: Chọn tài liệu chính xác
    - Dấu hiệu: "Không nộp phạt", "Chây ỳ", "Cưỡng chế", "Quá hạn nộp", "Đóng phạt muộn".
    - HÀNH ĐỘNG: BẮT BUỘC CHỌN [Nghị định 296].
 
-5. GIỎ KỸ THUẬT:
-   - Dấu hiệu: "Trang bị", "Lắp đặt", "Hệ thống", "Khoảng cách", "Ngăn cháy", "Thông gió", "Hút khói", "Chống cháy lan".
-   - HÀNH ĐỘNG: BẮT BUỘC CHỌN [QCVN 10], [QCVN 06].
+5. GIỎ KỸ THUẬT (PHÂN LOẠI RÕ QC06 VÀ QC10):
+   - Dấu hiệu 1: "Khoảng cách", "Ngăn cháy", "Thông gió", "Hút khói", "Chống cháy lan", "Đường lối", "Bãi đỗ xe chữa cháy", "Vật liệu", "Kích thước", "Thoát nạn", "Lối vào".
+   - HÀNH ĐỘNG 1: BẮT BUỘC CHỌN [QCVN 06].
+   - Dấu hiệu 2: "Trang bị", "Lắp đặt", "Hệ thống".
+   - HÀNH ĐỘNG 2: BẮT BUỘC CHỌN [QCVN 10].
 
 6. GIỎ QUÂN ĐỘI:
    - Dấu hiệu: "Quân đội", "Chi viện".
@@ -209,6 +210,7 @@ VAI TRÒ: Trợ lý AI về PCCC và CNCH - Phòng PC07 Phú Thọ.
 
 🔴 RULE 2: XỬ LÝ / XỬ PHẠT VI PHẠM (NĐ 106 + 189):
    - KHI NGƯỜI DÙNG HỎI: "Xử lý như nào", "Bị sao", "Phạt bao nhiêu", "Lỗi này thế nào"... -> HIỂU NGAY LÀ HỎI VỀ XỬ PHẠT HÀNH CHÍNH.
+   - KHI NGƯỜI DÙNG HỎI: "chưa" cũng như là "không", ví dụ "chưa huấn luyện" bằng với "không huấn luyện).
    - BẮT BUỘC trả lời theo form sau:
         1. HÀNH VI: [Tên hành vi chính xác trong NĐ 106]
         2.MỨC PHẠT TIỀN:
@@ -238,10 +240,7 @@ VAI TRÒ: Trợ lý AI về PCCC và CNCH - Phòng PC07 Phú Thọ.
    
     
 🟢 RULE 5: CÁC LĨNH VỰC KHÁC:
-   - Kỹ thuật: 
-   + BẮT BUỘC tra cứu và trích dẫn số liệu cụ thể (chiều rộng, khoảng cách, giới hạn chịu lửa, v.v.) từ QCVN 06:2022/BXD (hoặc sửa đổi) và QCVN 10.
-   + Khi trả lời phải nêu rõ ràng: "Căn cứ Mục... hoặc Bảng... của Quy chuẩn...".
-   + TUYỆT ĐỐI KHÔNG TRẢ LỜI CHUNG CHUNG KHI HỎI VỀ THÔNG SỐ. Phải đọc kỹ bảng biểu trong tài liệu để trả lời.
+   - Kỹ thuật: Căn cứ QCVN 10, QCVN 06.
    - Chữa cháy, chỉ huy chữa cháy, trừ phương án chữa cháy: Căn cứ Luật PCCC và CNCH, Nghị định 105 và Thông tư 37.
    - Quân đội: Căn cứ CV Hướng dẫn phối hợp.
 """
@@ -257,7 +256,7 @@ def call_gemini_expert_exhaustive(prompt, context):
             try:
                 genai.configure(api_key=key)
                 model = genai.GenerativeModel(model_name)
-                response = model.generate_content(full_prompt, request_options={'timeout': 180})
+                response = model.generate_content(full_prompt, request_options={'timeout': 60})
                 return response.text
             except Exception as e:
                 last_error = str(e)
@@ -354,30 +353,37 @@ if prompt := st.chat_input("Nhập nội dung cần tra cứu..."):
                 for fname in all_files:
                     if fname in selected_files_str: relevant_context += f"--- VĂN BẢN: {fname} ---\n{database[fname]}\n"
             
-            # Backup Retrieve (BỔ SUNG LOGIC: Cưỡng chế & Xử lý & Phương án)
+           # Backup Retrieve (BỔ SUNG LOGIC: Cưỡng chế & Xử lý & Phương án)
             if not relevant_context:
                 for fname, content in database.items():
                     is_enforcement = ("cưỡng chế" in prompt_lower or "không nộp" in prompt_lower or "chậm nộp" in prompt_lower or "chây ỳ" in prompt_lower)
                     is_penalty = ("phạt" in prompt_lower or "lỗi" in prompt_lower or "xử lý" in prompt_lower)
                     is_military = ("quân đội" in prompt_lower or "chi viện" in prompt_lower)
-                    is_tech = ("trang bị" in prompt_lower or "lắp" in prompt_lower or "hệ thống" in prompt_lower)
+                    
+                    # TÁCH RIÊNG TỪ KHÓA CHO TỪNG QUY CHUẨN
+                    is_tech_06 = any(kw in prompt_lower for kw in ["khoảng cách", "ngăn cháy", "thông gió", "hút khói", "chống cháy lan", "đường lối", "bãi đỗ", "vật liệu", "kích thước", "thoát nạn", "lối vào", "06", "qc06"]) and not is_penalty
+                    is_tech_10 = any(kw in prompt_lower for kw in ["trang bị", "lắp đặt", "hệ thống", "10", "qc10"]) and not is_penalty
+                    
                     is_manage = ("trách nhiệm" in prompt_lower or "hồ sơ" in prompt_lower or "quản lý" in prompt_lower or "điều kiện" in prompt_lower or "kiểm tra" in prompt_lower or "phương án" in prompt_lower or "mẫu" in prompt_lower)
+                    
                     # Nếu hỏi phương án/mẫu thì tuyệt đối KHÔNG phải là TT37
                     is_force = ("lực lượng" in prompt_lower or "chữa cháy" in prompt_lower) and not ("phương án" in prompt_lower or "mẫu" in prompt_lower)
 
                     if is_enforcement and "296" in fname: 
-                         relevant_context += content
+                        relevant_context += "--- " + fname + " ---\n" + content + "\n"
                     elif is_military and any(x in fname.lower() for x in ["quan doi", "du thao", "phoi hop", "cv hd", "doi 3"]):
-                         relevant_context += content
+                        relevant_context += "--- " + fname + " ---\n" + content + "\n"
                     elif is_penalty and any(x in fname for x in ["106", "189"]):
-                         relevant_context += content
-                    elif is_tech and any(x in fname for x in ["10", "qc", "06"]) and not is_penalty: 
-                        relevant_context += content
+                        relevant_context += "--- " + fname + " ---\n" + content + "\n"
+                    # GỌI ĐÍCH DANH FILE QC06 HOẶC QC10 DỰA TRÊN TỪ KHÓA
+                    elif is_tech_06 and "06" in fname: 
+                        relevant_context += "--- " + fname + " ---\n" + content + "\n"
+                    elif is_tech_10 and "10" in fname: 
+                        relevant_context += "--- " + fname + " ---\n" + content + "\n"
                     elif is_manage and any(x in fname for x in ["luat", "105", "36", "136", "50"]):
-                        relevant_context += content
+                        relevant_context += "--- " + fname + " ---\n" + content + "\n"
                     elif is_force and "37" in fname:
-                        relevant_context += content
-
+                        relevant_context += "--- " + fname + " ---\n" + content + "\n"
             # Generate
             response_text = call_gemini_expert_exhaustive(prompt, relevant_context)
         
