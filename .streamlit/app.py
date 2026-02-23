@@ -266,4 +266,127 @@ def call_gemini_expert_exhaustive(prompt, context):
 # --- 8. NẠP DỮ LIỆU ---
 @st.cache_data(ttl=7200, show_spinner=False)
 def load_database_final():
-    if not GCP_JSON or not DRIVE_FOLDER
+    if not GCP_JSON or not DRIVE_FOLDER_ID: return {}, []
+    try:
+        creds = service_account.Credentials.from_service_account_info(GCP_JSON)
+        service = build('drive', 'v3', credentials=creds)
+        db = {} 
+        logs = []
+        processed = set()
+        
+        # Keywords bao gồm Nghị định 105, 106, 296...
+        keywords = ["189", "106", "105", "296", "36", "37", "48", "luat", "huy dong", "quan doi", "du thao", "phoi hop", "cv hd", "doi 3", "qcvn", "10:2025", "06", "10"]
+        files = []
+        for k in keywords:
+            try: files.extend(service.files().list(q=f"'{DRIVE_FOLDER_ID}' in parents and trashed=false and name contains '{k}'", fields="files(id, name)").execute().get('files', []))
+            except: pass
+        
+        # Fallback lấy thêm file nếu ít
+        if len(files) < 5:
+             try: files.extend(service.files().list(q=f"'{DRIVE_FOLDER_ID}' in parents and trashed=false", pageSize=50, fields="files(id, name)").execute().get('files', []))
+             except: pass
+
+        for f in files:
+            if f['id'] in processed: continue
+            processed.add(f['id'])
+            if "144" in f['name'] and "106" not in f['name']: continue
+
+            try:
+                fh = io.BytesIO()
+                downloader = MediaIoBaseDownload(fh, service.files().get_media(fileId=f['id']))
+                done = False
+                while not done: _, done = downloader.next_chunk()
+                fh.seek(0)
+                
+                text = ""
+                if f['name'].endswith(".docx"):
+                    doc = Document(fh)
+                    text = "\n".join([p.text for p in doc.paragraphs])
+                    for t in doc.tables:
+                        for r in t.rows: text += " | ".join([c.text.strip() for c in r.cells]) + "\n"
+                elif f['name'].endswith(".pdf"):
+                    reader = PdfReader(fh)
+                    text = "\n".join([p.extract_text() for p in reader.pages if p.extract_text()])
+                
+                if text:
+                    db[f['name']] = text
+                    logs.append(f"✅ {f['name']}")
+            except: continue
+        return db, logs
+    except Exception as e: return None, []
+
+# --- 9. KHỞI ĐỘNG ---
+with st.spinner('🔄 Đang khởi tạo hệ thống nghiệp vụ...'):
+    database, logs = load_database_final()
+
+if not database: st.error("❌ Không thể kết nối Kho dữ liệu. Vui lòng kiểm tra lại cấu hình."); st.stop()
+
+# --- 10. CHAT LOGIC ---
+if "messages" not in st.session_state: 
+    # KHỞI TẠO LỜI CHÀO BAN ĐẦU
+    st.session_state.messages = [{
+        "role": "assistant", 
+        "content": "Xin chào! Tôi là trợ lý AI về PCCC và CNCH do Đại úy Phạm Tùng Linh - Phòng PC07 phát triển. Hãy đặt câu hỏi để tôi trả lời."
+    }]
+
+for m in st.session_state.messages:
+    with st.chat_message(m["role"], avatar="👮‍♂️" if m["role"] == "user" else "🔥"): 
+        st.markdown(f'<div class="response-content">{m["content"]}</div>', unsafe_allow_html=True)
+
+if prompt := st.chat_input("Nhập nội dung cần tra cứu..."):
+    # Đã bổ sung khai báo prompt_lower tại đây
+    prompt_lower = prompt.lower()
+    
+    st.session_state.messages.append({"role": "user", "content": prompt})
+    st.chat_message("user", avatar="👮‍♂️").write(prompt)
+    
+    with st.chat_message("assistant", avatar="🔥"):
+        with st.spinner("🧠 Đang suy nghĩ, bạn chờ chút, mình trả lời ngay đây..."):
+            
+            # Router
+            all_files = list(database.keys())
+            selected_files_str = smart_router(prompt, all_files)
+            
+            # Retrieve
+            relevant_context = ""
+            if selected_files_str:
+                for fname in all_files:
+                    if fname in selected_files_str: relevant_context += "--- " + fname + " ---\n" + database[fname] + "\n"
+            
+            # Backup Retrieve (BỔ SUNG LOGIC: Cưỡng chế & Xử lý & Phương án)
+            if not relevant_context:
+                for fname, content in database.items():
+                    is_enforcement = ("cưỡng chế" in prompt_lower or "không nộp" in prompt_lower or "chậm nộp" in prompt_lower or "chây ỳ" in prompt_lower)
+                    is_penalty = ("phạt" in prompt_lower or "lỗi" in prompt_lower or "xử lý" in prompt_lower)
+                    is_military = ("quân đội" in prompt_lower or "chi viện" in prompt_lower)
+                    
+                    is_tech = any(keyword in prompt_lower for keyword in [
+                        "trang bị", "lắp đặt", "hệ thống", "khoảng cách", "ngăn cháy", 
+                        "thông gió", "hút khói", "chống cháy lan", "lối thoát", "thoát nạn",
+                        "kích thước", "an toàn pccc", "bãi đỗ xe", "điểm lấy nước", 
+                        "chiều rộng", "chiều cao", "qcvn", "qc06", "qc 06", "buồng thang", "bậc chịu lửa"
+                    ]) and not is_penalty
+                    
+                    is_manage = ("trách nhiệm" in prompt_lower or "hồ sơ" in prompt_lower or "quản lý" in prompt_lower or "điều kiện" in prompt_lower or "kiểm tra" in prompt_lower or "phương án" in prompt_lower or "mẫu" in prompt_lower)
+                    
+                    # Nếu hỏi phương án/mẫu thì tuyệt đối KHÔNG phải là TT37
+                    is_force = ("lực lượng" in prompt_lower or "chữa cháy" in prompt_lower) and not ("phương án" in prompt_lower or "mẫu" in prompt_lower)
+
+                    if is_enforcement and "296" in fname: 
+                        relevant_context += "--- " + fname + " ---\n" + content + "\n"
+                    elif is_military and any(x in fname.lower() for x in ["quan doi", "du thao", "phoi hop", "cv hd", "doi 3"]):
+                        relevant_context += "--- " + fname + " ---\n" + content + "\n"
+                    elif is_penalty and any(x in fname for x in ["106", "189"]):
+                        relevant_context += "--- " + fname + " ---\n" + content + "\n"
+                    elif is_tech and any(x in fname for x in ["10", "qc", "06"]): 
+                        relevant_context += "--- " + fname + " ---\n" + content + "\n"
+                    elif is_manage and any(x in fname for x in ["luat", "105", "36", "136", "50"]):
+                        relevant_context += "--- " + fname + " ---\n" + content + "\n"
+                    elif is_force and "37" in fname:
+                        relevant_context += "--- " + fname + " ---\n" + content + "\n"
+
+            # Generate
+            response_text = call_gemini_expert_exhaustive(prompt, relevant_context)
+        
+        st.markdown(f'<div class="response-content">{response_text}</div>', unsafe_allow_html=True)
+        st.session_state.messages.append({"role": "assistant", "content": response_text})
