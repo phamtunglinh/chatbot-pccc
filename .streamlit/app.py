@@ -257,7 +257,7 @@ def call_gemini_expert_exhaustive(prompt, context):
             try:
                 genai.configure(api_key=key)
                 model = genai.GenerativeModel(model_name)
-                response = model.generate_content(full_prompt, request_options={'timeout': 60})
+                response = model.generate_content(full_prompt, request_options={'timeout': 180})
                 return response.text
             except Exception as e:
                 last_error = str(e)
