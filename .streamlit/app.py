@@ -164,7 +164,7 @@ Bạn là Tham mưu trưởng PCCC. Nhiệm vụ: Chọn tài liệu chính xác
 
 5. GIỎ KỸ THUẬT:
    - Dấu hiệu: "Trang bị", "Lắp đặt", "Hệ thống", "Khoảng cách", "Ngăn cháy", "Thông gió", "Hút khói", "Chống cháy lan".
-   - HÀNH ĐỘNG: [QCVN 10], [QCVN 06].
+   - HÀNH ĐỘNG: BẮT BUỘC CHỌN [QCVN 10], [QCVN 06].
 
 6. GIỎ QUÂN ĐỘI:
    - Dấu hiệu: "Quân đội", "Chi viện".
@@ -237,7 +237,10 @@ VAI TRÒ: Trợ lý AI về PCCC và CNCH - Phòng PC07 Phú Thọ.
    
     
 🟢 RULE 5: CÁC LĨNH VỰC KHÁC:
-   - Kỹ thuật: Căn cứ QCVN 10, QCVN 06.
+   - Kỹ thuật: 
+   + BẮT BUỘC tra cứu và trích dẫn số liệu cụ thể (chiều rộng, khoảng cách, giới hạn chịu lửa, v.v.) từ QCVN 06:2022/BXD (hoặc sửa đổi) và QCVN 10.
+   + Khi trả lời phải nêu rõ ràng: "Căn cứ Mục... hoặc Bảng... của Quy chuẩn...".
+   + TUYỆT ĐỐI KHÔNG TRẢ LỜI CHUNG CHUNG KHI HỎI VỀ THÔNG SỐ. Phải đọc kỹ bảng biểu trong tài liệu để trả lời.
    - Chữa cháy, chỉ huy chữa cháy, trừ phương án chữa cháy: Căn cứ Luật PCCC và CNCH, Nghị định 105 và Thông tư 37.
    - Quân đội: Căn cứ CV Hướng dẫn phối hợp.
 """
