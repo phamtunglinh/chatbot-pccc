@@ -368,6 +368,7 @@ if prompt := st.chat_input("Nhập nội dung cần tra cứu..."):
                     ]) and not is_penalty
                     
                     is_manage = ("trách nhiệm" in prompt_lower or "hồ sơ" in prompt_lower or "quản lý" in prompt_lower or "điều kiện" in prompt_lower or "kiểm tra" in prompt_lower or "phương án" in prompt_lower or "mẫu" in prompt_lower)
+                    
                     # Nếu hỏi phương án/mẫu thì tuyệt đối KHÔNG phải là TT37
                     is_force = ("lực lượng" in prompt_lower or "chữa cháy" in prompt_lower) and not ("phương án" in prompt_lower or "mẫu" in prompt_lower)
 
