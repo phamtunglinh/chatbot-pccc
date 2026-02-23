@@ -181,8 +181,7 @@ def smart_router(user_query, available_files):
     for key in API_KEYS_LIST:
         try:
             genai.configure(api_key=key)
-            # ĐÃ ĐỔI TÊN MODEL Ở ĐÂY THÀNH 2.0-FLASH:
-            model = genai.GenerativeModel('gemini-2.0-flash')
+            model = genai.GenerativeModel('gemini-1.5-flash')
             response = model.generate_content(prompt)
             return response.text.strip()
         except: continue
@@ -247,9 +246,7 @@ VAI TRÒ: Trợ lý AI về PCCC và CNCH - Phòng PC07 Phú Thọ.
 """
 
 def call_gemini_expert_exhaustive(prompt, context):
-    # ĐÃ CẬP NHẬT LẠI DANH SÁCH TÊN MODEL MỚI NHẤT CỦA GOOGLE ĐỂ CHỐNG LỖI 404:
-    TARGET_MODELS = ["gemini-2.0-flash", "gemini-1.5-pro-latest", "gemini-1.5-flash-latest"]
-    
+    TARGET_MODELS = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-2.0-flash-exp", "gemini-1.5-pro", "gemini-1.5-flash"]
     if not context: full_prompt = f"Người dùng chào: '{prompt}'. Hãy trả lời xã giao lịch sự."
     else: full_prompt = f"{SYSTEM_PROMPT_EXPERT}\n\n=== TÀI LIỆU HỖ TRỢ ===\n{context}\n\n=== CÂU HỎI ===\n{prompt}"
     
@@ -354,7 +351,7 @@ if prompt := st.chat_input("Nhập nội dung cần tra cứu..."):
             relevant_context = ""
             if selected_files_str:
                 for fname in all_files:
-                    if fname in selected_files_str: relevant_context += "--- " + fname + " ---\n" + database[fname] + "\n"
+                    if fname in selected_files_str: relevant_context += f"--- VĂN BẢN: {fname} ---\n{database[fname]}\n"
             
             # Backup Retrieve (BỔ SUNG LOGIC: Cưỡng chế & Xử lý & Phương án)
             if not relevant_context:
@@ -371,25 +368,13 @@ if prompt := st.chat_input("Nhập nội dung cần tra cứu..."):
                     ]) and not is_penalty
                     
                     is_manage = ("trách nhiệm" in prompt_lower or "hồ sơ" in prompt_lower or "quản lý" in prompt_lower or "điều kiện" in prompt_lower or "kiểm tra" in prompt_lower or "phương án" in prompt_lower or "mẫu" in prompt_lower)
-                    
                     # Nếu hỏi phương án/mẫu thì tuyệt đối KHÔNG phải là TT37
                     is_force = ("lực lượng" in prompt_lower or "chữa cháy" in prompt_lower) and not ("phương án" in prompt_lower or "mẫu" in prompt_lower)
 
                     if is_enforcement and "296" in fname: 
-                        relevant_context += "--- " + fname + " ---\n" + content + "\n"
+                        relevant_context += content
                     elif is_military and any(x in fname.lower() for x in ["quan doi", "du thao", "phoi hop", "cv hd", "doi 3"]):
-                        relevant_context += "--- " + fname + " ---\n" + content + "\n"
+                        relevant_context += content
                     elif is_penalty and any(x in fname for x in ["106", "189"]):
-                        relevant_context += "--- " + fname + " ---\n" + content + "\n"
-                    elif is_tech and any(x in fname for x in ["10", "qc", "06"]): 
-                        relevant_context += "--- " + fname + " ---\n" + content + "\n"
-                    elif is_manage and any(x in fname for x in ["luat", "105", "36", "136", "50"]):
-                        relevant_context += "--- " + fname + " ---\n" + content + "\n"
-                    elif is_force and "37" in fname:
-                        relevant_context += "--- " + fname + " ---\n" + content + "\n"
-
-            # Generate
-            response_text = call_gemini_expert_exhaustive(prompt, relevant_context)
-        
-        st.markdown(f'<div class="response-content">{response_text}</div>', unsafe_allow_html=True)
-        st.session_state.messages.append({"role": "assistant", "content": response_text})
+                        relevant_context += content
+                    elif is_tech and any(x in fname
