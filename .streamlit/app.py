@@ -384,6 +384,16 @@ if "messages" not in st.session_state:
 for m in st.session_state.messages:
     with st.chat_message(m["role"], avatar="👮‍♂️" if m["role"] == "user" else "🔥"): 
         st.markdown(f'<div class="response-content">{m["content"]}</div>', unsafe_allow_html=True)
+        
+# --- TẠO THANH BÊN (SIDEBAR) CHO MẮT THẦN ---
+with st.sidebar:
+    st.markdown("### 👁️ MẮT THẦN PCCC")
+    st.write("Tải ảnh bản vẽ mặt bằng hoặc ảnh chụp hiện trường để AI phân tích vi phạm:")
+    uploaded_img = st.file_uploader("Chọn ảnh (JPG, PNG)", type=["jpg", "jpeg", "png"])
+    
+    if uploaded_img:
+        st.success("Đã tải ảnh lên thành công! Hãy đặt câu hỏi ở khung chat bên phải.")
+        st.image(uploaded_img, use_container_width=True)
 
 # --- TẠO CÁC NÚT CÂU HỎI MẪU ---
 if "suggested_prompt" not in st.session_state:
@@ -473,7 +483,13 @@ if prompt:
                 current_timeout = 180
 
             # Generate
-            response_text = call_gemini_expert_exhaustive(prompt, relevant_context, current_timeout)
+           # Xử lý ảnh nếu có
+            img_to_send = None
+            if uploaded_img:
+                img_to_send = Image.open(uploaded_img)
+
+            # Generate (Truyền thêm ảnh vào)
+            response_text = call_gemini_expert_exhaustive(prompt, relevant_context, current_timeout, image_obj=img_to_send)
         
         st.markdown(f'<div class="response-content">{response_text}</div>', unsafe_allow_html=True)
         st.session_state.messages.append({"role": "assistant", "content": response_text})
