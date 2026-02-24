@@ -372,7 +372,7 @@ if "suggested_prompt" not in st.session_state:
     st.session_state.suggested_prompt = None
 
 st.markdown("<p style='font-size: 0.9rem; color: #555;'>💡 <b>Gợi ý tra cứu nhanh:</b></p>", unsafe_allow_html=True)
-col1, col2, col3 = st.columns(3)
+col1, col2, col3, col4 = st.columns(3)
 with col1:
     if st.button("🏢 Cấp nước nhà nghỉ 5 tầng"): st.session_state.suggested_prompt = "Nhà nghỉ 5 tầng cần trang bị phương tiện PCCC gì?"
 with col2:
