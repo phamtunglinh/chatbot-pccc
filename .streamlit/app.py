@@ -373,7 +373,6 @@ if "suggested_prompt" not in st.session_state:
 
 st.markdown("<p style='font-size: 0.9rem; color: #555;'>💡 <b>Gợi ý tra cứu nhanh:</b></p>", unsafe_allow_html=True)
 
-# Khai báo ĐÚNG 4 CỘT để không bị lỗi NameError
 col1, col2, col3, col4 = st.columns(4)
 
 with col1:
@@ -389,11 +388,11 @@ with col4:
     if st.button("📋 Quy định pháp luật PCCC"): 
         st.session_state.suggested_prompt = "Cơ sở karaoke cao 5 tầng do ai quản lý?"
 
-# --- SỬA LẠI DÒNG NHẬP CHAT ĐỂ NHẬN LỆNH TỪ NÚT BẤM ---
+# --- NHẬN LỆNH TỪ CHAT HOẶC TỪ NÚT BẤM (CHỈ DÙNG 1 LẦN CHAT_INPUT) ---
 prompt = st.chat_input("Nhập nội dung cần tra cứu...") or st.session_state.suggested_prompt
+
 if prompt:
     st.session_state.suggested_prompt = None # Reset lại nút bấm sau khi gửi
-    
     prompt_lower = prompt.lower()
     
 if prompt := st.chat_input("Nhập nội dung cần tra cứu..."):
