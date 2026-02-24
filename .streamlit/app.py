@@ -266,7 +266,7 @@ VAI TRÒ: Trợ lý AI về PCCC và CNCH - Phòng PC07 Phú Thọ.
    - Quân đội: Căn cứ CV Hướng dẫn phối hợp.
 """
 
-d# Đã bổ sung biến timeout_val vào hàm để nhận lệnh thời gian từ bên dưới
+# Đã bổ sung biến timeout_val vào hàm để nhận lệnh thời gian từ bên dưới
 def call_gemini_expert_exhaustive(prompt, context, timeout_val=60):
     TARGET_MODELS = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-2.0-flash-exp", "gemini-1.5-pro", "gemini-1.5-flash"]
     
