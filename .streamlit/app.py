@@ -377,7 +377,7 @@ st.markdown("<p style='font-size: 0.9rem; color: #555;'>💡 <b>Gợi ý tra c�
 col1, col2, col3, col4 = st.columns(4)
 
 with col1:
-    if st.button("🏢 Phương tiển PCCC QC10"): 
+    if st.button("🏢 Phương tiện PCCC QC10"): 
         st.session_state.suggested_prompt = "Nhà nghỉ 5 tầng cần trang bị phương tiện PCCC gì?"
 with col2:
     if st.button("🚪 Lối thoát nạn QC06"): 
