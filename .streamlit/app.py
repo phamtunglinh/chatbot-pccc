@@ -341,6 +341,19 @@ with st.spinner('🔄 Đang khởi tạo hệ thống nghiệp vụ...'):
     database, logs = load_database_final()
 
 if not database: st.error("❌ Không thể kết nối Kho dữ liệu. Vui lòng kiểm tra lại cấu hình."); st.stop()
+# --- THỦ THUẬT TỰ ĐỘNG CUỘN TRANG (AUTO-SCROLL) ---
+def scroll_to_bottom():
+    st.components.v1.html(
+        """
+        <script>
+            var body = window.parent.document.querySelector('.main');
+            if (body) {
+                body.scrollTop = body.scrollHeight;
+            }
+        </script>
+        """,
+        height=0, width=0
+    )
 
 # --- 10. CHAT LOGIC ---
 if "messages" not in st.session_state: 
