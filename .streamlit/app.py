@@ -8,6 +8,7 @@ from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload
 from docx import Document
 from pypdf import PdfReader
+from PIL import Image
 import io
 
 # --- 1. CẤU HÌNH HỆ THỐNG ---
@@ -275,12 +276,17 @@ VAI TRÒ: Trợ lý AI về PCCC và CNCH - Phòng PC07 Phú Thọ.
    - Quân đội: Căn cứ CV Hướng dẫn phối hợp.
 """
 
-# Đã bổ sung biến timeout_val vào hàm để nhận lệnh thời gian từ bên dưới
-def call_gemini_expert_exhaustive(prompt, context, timeout_val=60):
+# Đã bổ sung biến image_obj để nhận ảnh
+def call_gemini_expert_exhaustive(prompt, context, timeout_val=60, image_obj=None):
     TARGET_MODELS = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-2.0-flash-exp", "gemini-1.5-pro", "gemini-1.5-flash"]
     
     if not context: full_prompt = f"Người dùng chào: '{prompt}'. Hãy trả lời xã giao lịch sự."
-    else: full_prompt = f"{SYSTEM_PROMPT_EXPERT}\n\n=== TÀI LIỆU HỖ TRỢ ===\n{context}\n\n=== CÂU HỎI ===\n{prompt}"
+    else: full_prompt = f"{SYSTEM_PROMPT_EXPERT}\n\n=== TÀI LIỆU HỖ TRỢ ===\n{context}\n\n=== LƯU Ý KHI CÓ ẢNH ===\nNếu có ảnh kèm theo, hãy đóng vai trò cán bộ kiểm tra, phân tích chi tiết các vi phạm hoặc sự phù hợp của thiết kế/trang bị trong ảnh dựa trên các quy chuẩn PCCC.\n\n=== CÂU HỎI ===\n{prompt}"
+    
+    # Đóng gói cả Chữ và Ảnh vào chung một chuyến xe gửi cho AI
+    payload = [full_prompt]
+    if image_obj:
+        payload.append(image_obj)
     
     last_error = ""
     for model_name in TARGET_MODELS:
@@ -288,8 +294,8 @@ def call_gemini_expert_exhaustive(prompt, context, timeout_val=60):
             try:
                 genai.configure(api_key=key)
                 model = genai.GenerativeModel(model_name)
-                # Dùng biến timeout_val được truyền vào thay vì đóng đinh 1 số
-                response = model.generate_content(full_prompt, request_options={'timeout': timeout_val})
+                # Gửi payload (gồm chữ + ảnh) đi
+                response = model.generate_content(payload, request_options={'timeout': timeout_val})
                 return response.text
             except Exception as e:
                 last_error = str(e)
