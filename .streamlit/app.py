@@ -266,8 +266,10 @@ VAI TRÒ: Trợ lý AI về PCCC và CNCH - Phòng PC07 Phú Thọ.
    - Quân đội: Căn cứ CV Hướng dẫn phối hợp.
 """
 
-def call_gemini_expert_exhaustive(prompt, context):
+d# Đã bổ sung biến timeout_val vào hàm để nhận lệnh thời gian từ bên dưới
+def call_gemini_expert_exhaustive(prompt, context, timeout_val=60):
     TARGET_MODELS = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-2.0-flash-exp", "gemini-1.5-pro", "gemini-1.5-flash"]
+    
     if not context: full_prompt = f"Người dùng chào: '{prompt}'. Hãy trả lời xã giao lịch sự."
     else: full_prompt = f"{SYSTEM_PROMPT_EXPERT}\n\n=== TÀI LIỆU HỖ TRỢ ===\n{context}\n\n=== CÂU HỎI ===\n{prompt}"
     
@@ -277,7 +279,8 @@ def call_gemini_expert_exhaustive(prompt, context):
             try:
                 genai.configure(api_key=key)
                 model = genai.GenerativeModel(model_name)
-                response = model.generate_content(full_prompt, request_options={'timeout': 60})
+                # Dùng biến timeout_val được truyền vào thay vì đóng đinh 1 số
+                response = model.generate_content(full_prompt, request_options={'timeout': timeout_val})
                 return response.text
             except Exception as e:
                 last_error = str(e)
