@@ -393,7 +393,7 @@ with col1:
         st.session_state.suggested_prompt = "Nhà nghỉ 5 tầng cần trang bị phương tiện PCCC gì?"
 with col2:
     if st.button("🚪 Lối thoát nạn QC06"): 
-        st.session_state.suggested_prompt = "Lối thoát nạn được quy định như thế nào?"
+        st.session_state.suggested_prompt = "Quy định về lối thoát nạn như thế nào?"
 with col3:
     if st.button("💰 Xử phạt vi phạm hành chính"): 
         st.session_state.suggested_prompt = "Cơ sở sử dụng người chưa được huấn luyện PCCC bị xử lý như nào?"
@@ -412,6 +412,9 @@ if prompt:
     
     st.session_state.messages.append({"role": "user", "content": prompt})
     st.chat_message("user", avatar="👮‍♂️").write(prompt)
+    
+    # ======== GẮN LẠI LẦN 1: CUỘN XUỐNG KHI USER VỪA GỬI CÂU HỎI ========
+    scroll_to_bottom()
     
     with st.chat_message("assistant", avatar="🔥"):
         with st.spinner("🧠 Đang suy nghĩ, bạn chờ chút, mình trả lời ngay đây..."):
@@ -468,3 +471,6 @@ if prompt:
         
         st.markdown(f'<div class="response-content">{response_text}</div>', unsafe_allow_html=True)
         st.session_state.messages.append({"role": "assistant", "content": response_text})
+        
+    # ======== GẮN LẠI LẦN 2: CUỘN XUỐNG KHI AI TRẢ LỜI XONG ========
+    scroll_to_bottom()
