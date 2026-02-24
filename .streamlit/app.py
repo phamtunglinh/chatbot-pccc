@@ -366,7 +366,30 @@ if "messages" not in st.session_state:
 for m in st.session_state.messages:
     with st.chat_message(m["role"], avatar="👮‍♂️" if m["role"] == "user" else "🔥"): 
         st.markdown(f'<div class="response-content">{m["content"]}</div>', unsafe_allow_html=True)
+        
+# --- TẠO CÁC NÚT CÂU HỎI MẪU ---
+if "suggested_prompt" not in st.session_state:
+    st.session_state.suggested_prompt = None
 
+st.markdown("<p style='font-size: 0.9rem; color: #555;'>💡 <b>Gợi ý tra cứu nhanh:</b></p>", unsafe_allow_html=True)
+col1, col2, col3 = st.columns(3)
+with col1:
+    if st.button("🏢 Cấp nước nhà nghỉ 5 tầng"): st.session_state.suggested_prompt = "Nhà nghỉ 5 tầng cần trang bị phương tiện PCCC gì?"
+with col2:
+    if st.button("🚪 Lối thoát nạn QC06"): st.session_state.suggested_prompt = "Lối thoát nạn được quy định như thế nào?"
+with col3:
+    if st.button("💰 Xử phạt vi phạm hành chính"): st.session_state.suggested_prompt = "Cơ sở sử dụng người chưa được huấn luyện PCCC bị xử lý như nào?"
+with col4:
+    if st.button("🚪 Quy định pháp luật về PCCC và CNCH"): st.session_state.suggested_prompt = "Cơ sở karaoke cao 5 tầng do ai quản lý?"
+
+# --- SỬA LẠI DÒNG NHẬP CHAT ĐỂ NHẬN LỆNH TỪ NÚT BẤM ---
+prompt = st.chat_input("Nhập nội dung cần tra cứu...") or st.session_state.suggested_prompt
+if prompt:
+    st.session_state.suggested_prompt = None # Reset lại nút bấm sau khi gửi
+    
+    # (Đoạn prompt_lower = prompt.lower() và phần phía dưới của anh giữ nguyên không đổi)
+    prompt_lower = prompt.lower()
+    
 if prompt := st.chat_input("Nhập nội dung cần tra cứu..."):
     # Đã bổ sung khai báo prompt_lower tại đây
     prompt_lower = prompt.lower()
