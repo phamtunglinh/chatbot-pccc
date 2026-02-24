@@ -366,13 +366,14 @@ if "messages" not in st.session_state:
 for m in st.session_state.messages:
     with st.chat_message(m["role"], avatar="👮‍♂️" if m["role"] == "user" else "🔥"): 
         st.markdown(f'<div class="response-content">{m["content"]}</div>', unsafe_allow_html=True)
-        
+
 # --- TẠO CÁC NÚT CÂU HỎI MẪU ---
 if "suggested_prompt" not in st.session_state:
     st.session_state.suggested_prompt = None
 
 st.markdown("<p style='font-size: 0.9rem; color: #555;'>💡 <b>Gợi ý tra cứu nhanh:</b></p>", unsafe_allow_html=True)
 
+# Khai báo ĐÚNG 4 CỘT
 col1, col2, col3, col4 = st.columns(4)
 
 with col1:
@@ -388,15 +389,13 @@ with col4:
     if st.button("📋 Quy định pháp luật PCCC"): 
         st.session_state.suggested_prompt = "Cơ sở karaoke cao 5 tầng do ai quản lý?"
 
-# --- NHẬN LỆNH TỪ CHAT HOẶC TỪ NÚT BẤM (CHỈ DÙNG 1 LẦN CHAT_INPUT) ---
+# --- NHẬN LỆNH TỪ CHAT HOẶC TỪ NÚT BẤM ---
+# LƯU Ý: ĐÂY LÀ CHỖ DUY NHẤT CÓ st.chat_input ĐỂ TRÁNH LỖI TRÙNG LẶP
 prompt = st.chat_input("Nhập nội dung cần tra cứu...") or st.session_state.suggested_prompt
 
 if prompt:
     st.session_state.suggested_prompt = None # Reset lại nút bấm sau khi gửi
-    prompt_lower = prompt.lower()
     
-if prompt := st.chat_input("Nhập nội dung cần tra cứu..."):
-    # Đã bổ sung khai báo prompt_lower tại đây
     prompt_lower = prompt.lower()
     
     st.session_state.messages.append({"role": "user", "content": prompt})
@@ -415,14 +414,13 @@ if prompt := st.chat_input("Nhập nội dung cần tra cứu..."):
                 for fname in all_files:
                     if fname in selected_files_str: relevant_context += f"--- VĂN BẢN: {fname} ---\n{database[fname]}\n"
             
-           # Backup Retrieve (BỔ SUNG LOGIC: Cưỡng chế & Xử lý & Phương án)
+            # Backup Retrieve (BỔ SUNG LOGIC: Cưỡng chế & Xử lý & Phương án)
             if not relevant_context:
                 for fname, content in database.items():
                     is_enforcement = ("cưỡng chế" in prompt_lower or "không nộp" in prompt_lower or "chậm nộp" in prompt_lower or "chây ỳ" in prompt_lower)
                     is_penalty = ("phạt" in prompt_lower or "lỗi" in prompt_lower or "xử lý" in prompt_lower)
                     is_military = ("quân đội" in prompt_lower or "chi viện" in prompt_lower)
                     
-                    # TÁCH RIÊNG TỪ KHÓA CHO TỪNG QUY CHUẨN
                     is_tech_06 = any(kw in prompt_lower for kw in ["khoảng cách", "ngăn cháy", "thông gió", "hút khói", "chống cháy lan", "đường lối", "bãi đỗ", "vật liệu", "kích thước", "thoát nạn", "lối vào", "06", "qc06"]) and not is_penalty
                     is_tech_10 = any(kw in prompt_lower for kw in ["trang bị", "lắp đặt", "hệ thống", "10", "qc10"]) and not is_penalty
                     
@@ -437,7 +435,6 @@ if prompt := st.chat_input("Nhập nội dung cần tra cứu..."):
                         relevant_context += "--- " + fname + " ---\n" + content + "\n"
                     elif is_penalty and any(x in fname for x in ["106", "189"]):
                         relevant_context += "--- " + fname + " ---\n" + content + "\n"
-                    # GỌI ĐÍCH DANH FILE QC06 HOẶC QC10 DỰA TRÊN TỪ KHÓA
                     elif is_tech_06 and "06" in fname: 
                         relevant_context += "--- " + fname + " ---\n" + content + "\n"
                     elif is_tech_10 and "10" in fname: 
@@ -446,8 +443,16 @@ if prompt := st.chat_input("Nhập nội dung cần tra cứu..."):
                         relevant_context += "--- " + fname + " ---\n" + content + "\n"
                     elif is_force and "37" in fname:
                         relevant_context += "--- " + fname + " ---\n" + content + "\n"
+
+            # TÍNH TOÁN THỜI GIAN CHỜ THEO LOẠI TÀI LIỆU
+            current_timeout = 60
+            if "06" in prompt_lower or "qcvn" in prompt_lower or "kỹ thuật" in prompt_lower or "lối thoát" in prompt_lower or "thoát nạn" in prompt_lower or "ngăn cháy" in prompt_lower:
+                current_timeout = 180
+            elif "06" in relevant_context.lower() or "qcvn" in relevant_context.lower():
+                current_timeout = 180
+
             # Generate
-            response_text = call_gemini_expert_exhaustive(prompt, relevant_context)
+            response_text = call_gemini_expert_exhaustive(prompt, relevant_context, current_timeout)
         
         st.markdown(f'<div class="response-content">{response_text}</div>', unsafe_allow_html=True)
         st.session_state.messages.append({"role": "assistant", "content": response_text})
