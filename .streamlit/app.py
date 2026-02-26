@@ -8,7 +8,6 @@ from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload
 from docx import Document
 from pypdf import PdfReader
-from PIL import Image
 import io
 
 # --- 1. CẤU HÌNH HỆ THỐNG ---
@@ -16,7 +15,7 @@ st.set_page_config(
     page_title="TRỢ LÝ PCCC CHUYÊN DỤNG",
     page_icon="🔥",
     layout="centered", 
-    initial_sidebar_state="expanded", 
+    initial_sidebar_state="collapsed", 
     menu_items={
         'Get Help': None,
         'Report a bug': None,
@@ -33,7 +32,7 @@ st.markdown("""
     header {visibility: hidden;} /* Ẩn thanh header rỗng ở trên cùng */
     .stDeployButton {display:none;} /* Ẩn nút Deploy */
     [data-testid="stToolbar"] {visibility: hidden;} /* Ẩn toolbar hệ thống */
-    
+    [data-testid="stSidebar"] {display: none;} /* Ẩn sidebar */
     
     /* 2. CĂN CHỈNH LẠI BỐ CỤC CHO ĐẸP */
     /* Đẩy nội dung lên trên cùng vì đã ẩn header */
@@ -276,18 +275,12 @@ VAI TRÒ: Trợ lý AI về PCCC và CNCH - Phòng PC07 Phú Thọ.
    - Quân đội: Căn cứ CV Hướng dẫn phối hợp.
 """
 
-# Đã cập nhật danh sách Model và ép chuẩn định dạng ảnh RGB
-def call_gemini_expert_exhaustive(prompt, context, timeout_val=60, image_obj=None):
-    # Cập nhật tên các model ổn định nhất của Google cho xử lý ảnh
-    TARGET_MODELS = ["gemini-2.0-flash", "gemini-1.5-pro-latest", "gemini-1.5-flash-latest", "gemini-1.5-pro"]
+# Đã bổ sung biến timeout_val vào hàm để nhận lệnh thời gian từ bên dưới
+def call_gemini_expert_exhaustive(prompt, context, timeout_val=60):
+    TARGET_MODELS = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-2.0-flash-exp", "gemini-1.5-pro", "gemini-1.5-flash"]
     
     if not context: full_prompt = f"Người dùng chào: '{prompt}'. Hãy trả lời xã giao lịch sự."
-    else: full_prompt = f"{SYSTEM_PROMPT_EXPERT}\n\n=== TÀI LIỆU HỖ TRỢ ===\n{context}\n\n=== LƯU Ý TỐI QUAN TRỌNG KHI CÓ ẢNH (BỘ LỌC MẮT THẦN) ===\nBƯỚC 1 - NHẬN DIỆN ẢNH: Bắt buộc kiểm tra xem bức ảnh có chứa bản vẽ kỹ thuật, mặt bằng kiến trúc, công trình, lối thoát nạn, thiết bị PCCC, hoặc hiện trường sự cố hay không.\nBƯỚC 2 - TỪ CHỐI (NẾU ẢNH KHÔNG LIÊN QUAN): Nếu người dùng tải lên ảnh chó mèo, đồ ăn, phong cảnh, ảnh selfie người, hoặc các hình ảnh vớ vẩn không thuộc lĩnh vực xây dựng/PCCC... AI BẮT BUỘC chỉ được trả lời: 'Bức ảnh này dường như không liên quan đến nghiệp vụ PCCC & CNCH. Đồng chí vui lòng tải lên bản vẽ thiết kế hoặc ảnh chụp thực tế hiện trường để tôi hỗ trợ phân tích.' -> VÀ DỪNG LẠI NGAY LẬP TỨC, không phân tích gì thêm.\nBƯỚC 3 - PHÂN TÍCH CHUYÊN SÂU (NẾU ẢNH HỢP LỆ): Đóng vai trò Cán bộ Thẩm duyệt/Kiểm tra PC07. Hãy quét bằng mắt để phân tích cụ thể: 1. Chiều mở cửa thoát nạn. 2. Số lượng và vị trí thang bộ. 3. Các hành lang cụt. 4. Bố trí phương tiện (bình chữa cháy, báo cháy). Chỉ ra rõ các điểm vi phạm QCVN 06:2022/BXD và QCVN 10:2025/BCA dựa trên hình học không gian và logic thực tế.\n\n=== CÂU HỎI ===\n{prompt}"
-    
-    payload = [full_prompt]
-    if image_obj:
-        # VŨ KHÍ BÍ MẬT: Ép mọi loại ảnh (PNG trong suốt, v.v.) về chuẩn màu RGB để API không bị nghẹn
-        payload.append(image_obj.convert('RGB'))
+    else: full_prompt = f"{SYSTEM_PROMPT_EXPERT}\n\n=== TÀI LIỆU HỖ TRỢ ===\n{context}\n\n=== CÂU HỎI ===\n{prompt}"
     
     last_error = ""
     for model_name in TARGET_MODELS:
@@ -295,7 +288,8 @@ def call_gemini_expert_exhaustive(prompt, context, timeout_val=60, image_obj=Non
             try:
                 genai.configure(api_key=key)
                 model = genai.GenerativeModel(model_name)
-                response = model.generate_content(payload, request_options={'timeout': timeout_val})
+                # Dùng biến timeout_val được truyền vào thay vì đóng đinh 1 số
+                response = model.generate_content(full_prompt, request_options={'timeout': timeout_val})
                 return response.text
             except Exception as e:
                 last_error = str(e)
@@ -384,16 +378,6 @@ if "messages" not in st.session_state:
 for m in st.session_state.messages:
     with st.chat_message(m["role"], avatar="👮‍♂️" if m["role"] == "user" else "🔥"): 
         st.markdown(f'<div class="response-content">{m["content"]}</div>', unsafe_allow_html=True)
-        
-# --- TẠO THANH BÊN (SIDEBAR) CHO MẮT THẦN ---
-with st.sidebar:
-    st.markdown("### 👁️ MẮT THẦN PCCC")
-    st.write("Tải ảnh bản vẽ mặt bằng hoặc ảnh chụp hiện trường để AI phân tích vi phạm:")
-    uploaded_img = st.file_uploader("Chọn ảnh (JPG, PNG)", type=["jpg", "jpeg", "png"])
-    
-    if uploaded_img:
-        st.success("Đã tải ảnh lên thành công! Hãy đặt câu hỏi ở khung chat bên phải.")
-        st.image(uploaded_img, use_container_width=True)
 
 # --- TẠO CÁC NÚT CÂU HỎI MẪU ---
 if "suggested_prompt" not in st.session_state:
@@ -483,13 +467,7 @@ if prompt:
                 current_timeout = 180
 
             # Generate
-           # Xử lý ảnh nếu có
-            img_to_send = None
-            if uploaded_img:
-                img_to_send = Image.open(uploaded_img)
-
-            # Generate (Truyền thêm ảnh vào)
-            response_text = call_gemini_expert_exhaustive(prompt, relevant_context, current_timeout, image_obj=img_to_send)
+            response_text = call_gemini_expert_exhaustive(prompt, relevant_context, current_timeout)
         
         st.markdown(f'<div class="response-content">{response_text}</div>', unsafe_allow_html=True)
         st.session_state.messages.append({"role": "assistant", "content": response_text})
