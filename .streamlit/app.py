@@ -178,7 +178,7 @@ Bạn là Tham mưu trưởng PCCC. Nhiệm vụ: Chọn tài liệu chính xác
 OUTPUT: Chỉ trả về danh sách tên file có trong kho.
 """
 
-def smart_router(user_query, available_files):
+ smart_router(user_query, available_files):
     file_list_str = ", ".join(available_files)
     prompt = f"""{ROUTER_INSTRUCTION}\n\nDANH SÁCH FILE: {file_list_str}\n\nCÂU HỎI: "{user_query}"\n\nCHỌN TÀI LIỆU:"""
     for key in API_KEYS_LIST:
@@ -276,17 +276,18 @@ VAI TRÒ: Trợ lý AI về PCCC và CNCH - Phòng PC07 Phú Thọ.
    - Quân đội: Căn cứ CV Hướng dẫn phối hợp.
 """
 
-# Đã bổ sung biến image_obj để nhận ảnh
+# Đã cập nhật danh sách Model và ép chuẩn định dạng ảnh RGB
 def call_gemini_expert_exhaustive(prompt, context, timeout_val=60, image_obj=None):
-    TARGET_MODELS = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-2.0-flash-exp", "gemini-1.5-pro", "gemini-1.5-flash"]
+    # Cập nhật tên các model ổn định nhất của Google cho xử lý ảnh
+    TARGET_MODELS = ["gemini-2.0-flash", "gemini-1.5-pro-latest", "gemini-1.5-flash-latest", "gemini-1.5-pro"]
     
     if not context: full_prompt = f"Người dùng chào: '{prompt}'. Hãy trả lời xã giao lịch sự."
     else: full_prompt = f"{SYSTEM_PROMPT_EXPERT}\n\n=== TÀI LIỆU HỖ TRỢ ===\n{context}\n\n=== LƯU Ý TỐI QUAN TRỌNG KHI CÓ ẢNH (BỘ LỌC MẮT THẦN) ===\nBƯỚC 1 - NHẬN DIỆN ẢNH: Bắt buộc kiểm tra xem bức ảnh có chứa bản vẽ kỹ thuật, mặt bằng kiến trúc, công trình, lối thoát nạn, thiết bị PCCC, hoặc hiện trường sự cố hay không.\nBƯỚC 2 - TỪ CHỐI (NẾU ẢNH KHÔNG LIÊN QUAN): Nếu người dùng tải lên ảnh chó mèo, đồ ăn, phong cảnh, ảnh selfie người, hoặc các hình ảnh vớ vẩn không thuộc lĩnh vực xây dựng/PCCC... AI BẮT BUỘC chỉ được trả lời: 'Bức ảnh này dường như không liên quan đến nghiệp vụ PCCC & CNCH. Đồng chí vui lòng tải lên bản vẽ thiết kế hoặc ảnh chụp thực tế hiện trường để tôi hỗ trợ phân tích.' -> VÀ DỪNG LẠI NGAY LẬP TỨC, không phân tích gì thêm.\nBƯỚC 3 - PHÂN TÍCH CHUYÊN SÂU (NẾU ẢNH HỢP LỆ): Đóng vai trò Cán bộ Thẩm duyệt/Kiểm tra PC07. Hãy quét bằng mắt để phân tích cụ thể: 1. Chiều mở cửa thoát nạn. 2. Số lượng và vị trí thang bộ. 3. Các hành lang cụt. 4. Bố trí phương tiện (bình chữa cháy, báo cháy). Chỉ ra rõ các điểm vi phạm QCVN 06:2022/BXD và QCVN 10:2025/BCA dựa trên hình học không gian và logic thực tế.\n\n=== CÂU HỎI ===\n{prompt}"
     
-    # Đóng gói cả Chữ và Ảnh vào chung một chuyến xe gửi cho AI
     payload = [full_prompt]
     if image_obj:
-        payload.append(image_obj)
+        # VŨ KHÍ BÍ MẬT: Ép mọi loại ảnh (PNG trong suốt, v.v.) về chuẩn màu RGB để API không bị nghẹn
+        payload.append(image_obj.convert('RGB'))
     
     last_error = ""
     for model_name in TARGET_MODELS:
@@ -294,7 +295,6 @@ def call_gemini_expert_exhaustive(prompt, context, timeout_val=60, image_obj=Non
             try:
                 genai.configure(api_key=key)
                 model = genai.GenerativeModel(model_name)
-                # Gửi payload (gồm chữ + ảnh) đi
                 response = model.generate_content(payload, request_options={'timeout': timeout_val})
                 return response.text
             except Exception as e:
