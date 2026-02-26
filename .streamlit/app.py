@@ -178,7 +178,7 @@ Bạn là Tham mưu trưởng PCCC. Nhiệm vụ: Chọn tài liệu chính xác
 OUTPUT: Chỉ trả về danh sách tên file có trong kho.
 """
 
- def smart_router(user_query, available_files):
+def smart_router(user_query, available_files):
     file_list_str = ", ".join(available_files)
     prompt = f"""{ROUTER_INSTRUCTION}\n\nDANH SÁCH FILE: {file_list_str}\n\nCÂU HỎI: "{user_query}"\n\nCHỌN TÀI LIỆU:"""
     for key in API_KEYS_LIST:
