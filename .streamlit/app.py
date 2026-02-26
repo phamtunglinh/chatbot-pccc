@@ -16,7 +16,7 @@ st.set_page_config(
     page_title="TRỢ LÝ PCCC CHUYÊN DỤNG",
     page_icon="🔥",
     layout="centered", 
-    initial_sidebar_state="collapsed", 
+    initial_sidebar_state="expanded", 
     menu_items={
         'Get Help': None,
         'Report a bug': None,
