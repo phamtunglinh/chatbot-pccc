@@ -33,7 +33,7 @@ st.markdown("""
     header {visibility: hidden;} /* Ẩn thanh header rỗng ở trên cùng */
     .stDeployButton {display:none;} /* Ẩn nút Deploy */
     [data-testid="stToolbar"] {visibility: hidden;} /* Ẩn toolbar hệ thống */
-    [data-testid="stSidebar"] {display: none;} /* Ẩn sidebar */
+    
     
     /* 2. CĂN CHỈNH LẠI BỐ CỤC CHO ĐẸP */
     /* Đẩy nội dung lên trên cùng vì đã ẩn header */
