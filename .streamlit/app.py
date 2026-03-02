@@ -422,10 +422,24 @@ prompt = st.chat_input("Nhập nội dung cần tra cứu...") or st.session_sta
 if prompt:
     st.session_state.suggested_prompt = None # Reset lại nút bấm sau khi gửi
     
-    prompt_lower = prompt.lower()
-    
+    # 1. Lưu lại và hiển thị đúng nguyên văn chữ viết tắt của người dân lên màn hình
     st.session_state.messages.append({"role": "user", "content": prompt})
     st.chat_message("user", avatar="👮‍♂️").write(prompt)
+    
+    # 2. BỘ LỌC CHUẨN HÓA TỪ VIẾT TẮT (Phiên dịch ngầm cho AI hiểu)
+    prompt_ai = prompt.lower() # Đưa hết về chữ thường để thay thế cho triệt để
+    
+    # Từ điển viết tắt (Anh có thể tự thêm thoải mái vào đây sau này)
+    prompt_ai = prompt_ai.replace("ubnd", "ủy ban nhân dân")
+    prompt_ai = prompt_ai.replace("ủy ban nhân dân xã", "ủy ban nhân dân cấp xã")
+    prompt_ai = prompt_ai.replace("ủy ban nhân dân phường", "ủy ban nhân dân cấp xã")
+    prompt_ai = prompt_ai.replace("ủy ban nhân dân thị trấn", "ủy ban nhân dân cấp xã")
+    prompt_ai = prompt_ai.replace("pccc", "phòng cháy chữa cháy")
+    prompt_ai = prompt_ai.replace("cnch", "cứu nạn cứu hộ")
+    
+    # 3. Gán lại biến để các hệ thống Router và AI ở dưới chỉ làm việc với bản đã dịch
+    prompt = prompt_ai 
+    prompt_lower = prompt_ai
     
     # ======== GẮN LẠI LẦN 1: CUỘN XUỐNG KHI USER VỪA GỬI CÂU HỎI ========
     scroll_to_bottom()
