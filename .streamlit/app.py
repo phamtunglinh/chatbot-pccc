@@ -12,7 +12,7 @@ import io
 
 # --- 1. CẤU HÌNH HỆ THỐNG ---
 st.set_page_config(
-    page_title="TRỢ LÝ PCCC CHUYÊN DỤNG"0,
+    page_title="TRỢ LÝ PCCC CHUYÊN DỤNG",
     page_icon="🔥",
     layout="centered", 
     initial_sidebar_state="collapsed", 
