@@ -443,20 +443,21 @@ if prompt:
                 for fname in all_files:
                     if fname in selected_files_str: relevant_context += f"--- VĂN BẢN: {fname} ---\n{database[fname]}\n"
             
-            # Backup Retrieve (BỔ SUNG LOGIC: Cưỡng chế & Xử lý & Phương án)
+            # Backup Retrieve (BỔ SUNG LOGIC MỞ RỘNG TỪ KHÓA)
             if not relevant_context:
                 for fname, content in database.items():
-                    is_enforcement = ("cưỡng chế" in prompt_lower or "không nộp" in prompt_lower or "chậm nộp" in prompt_lower or "chây ỳ" in prompt_lower)
-                    is_penalty = ("phạt" in prompt_lower or "lỗi" in prompt_lower or "xử lý" in prompt_lower)
-                    is_military = ("quân đội" in prompt_lower or "chi viện" in prompt_lower)
+                    is_enforcement = any(kw in prompt_lower for kw in ["cưỡng chế", "không nộp", "chậm nộp", "chây ỳ"])
+                    is_penalty = any(kw in prompt_lower for kw in ["phạt", "lỗi", "xử lý", "vi phạm", "bị sao"])
+                    is_military = any(kw in prompt_lower for kw in ["quân đội", "chi viện"])
                     
-                    is_tech_06 = any(kw in prompt_lower for kw in ["khoảng cách", "ngăn cháy", "thông gió", "hút khói", "chống cháy lan", "đường lối", "bãi đỗ", "vật liệu", "kích thước", "thoát nạn", "lối vào", "06", "qc06"]) and not is_penalty
-                    is_tech_10 = any(kw in prompt_lower for kw in ["trang bị", "lắp đặt", "hệ thống", "10", "qc10"]) and not is_penalty
+                    is_tech_06 = any(kw in prompt_lower for kw in ["khoảng cách", "ngăn cháy", "thông gió", "hút khói", "chống cháy lan", "đường", "bãi đỗ", "vật liệu", "kích thước", "thoát nạn", "lối", "06", "qc06"]) and not is_penalty
+                    is_tech_10 = any(kw in prompt_lower for kw in ["trang bị", "lắp đặt", "hệ thống", "10", "qc10", "phương tiện", "báo cháy", "chữa cháy"]) and not (is_penalty or "phương án" in prompt_lower)
                     
-                    is_manage = ("trách nhiệm" in prompt_lower or "hồ sơ" in prompt_lower or "quản lý" in prompt_lower or "điều kiện" in prompt_lower or "kiểm tra" in prompt_lower or "phương án" in prompt_lower or "mẫu" in prompt_lower)
+                    # CẬP NHẬT MẠNH MẼ LƯỚI LỌC GIỎ 2 (Bao gồm Đội PCCC, Cơ sở, Bảo hiểm, Báo cáo...)
+                    is_manage = any(kw in prompt_lower for kw in ["trách nhiệm", "hồ sơ", "quản lý", "điều kiện", "kiểm tra", "phương án", "mẫu", "đội", "cơ sở", "bảo hiểm", "báo cáo", "thành lập", "huấn luyện", "nghiệm thu", "thẩm duyệt", "giấy"])
                     
                     # Nếu hỏi phương án/mẫu thì tuyệt đối KHÔNG phải là TT37
-                    is_force = ("lực lượng" in prompt_lower or "chữa cháy" in prompt_lower) and not ("phương án" in prompt_lower or "mẫu" in prompt_lower)
+                    is_force = ("lực lượng" in prompt_lower or "chỉ huy" in prompt_lower) and not ("phương án" in prompt_lower or "mẫu" in prompt_lower)
 
                     if is_enforcement and "296" in fname: 
                         relevant_context += "--- " + fname + " ---\n" + content + "\n"
