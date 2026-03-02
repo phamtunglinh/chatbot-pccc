@@ -156,7 +156,7 @@ DANH SÁCH CÁC GIỎ TÀI LIỆU VÀ BẢN CHẤT CỦA CHÚNG:
    - Hành động: BẮT BUỘC CHỌN [Nghị định 105].
 
 2. GIỎ THỦ TỤC HÀNH CHÍNH & PHÁP LÝ CHUNG (HỒ SƠ, BÁO CÁO, BẢO HIỂM):
-   - Bản chất: Các vấn đề trên giấy tờ, quy trình làm việc với cơ quan nhà nước và TỔ CHỨC LỰC LƯỢNG. Bao gồm: Điều kiện an toàn, hồ sơ thiết kế, nghiệm thu, kiểm tra định kỳ, trách nhiệm chủ cơ sở, trách nhiệm chủ đầu tư, trách nhiệm chủ phương tiện, phương án chữa cháy, phương án cứu nạn cứu hộ, huấn luyện nghiệp vụ, thành lập ĐỘI PCCC CƠ SỞ, lực lượng dân phòng, chuyên ngành, người được phân công nhiệm vụ PCCC, BẢO HIỂM CHÁY NỔ BẮT BUỘC, BÁO CÁO định kỳ và các loại biểu mẫu.
+   - Bản chất: Các vấn đề trên giấy tờ, quy trình làm việc với cơ quan nhà nước. Bao gồm: Điều kiện an toàn, hồ sơ thiết kế, nghiệm thu, kiểm tra định kỳ, trách nhiệm chủ cơ sở, trách nhiệm chủ đầu tư, trách nhiệm chủ phương tiện, phương án chữa cháy, phương án cứu nạn cứu hộ, huấn luyện nghiệp vụ, đội PCCC cơ sở, người được phân công nhiệm vụ PCCC, BẢO HIỂM CHÁY NỔ BẮT BUỘC, BÁO CÁO định kỳ và các loại biểu mẫu.
    - Hành động: BẮT BUỘC CHỌN [Luật PCCC và CNCH], [Nghị định 105], [Thông tư 36].
    - CẤM: Hỏi về "phương án chữa cháy" của CƠ SỞ thì TUYỆT ĐỐI KHÔNG chọn Thông tư 37.
 
@@ -282,18 +282,11 @@ VAI TRÒ: Trợ lý AI về PCCC và CNCH - Phòng PC07 Phú Thọ.
 """
 
 # Đã bổ sung biến timeout_val vào hàm để nhận lệnh thời gian từ bên dưới
-def call_gemini_expert_exhaustive(prompt, context, timeout_val=60, image_obj=None):
-    TARGET_MODELS = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro"]
+def call_gemini_expert_exhaustive(prompt, context, timeout_val=60):
+    TARGET_MODELS = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-2.0-flash-exp", "gemini-1.5-pro", "gemini-1.5-flash"]
     
-    # SỬA LẠI ĐOẠN NÀY: LUÔN LUÔN ÉP KHUNG SYSTEM_PROMPT KỂ CẢ KHI TÀI LIỆU RỖNG
-    if not context: 
-        full_prompt = f"{SYSTEM_PROMPT_EXPERT}\n\n=== TÀI LIỆU HỖ TRỢ ===\n(Hiện tại không tìm thấy tài liệu nào khớp với câu hỏi)\n\n=== CÂU HỎI ===\n{prompt}\n\nLƯU Ý CỐT TỬ: Nếu đây là câu chào hỏi, hãy chào lại. Nếu là câu hỏi nghiệp vụ PCCC, BẮT BUỘC trả lời đúng nguyên văn: 'Xin lỗi đồng chí, tôi chưa tìm thấy quy định cụ thể về vấn đề này trong hệ thống tài liệu hiện tại của PC07 Phú Thọ.' TUYỆT ĐỐI KHÔNG sử dụng kiến thức trên mạng để trả lời."
-    else: 
-        full_prompt = f"{SYSTEM_PROMPT_EXPERT}\n\n=== TÀI LIỆU HỖ TRỢ ===\n{context}\n\n=== LƯU Ý TỐI QUAN TRỌNG KHI CÓ ẢNH (BỘ LỌC MẮT THẦN) ===\nBƯỚC 1 - NHẬN DIỆN ẢNH: Bắt buộc kiểm tra xem bức ảnh có chứa bản vẽ kỹ thuật, mặt bằng kiến trúc, công trình, lối thoát nạn, thiết bị PCCC, hoặc hiện trường sự cố hay không.\nBƯỚC 2 - TỪ CHỐI (NẾU ẢNH KHÔNG LIÊN QUAN): Nếu người dùng tải lên ảnh chó mèo, đồ ăn, phong cảnh, ảnh selfie người, hoặc các hình ảnh vớ vẩn không thuộc lĩnh vực xây dựng/PCCC... AI BẮT BUỘC chỉ được trả lời: 'Bức ảnh này dường như không liên quan đến nghiệp vụ PCCC & CNCH. Đồng chí vui lòng tải lên bản vẽ thiết kế hoặc ảnh chụp thực tế hiện trường để tôi hỗ trợ phân tích.' -> VÀ DỪNG LẠI NGAY LẬP TỨC, không phân tích gì thêm.\nBƯỚC 3 - PHÂN TÍCH CHUYÊN SÂU (NẾU ẢNH HỢP LỆ): Đóng vai trò Cán bộ Thẩm duyệt/Kiểm tra PC07. Hãy quét bằng mắt để phân tích cụ thể: 1. Chiều mở cửa thoát nạn. 2. Số lượng và vị trí thang bộ. 3. Các hành lang cụt. 4. Bố trí phương tiện (bình chữa cháy, báo cháy). Chỉ ra rõ các điểm vi phạm QCVN 06:2022/BXD và QCVN 10:2025/BCA dựa trên hình học không gian và logic thực tế.\n\n=== CÂU HỎI ===\n{prompt}"
-    
-    payload = [full_prompt]
-    if image_obj:
-        payload.append(image_obj.convert('RGB'))
+    if not context: full_prompt = f"Người dùng chào: '{prompt}'. Hãy trả lời xã giao lịch sự."
+    else: full_prompt = f"{SYSTEM_PROMPT_EXPERT}\n\n=== TÀI LIỆU HỖ TRỢ ===\n{context}\n\n=== CÂU HỎI ===\n{prompt}"
     
     last_error = ""
     for model_name in TARGET_MODELS:
@@ -301,7 +294,8 @@ def call_gemini_expert_exhaustive(prompt, context, timeout_val=60, image_obj=Non
             try:
                 genai.configure(api_key=key)
                 model = genai.GenerativeModel(model_name)
-                response = model.generate_content(payload, request_options={'timeout': timeout_val})
+                # Dùng biến timeout_val được truyền vào thay vì đóng đinh 1 số
+                response = model.generate_content(full_prompt, request_options={'timeout': timeout_val})
                 return response.text
             except Exception as e:
                 last_error = str(e)
