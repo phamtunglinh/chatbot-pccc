@@ -282,9 +282,11 @@ VAI TRÒ: Trợ lý AI về PCCC và CNCH - Phòng PC07 Phú Thọ.
 """
 
 # Đã bổ sung biến timeout_val vào hàm để nhận lệnh thời gian từ bên dưới
-def call_gemini_expert_exhaustive(prompt, context, timeout_val=60):
+def call_gemini_expert_exhaustive(prompt, context, timeout_val=60, image_obj=None):
+    # Đã trả lại đầy đủ đội hình Model siêu mạnh theo đúng nguyên bản của Đại úy
     TARGET_MODELS = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-2.0-flash-exp", "gemini-1.5-pro", "gemini-1.5-flash"]
     
+    # LUÔN ÉP KHUNG SYSTEM_PROMPT KỂ CẢ KHI TÀI LIỆU RỖNG (CHỐNG ẢO GIÁC LUẬT CŨ)
     if not context: 
         full_prompt = f"{SYSTEM_PROMPT_EXPERT}\n\n=== TÀI LIỆU HỖ TRỢ ===\n(Hiện tại không tìm thấy tài liệu nào khớp với câu hỏi)\n\n=== CÂU HỎI ===\n{prompt}\n\nLƯU Ý CỐT TỬ: Nếu đây là câu chào hỏi, hãy chào lại. Nếu là câu hỏi nghiệp vụ PCCC, BẮT BUỘC trả lời đúng nguyên văn: 'Xin lỗi đồng chí, tôi chưa tìm thấy quy định cụ thể về vấn đề này trong hệ thống tài liệu hiện tại của PC07 Phú Thọ.' TUYỆT ĐỐI KHÔNG sử dụng kiến thức trên mạng để trả lời."
     else: 
@@ -292,6 +294,7 @@ def call_gemini_expert_exhaustive(prompt, context, timeout_val=60):
     
     payload = [full_prompt]
     if image_obj:
+        # Ép chuẩn màu RGB để API đọc ảnh mượt mà, không báo lỗi
         payload.append(image_obj.convert('RGB'))
     
     last_error = ""
