@@ -465,8 +465,22 @@ if prompt:
                     is_penalty = any(kw in prompt_lower for kw in ["phạt", "lỗi", "xử lý", "vi phạm", "bị sao"])
                     is_military = any(kw in prompt_lower for kw in ["quân đội", "chi viện"])
                     
-                    is_tech_06 = any(kw in prompt_lower for kw in ["khoảng cách", "ngăn cháy", "thông gió", "hút khói", "chống cháy lan", "đường", "bãi đỗ", "vật liệu", "kích thước", "thoát nạn", "lối", "06", "qc06"]) and not is_penalty
-                    is_tech_10 = any(kw in prompt_lower for kw in ["trang bị", "lắp đặt", "hệ thống", "10", "qc10", "phương tiện", "báo cháy", "chữa cháy","đèn chiếu sáng sự cố","chiếu sáng sự cố và chỉ dẫn thoát nạn","bình chữa cháy"]) and not (is_penalty or "phương án" in prompt_lower)
+                    # 1. Lọc QCVN 10 (Ưu tiên các từ khóa về Thiết bị, Bơm, Đèn, Biển báo)
+                    is_tech_10 = any(kw in prompt_lower for kw in [
+                        "trang bị", "lắp đặt", "hệ thống", "10", "qc10", 
+                        "phương tiện", "báo cháy", "chữa cháy", "đèn", "chỉ dẫn", "bình", "bơm", "sprinkler"
+                    ]) and not (is_penalty or "phương án" in prompt_lower)
+                    
+                    # 2. Lọc QCVN 06 (Ưu tiên các từ khóa về Kiến trúc, Hình học, Lối đi)
+                    is_tech_06 = any(kw in prompt_lower for kw in [
+                        "khoảng cách", "ngăn cháy", "thông gió", "hút khói", "chống cháy lan", 
+                        "đường", "bãi đỗ", "vật liệu", "kích thước", "lối", "cầu thang", "hành lang", "cửa", "06", "qc06"
+                    ]) and not is_penalty
+                    
+                    # 3. BỘ PHÂN GIẢI XUNG ĐỘT TỪ KHÓA "THOÁT NẠN":
+                    # Nếu có chữ "thoát nạn" nhưng KHÔNG đi kèm với "đèn" hoặc "chỉ dẫn", thì chắc chắn là hỏi về Lối/Cửa của QCVN 06
+                    if "thoát nạn" in prompt_lower and not any(kw in prompt_lower for kw in ["đèn", "chỉ dẫn"]):
+                        is_tech_06 = True
                     
                     # CẬP NHẬT MẠNH MẼ LƯỚI LỌC GIỎ 2 (Bao gồm Đội PCCC, Cơ sở, Bảo hiểm, Báo cáo...)
                     is_manage = any(kw in prompt_lower for kw in ["trách nhiệm", "hồ sơ", "quản lý", "điều kiện", "kiểm tra", "phương án", "mẫu", "đội", "cơ sở", "bảo hiểm", "báo cáo", "thành lập", "huấn luyện", "nghiệm thu", "thẩm duyệt", "giấy"])
