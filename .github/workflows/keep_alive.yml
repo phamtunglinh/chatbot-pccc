@@ -1,0 +1,26 @@
+name: Keep Streamlit Alive
+
+on:
+  schedule:
+    # Chạy tự động vào lúc 00:00 UTC (tương đương 7h00 sáng giờ Việt Nam) MỖI NGÀY
+    - cron: '0 0 * * *' 
+  workflow_dispatch: # Nút này cho phép anh tự bấm chạy bất cứ lúc nào
+
+jobs:
+  keep-alive:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          pip install selenium webdriver-manager
+
+      - name: Run keep alive script
+        run: python keep_alive.py
