@@ -1,10 +1,9 @@
-name: Keep Streamlit Alive
+name: Keep Streamlit Alive (Ultimate Bypass)
 
 on:
   schedule:
-    # Chạy tự động vào lúc 00:00 UTC (tương đương 7h00 sáng giờ Việt Nam) MỖI NGÀY
     - cron: '0 0 * * *' 
-  workflow_dispatch: # Nút này cho phép anh tự bấm chạy bất cứ lúc nào
+  workflow_dispatch:
 
 jobs:
   keep-alive:
@@ -18,9 +17,12 @@ jobs:
         with:
           python-version: '3.10'
 
-      - name: Install dependencies
+      - name: Cài đặt màn hình ảo (Xvfb) và Thư viện
         run: |
-          pip install selenium webdriver-manager
+          sudo apt-get update
+          sudo apt-get install -y xvfb
+          pip install undetected-chromedriver selenium
 
-      - name: Run keep alive script
-        run: python keep_alive.py
+      - name: Chạy mã đánh thức trên màn hình ảo
+        # Lệnh xvfb-run sẽ bao bọc quá trình chạy python vào trong một màn hình ảo
+        run: xvfb-run --auto-servernum python keep_alive.py
